@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Page - PMLink Admin</h1>
+        <p class="success">✓ HTML está cargando correctamente</p>
+        <p>URL actual: <span id="currentUrl"></span></p>
+        <p>Pathname: <span id="pathname"></span></p>
+        <p>Base URL esperada: /pmlinkadmin/</p>
+        
+        <hr>
+        
+        <h2>Enlaces de prueba:</h2>
+        <ul>
+            <li><a href="/pmlinkadmin/">Inicio (rutas relativas)</a></li>
+            <li><a href="http://localhost:3004/pmlinkadmin/">Inicio (URL completa)</a></li>
+        </ul>
+        
+        <hr>
+        
+        <h2>Prueba de JavaScript:</h2>
+        <div id="jsTest" class="error">JavaScript NO cargado</div>
+    </div>
+    
+    <script>
+        // Mostrar información de la URL
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('pathname').textContent = window.location.pathname;
+        
+        // Confirmar que JS funciona
+        document.getElementById('jsTest').innerHTML = '<span class="success">✓ JavaScript funcionando</span>';
+        
+        console.log('Test page loaded successfully');
+        console.log('Current URL:', window.location.href);
+        console.log('Pathname:', window.location.pathname);
+    </script>
+</body>
+</html>
