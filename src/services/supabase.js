@@ -1,6 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
 
+// Polyfill para structuredClone en React Native
+if (typeof global.structuredClone === 'undefined') {
+  global.structuredClone = (obj) => {
+    if (obj === null || typeof obj !== 'object') return obj;
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch (error) {
+      console.warn('Error in structuredClone polyfill:', error);
+      return obj;
+    }
+  };
+}
+
 // Crear cliente de Supabase
 const supabaseUrl = SUPABASE_URL;
 const supabaseAnonKey = SUPABASE_ANON_KEY;

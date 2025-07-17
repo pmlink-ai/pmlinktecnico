@@ -75,35 +75,85 @@ export default function LoginScreen({ navigation }) {
       }
 
       if (data.user) {
-        // Verificación de rol de usuario
-        const { data: userProfile, error: profileError } = await supabase
-          .from('usuario')
-          .select('rol_id, is_client')
-          .eq('id', data.user.id)
-          .single();
+        // Verificación de usuario y rol basada en el esquema real de la BD
+        console.log('Login exitoso para usuario:', data.user.email);
+        
+        try {
+          // Obtener información del usuario desde la tabla usuario
+          const { data: usuario, error: usuarioError } = await supabase
+            .from('usuario')
+            .select('usuario_id, nombre_usuario, email, es_superadmin, activo')
+            .eq('email', data.user.email)
+            .single();
 
-        if (profileError) {
-          console.error('Error al obtener perfil:', profileError);
-          setError('Error al verificar el perfil de usuario');
+          if (usuarioError) {
+            console.error('Error al obtener información del usuario:', usuarioError);
+            setError('Error al verificar el usuario en el sistema');
+            await supabase.auth.signOut();
+            return;
+          }
+
+          // Verificar si el usuario está activo
+          if (!usuario.activo) {
+            setError('Usuario inactivo. Contacte al administrador');
+            await supabase.auth.signOut();
+            return;
+          }
+
+          // Obtener roles del usuario (relación usuario_local)
+          const { data: userRoles, error: rolesError } = await supabase
+            .from('usuario_local')
+            .select(`
+              rol_id,
+              local_id,
+              rol:rol_id (
+                nombre_rol,
+                descripcion
+              )
+            `)
+            .eq('usuario_id', usuario.usuario_id);
+
+          if (rolesError) {
+            console.warn('Error al obtener roles del usuario:', rolesError);
+            // Permitir acceso si es superadmin
+            if (usuario.es_superadmin) {
+              console.log('Usuario superadmin - acceso permitido');
+            } else {
+              setError('Error al verificar permisos del usuario');
+              await supabase.auth.signOut();
+              return;
+            }
+          } else {
+            // Verificar si el usuario tiene rol de cliente
+            const hasClientRole = userRoles?.some(userRole => 
+              userRole.rol?.nombre_rol?.toLowerCase().includes('cliente')
+            );
+
+            if (!hasClientRole && !usuario.es_superadmin) {
+              setError('Acceso no autorizado para este tipo de usuario');
+              await supabase.auth.signOut();
+              return;
+            }
+          }
+
+          // Actualizar fecha de última conexión
+          await supabase
+            .from('usuario')
+            .update({ fecha_ultima_conexion: new Date().toISOString() })
+            .eq('usuario_id', usuario.usuario_id);
+
+          console.log('Login exitoso - navegando al dashboard');
+          
+        } catch (error) {
+          console.error('Error en verificación de usuario:', error);
+          setError('Error inesperado al verificar usuario');
           await supabase.auth.signOut();
           return;
         }
-
-        // Verificar si el usuario es cliente
-        const isClient = userProfile.is_client === true || userProfile.rol_id === 3; // Asumiendo que rol_id 3 es cliente
-
-        if (!isClient) {
-          setError('Acceso no autorizado para este tipo de usuario');
-          await supabase.auth.signOut();
-          return;
-        }
-
-        // Login exitoso - La navegación se manejará automáticamente por AppNavigator
-        console.log('Login exitoso para usuario cliente');
       }
 
     } catch (error) {
-      console.error('Error inesperado:', error);
+      console.error('Error inesperado:', error?.message || 'Error desconocido');
       setError('Error inesperado. Intenta nuevamente');
     } finally {
       setLoading(false);
@@ -145,12 +195,12 @@ export default function LoginScreen({ navigation }) {
 
           {/* Formulario de Login */}
           <View style={styles.formContainer}>
-            {/* Mensaje de Error */}
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+          {/* Mensaje de Error */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
             {/* Campo de Email */}
             <View style={styles.inputContainer}>
@@ -294,7 +344,7 @@ const styles = StyleSheet.create({
 
   errorContainer: {
     backgroundColor: colors.dangerLight || '#ffebee',
-    borderColor: colors.danger,
+    borderColor: colors.danger || '#dc3545',
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
@@ -302,7 +352,7 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    color: colors.danger,
+    color: colors.danger || '#dc3545',
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
