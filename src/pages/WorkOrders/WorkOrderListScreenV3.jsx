@@ -145,25 +145,16 @@ const WorkOrderListScreenV3 = ({ navigation }) => {
   };
 
   const handleCreateWorkOrder = () => {
-    Alert.alert(
-      'Crear Nueva Orden',
-      'Funcionalidad de creación en desarrollo.\n\n¿Deseas continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'OK', onPress: () => console.log('Navegar a crear OT') }
-      ]
-    );
+    // Navegar a la pantalla de crear nueva orden de trabajo
+    navigation.navigate('CreateWorkOrder');
   };
 
   const handleWorkOrderPress = (workOrder) => {
-    Alert.alert(
-      'Detalles de la Orden',
-      `Número: ${workOrder.numero_ot}\n\nTítulo: ${workOrder.titulo}\n\nEstado: ${workOrder.estado}\n\nPrioridad: ${workOrder.prioridad}\n\nCliente: ${workOrder.cliente}\n\nFecha: ${workOrder.fecha_programada}`,
-      [
-        { text: 'Cerrar', style: 'cancel' },
-        { text: 'Ver Detalles', onPress: () => console.log('Navegar a detalles') }
-      ]
-    );
+    // Navegar a la pantalla de detalles de la orden de trabajo
+    navigation.navigate('WorkOrderDetail', { 
+      orderId: workOrder.id,
+      workOrder: workOrder // Pasamos también el objeto para mostrar mientras carga
+    });
   };
 
   const formatDate = (dateString) => {

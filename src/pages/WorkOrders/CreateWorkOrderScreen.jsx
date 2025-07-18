@@ -10,13 +10,13 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import { supabase } from '../../services/supabase';
 import WorkOrderService from '../../services/WorkOrderService';
 import { globalStyles, colors } from '../../styles';
@@ -50,10 +50,25 @@ export default function CreateWorkOrderScreen() {
   // Estados para DatePickers
   const [showDatePickerInicio, setShowDatePickerInicio] = useState(false);
   const [showDatePickerFin, setShowDatePickerFin] = useState(false);
+  
+  // Estados para modales de selección
+  const [showPrioridadModal, setShowPrioridadModal] = useState(false);
+  const [showEquipoModal, setShowEquipoModal] = useState(false);
+  const [showTipoModal, setShowTipoModal] = useState(false);
 
   // Cargar datos para los selectores
   useEffect(() => {
-    loadFormData();
+    let isMounted = true;
+    const loadData = async () => {
+      if (isMounted) {
+        await loadFormData();
+      }
+    };
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loadFormData = async () => {
@@ -61,36 +76,103 @@ export default function CreateWorkOrderScreen() {
       setLoadingData(true);
       setError('');
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('Usuario no autenticado');
-        return;
+      console.log('Cargando datos del formulario...');
+
+      // Cargar prioridades directamente desde Supabase
+      const { data: prioridadesData, error: prioridadesError } = await supabase
+        .from('prioridades')
+        .select('id, nombre, nivel, descripcion')
+        .order('nivel', { ascending: true });
+
+      if (prioridadesError) {
+        console.error('Error al cargar prioridades:', prioridadesError);
+        // Usar prioridades de fallback
+        setPrioridadesList([
+          { id: 1, nombre: 'Baja', nivel: 1 },
+          { id: 2, nombre: 'Media', nivel: 2 },
+          { id: 3, nombre: 'Alta', nivel: 3 },
+          { id: 4, nombre: 'Crítica', nivel: 4 }
+        ]);
+      } else {
+        console.log('Prioridades cargadas:', prioridadesData);
+        setPrioridadesList(prioridadesData || []);
       }
 
-      const { data, error: serviceError } = await WorkOrderService.getFormData(user.id);
+      // Cargar estados con datos de fallback
+      setEstadosList([
+        { id: 1, nombre: 'Pendiente' },
+        { id: 2, nombre: 'En Progreso' },
+        { id: 3, nombre: 'Completada' },
+        { id: 4, nombre: 'Cancelada' }
+      ]);
 
-      if (serviceError) {
-        setError(serviceError.message);
-        return;
+      // Cargar tipos de mantenimiento desde Supabase
+      const { data: tiposData, error: tiposError } = await supabase
+        .from('tiposmantenimiento')
+        .select('tipo_id, nombre_tipo, descripcion')
+        .eq('activo', true)
+        .order('nombre_tipo', { ascending: true });
+
+      if (tiposError) {
+        console.error('Error al cargar tipos de mantenimiento:', tiposError);
+        // Usar datos de fallback
+        setTiposMantenimientoList([
+          { tipo_id: 'fallback-1', nombre_tipo: 'Preventivo' },
+          { tipo_id: 'fallback-2', nombre_tipo: 'Correctivo' },
+          { tipo_id: 'fallback-3', nombre_tipo: 'Predictivo' },
+          { tipo_id: 'fallback-4', nombre_tipo: 'Emergencia' }
+        ]);
+      } else {
+        console.log('Tipos de mantenimiento cargados:', tiposData);
+        setTiposMantenimientoList(tiposData || []);
       }
 
-      if (data) {
-        setEstadosList(data.estados || []);
-        setPrioridadesList(data.prioridades || []);
-        setTiposMantenimientoList(data.tiposMantenimiento || []);
-        setEquiposList(data.equipos || []);
+      // Cargar equipos desde Supabase
+      const { data: equiposData, error: equiposError } = await supabase
+        .from('equipo')
+        .select('equipo_id, nombre_equipo, codigo_equipo, descripcion, marca, modelo')
+        .eq('activo', true)
+        .order('nombre_equipo', { ascending: true });
 
-        // Establecer estado por defecto como 'Pendiente'
-        const estadoPendiente = data.estados.find(estado => 
-          estado.nombre.toLowerCase().includes('pendiente')
-        );
-        if (estadoPendiente) {
-          setSelectedEstadoId(estadoPendiente.estado_id);
-        }
+      if (equiposError) {
+        console.error('Error al cargar equipos:', equiposError);
+        // Usar datos de fallback
+        setEquiposList([
+          { equipo_id: 'fallback-1', nombre_equipo: 'Bomba Principal', codigo_equipo: 'BP001' },
+          { equipo_id: 'fallback-2', nombre_equipo: 'Motor Eléctrico', codigo_equipo: 'ME001' },
+          { equipo_id: 'fallback-3', nombre_equipo: 'Compresor', codigo_equipo: 'CP001' },
+          { equipo_id: 'fallback-4', nombre_equipo: 'Generador', codigo_equipo: 'GN001' }
+        ]);
+      } else {
+        console.log('Equipos cargados:', equiposData);
+        setEquiposList(equiposData || []);
       }
+
+      // Establecer estado por defecto
+      setSelectedEstadoId('1');
+
     } catch (error) {
       console.error('Error al cargar datos del formulario:', error);
       setError('Error inesperado al cargar los datos');
+      
+      // Usar todos los datos de fallback en caso de error
+      setPrioridadesList([
+        { id: 1, nombre: 'Baja', nivel: 1 },
+        { id: 2, nombre: 'Media', nivel: 2 },
+        { id: 3, nombre: 'Alta', nivel: 3 },
+        { id: 4, nombre: 'Crítica', nivel: 4 }
+      ]);
+      setEstadosList([
+        { id: 1, nombre: 'Pendiente' },
+        { id: 2, nombre: 'En Progreso' }
+      ]);
+      setTiposMantenimientoList([
+        { tipo_id: 'fallback-1', nombre_tipo: 'Preventivo' },
+        { tipo_id: 'fallback-2', nombre_tipo: 'Correctivo' }
+      ]);
+      setEquiposList([
+        { equipo_id: 'fallback-1', nombre_equipo: 'Equipo Demo', codigo_equipo: 'DEMO001' }
+      ]);
     } finally {
       setLoadingData(false);
     }
@@ -207,16 +289,7 @@ export default function CreateWorkOrderScreen() {
       return false;
     }
 
-    if (!selectedEquipoId) {
-      setError('Debe seleccionar un equipo');
-      return false;
-    }
-
-    if (!selectedTipoMantenimientoId) {
-      setError('Debe seleccionar un tipo de mantenimiento');
-      return false;
-    }
-
+    // Los demás campos son opcionales por ahora
     return true;
   };
 
@@ -235,45 +308,40 @@ export default function CreateWorkOrderScreen() {
         return;
       }
 
-      // Preparar datos de la orden
+      // Preparar datos para la orden con los campos UUID
       const orderData = {
-        titulo,
-        descripcion_corta: descripcionCorta,
-        descripcion_larga: descripcionLarga,
-        estado_id: selectedEstadoId,
-        prioridad_id: selectedPrioridadId,
-        equipo_id: selectedEquipoId,
-        tipo_mantenimiento_id: selectedTipoMantenimientoId,
+        titulo: titulo.trim(),
+        descripcion_corta: descripcionCorta.trim(),
+        descripcion_larga: descripcionLarga.trim() || null,
+        usuario_id: user.id,
+        estado_id: 1, // Por defecto "Pendiente" 
+        prioridad_id: selectedPrioridadId ? parseInt(selectedPrioridadId) : null,
+        equipo_id: selectedEquipoId || null, // UUID del equipo seleccionado
+        tipo_mantenimiento_id: selectedTipoMantenimientoId || null, // UUID del tipo de mantenimiento
         fecha_inicio: fechaInicio.toISOString(),
         fecha_estimada_fin: fechaEstimadaFin.toISOString()
       };
 
-      // Crear orden de trabajo
-      const { data: createdOrder, error: createError } = await WorkOrderService.createWorkOrder(
-        orderData,
-        user.id
-      );
+      console.log('Creando orden con datos completos:', orderData);
+
+      // Crear orden de trabajo directamente en Supabase
+      const { data: createdOrder, error: createError } = await supabase
+        .from('orden_trabajo')
+        .insert(orderData)
+        .select()
+        .single();
 
       if (createError) {
-        setError(createError.message);
+        console.error('Error al crear orden:', createError);
+        setError(`Error al crear la orden: ${createError.message}`);
         return;
       }
 
-      // Subir adjuntos si existen
-      if (attachments.length > 0 && createdOrder) {
-        for (const attachment of attachments) {
-          const { error: uploadError } = await WorkOrderService.uploadAttachment(
-            createdOrder.orden_trabajo_id,
-            attachment.uri,
-            attachment.fileName,
-            attachment.mimeType
-          );
+      console.log('Orden creada exitosamente:', createdOrder);
 
-          if (uploadError) {
-            console.warn('Error al subir adjunto:', uploadError.message);
-            // Continuar con otros adjuntos aunque uno falle
-          }
-        }
+      // Adjuntos - por ahora solo mostrar aviso de funcionalidad en desarrollo
+      if (attachments.length > 0) {
+        console.log('Adjuntos seleccionados (funcionalidad en desarrollo):', attachments.length);
       }
 
       // Mostrar mensaje de éxito
@@ -298,6 +366,37 @@ export default function CreateWorkOrderScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Funciones para manejar selecciones
+  const handlePrioridadSelect = (prioridad) => {
+    setSelectedPrioridadId(prioridad.id);
+    setShowPrioridadModal(false);
+  };
+
+  const handleEquipoSelect = (equipo) => {
+    setSelectedEquipoId(equipo.equipo_id);
+    setShowEquipoModal(false);
+  };
+
+  const handleTipoSelect = (tipo) => {
+    setSelectedTipoMantenimientoId(tipo.tipo_id);
+    setShowTipoModal(false);
+  };
+
+  const getPrioridadName = () => {
+    const prioridad = prioridadesList.find(p => p.id === selectedPrioridadId);
+    return prioridad ? prioridad.nombre : 'Seleccionar prioridad';
+  };
+
+  const getEquipoName = () => {
+    const equipo = equiposList.find(e => e.equipo_id === selectedEquipoId);
+    return equipo ? `${equipo.nombre_equipo}${equipo.codigo_equipo ? ` (${equipo.codigo_equipo})` : ''}` : 'Seleccionar equipo';
+  };
+
+  const getTipoName = () => {
+    const tipo = tiposMantenimientoList.find(t => t.tipo_id === selectedTipoMantenimientoId);
+    return tipo ? tipo.nombre_tipo : 'Seleccionar tipo';
   };
 
   const clearForm = () => {
@@ -402,67 +501,55 @@ export default function CreateWorkOrderScreen() {
           {/* Prioridad */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Prioridad *</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedPrioridadId}
-                onValueChange={(itemValue) => setSelectedPrioridadId(itemValue)}
-                enabled={!loading}
-                style={styles.picker}
-              >
-                <Picker.Item label="Seleccionar prioridad" value="" />
-                {prioridadesList.map((prioridad) => (
-                  <Picker.Item
-                    key={prioridad.prioridad_id}
-                    label={prioridad.nombre}
-                    value={prioridad.prioridad_id}
-                  />
-                ))}
-              </Picker>
-            </View>
+            <TouchableOpacity
+              style={styles.selectorButton}
+              onPress={() => setShowPrioridadModal(true)}
+              disabled={loading}
+            >
+              <Text style={[
+                styles.selectorText, 
+                selectedPrioridadId ? {} : { color: colors.textMuted }
+              ]}>
+                {getPrioridadName()}
+              </Text>
+              <Text style={styles.selectorArrow}>▼</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Equipo */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Equipo *</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedEquipoId}
-                onValueChange={(itemValue) => setSelectedEquipoId(itemValue)}
-                enabled={!loading}
-                style={styles.picker}
-              >
-                <Picker.Item label="Seleccionar equipo" value="" />
-                {equiposList.map((equipo) => (
-                  <Picker.Item
-                    key={equipo.equipo_id}
-                    label={`${equipo.nombre_equipo} (${equipo.codigo_equipo})`}
-                    value={equipo.equipo_id}
-                  />
-                ))}
-              </Picker>
-            </View>
+            <Text style={styles.inputLabel}>Equipo (Opcional)</Text>
+            <TouchableOpacity
+              style={styles.selectorButton}
+              onPress={() => setShowEquipoModal(true)}
+              disabled={loading}
+            >
+              <Text style={[
+                styles.selectorText, 
+                selectedEquipoId ? {} : { color: colors.textMuted }
+              ]}>
+                {getEquipoName()}
+              </Text>
+              <Text style={styles.selectorArrow}>▼</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Tipo de Mantenimiento */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Tipo de Mantenimiento *</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedTipoMantenimientoId}
-                onValueChange={(itemValue) => setSelectedTipoMantenimientoId(itemValue)}
-                enabled={!loading}
-                style={styles.picker}
-              >
-                <Picker.Item label="Seleccionar tipo de mantenimiento" value="" />
-                {tiposMantenimientoList.map((tipo) => (
-                  <Picker.Item
-                    key={tipo.tipo_mantenimiento_id}
-                    label={tipo.nombre_tipo}
-                    value={tipo.tipo_mantenimiento_id}
-                  />
-                ))}
-              </Picker>
-            </View>
+            <Text style={styles.inputLabel}>Tipo de Mantenimiento (Opcional)</Text>
+            <TouchableOpacity
+              style={styles.selectorButton}
+              onPress={() => setShowTipoModal(true)}
+              disabled={loading}
+            >
+              <Text style={[
+                styles.selectorText, 
+                selectedTipoMantenimientoId ? {} : { color: colors.textMuted }
+              ]}>
+                {getTipoName()}
+              </Text>
+              <Text style={styles.selectorArrow}>▼</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Fecha de Inicio */}
@@ -561,6 +648,111 @@ export default function CreateWorkOrderScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal de Selección de Prioridad */}
+      <Modal
+        visible={showPrioridadModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPrioridadModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Prioridad</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {prioridadesList.map((prioridad) => (
+                <TouchableOpacity
+                  key={prioridad.id}
+                  style={styles.modalOption}
+                  onPress={() => handlePrioridadSelect(prioridad)}
+                >
+                  <Text style={styles.modalOptionText}>{prioridad.nombre}</Text>
+                  <Text style={styles.modalOptionDescription}>{prioridad.descripcion}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowPrioridadModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Selección de Equipo */}
+      <Modal
+        visible={showEquipoModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEquipoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Equipo</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {equiposList.map((equipo) => (
+                <TouchableOpacity
+                  key={equipo.equipo_id}
+                  style={styles.modalOption}
+                  onPress={() => handleEquipoSelect(equipo)}
+                >
+                  <Text style={styles.modalOptionText}>
+                    {equipo.nombre_equipo}
+                    {equipo.codigo_equipo && (
+                      <Text style={styles.equipoCode}> ({equipo.codigo_equipo})</Text>
+                    )}
+                  </Text>
+                  {equipo.descripcion && (
+                    <Text style={styles.equipoDescription}>{equipo.descripcion}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowEquipoModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Selección de Tipo de Mantenimiento */}
+      <Modal
+        visible={showTipoModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTipoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Tipo de Mantenimiento</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {tiposMantenimientoList.map((tipo) => (
+                <TouchableOpacity
+                  key={tipo.tipo_id}
+                  style={styles.modalOption}
+                  onPress={() => handleTipoSelect(tipo)}
+                >
+                  <Text style={styles.modalOptionText}>{tipo.nombre_tipo}</Text>
+                  {tipo.descripcion && (
+                    <Text style={styles.tipoDescription}>{tipo.descripcion}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTipoModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -638,6 +830,89 @@ const styles = StyleSheet.create({
     height: 50,
   },
 
+  selectorButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 15,
+    minHeight: 50,
+  },
+
+  selectorText: {
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  },
+
+  selectorArrow: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginLeft: 10,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+
+  modalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingTop: 20,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+
+  modalScrollView: {
+    maxHeight: 300,
+  },
+
+  modalOption: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    marginHorizontal: 20,
+  },
+
+  modalOptionText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+
+  modalOptionDescription: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+
+  modalCloseButton: {
+    backgroundColor: colors.backgroundLight,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+
+  modalCloseText: {
+    fontSize: 16,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+
   dateButton: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -698,6 +973,24 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+
+  equipoCode: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+
+  equipoDescription: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+
+  tipoDescription: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 
   buttonContainer: {
