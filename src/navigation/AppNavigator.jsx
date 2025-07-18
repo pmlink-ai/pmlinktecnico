@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { supabase } from '../services/supabase';
 import LoginScreen from '../pages/Auth/LoginScreen';
-import DashboardScreen from '../pages/DashboardScreen';
+import MainTabNavigator from './MainTabNavigator';
 import { colors } from '../styles';
 
 const Stack = createNativeStackNavigator();
@@ -49,8 +49,8 @@ export default function AppNavigator() {
       >
         {session ? (
           <Stack.Screen 
-            name="Dashboard" 
-            component={DashboardScreen}
+            name="MainTabs" 
+            component={MainTabNavigator}
             options={{ headerShown: false }}
           />
         ) : (
