@@ -5,7 +5,7 @@ import { colors } from '../styles';
 
 // Importar las pantallas
 import DashboardScreen from '../pages/DashboardScreen';
-import WorkOrdersScreen from '../pages/WorkOrdersScreen';
+import WorkOrdersScreenV3 from '../pages/WorkOrdersScreenV3';
 
 const Tab = createBottomTabNavigator();
 
@@ -51,7 +51,7 @@ export default function MainTabNavigator() {
       />
       <Tab.Screen
         name="WorkOrders"
-        component={WorkOrdersScreen}
+        component={WorkOrdersScreenV3}
         options={{
           tabBarLabel: 'Órdenes',
           title: 'Órdenes de Trabajo',

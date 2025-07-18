@@ -1,6 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MainTabNavigator from './MainTabNavigator';
+import CreateWorkOrderScreen from '../pages/WorkOrders/CreateWorkOrderScreen';
+import WorkOrderDetailScreen from '../pages/WorkOrders/WorkOrderDetailScreen';
 import { colors } from '../styles';
 
 const Stack = createNativeStackNavigator();
@@ -29,29 +31,28 @@ export default function AppStack() {
         }}
       />
       
-      {/* Aquí se pueden añadir más pantallas del stack principal */}
-      {/* Por ejemplo: */}
-      {/* 
-      <Stack.Screen 
-        name="WorkOrderDetail" 
-        component={WorkOrderDetailScreen}
-        options={{ 
-          headerShown: true,
-          title: 'Detalle de Orden',
-          headerBackTitleVisible: false,
-        }}
-      />
       <Stack.Screen 
         name="CreateWorkOrder" 
         component={CreateWorkOrderScreen}
-        options={{ 
-          headerShown: true,
-          title: 'Nueva Orden',
-          headerBackTitleVisible: false,
+        options={{
+          title: 'Nueva Orden de Trabajo',
+          headerStyle: {
+            backgroundColor: colors.white,
+          },
+          headerTintColor: colors.primary,
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
           presentation: 'modal',
         }}
       />
-      */}
+      <Stack.Screen 
+        name="WorkOrderDetail" 
+        component={WorkOrderDetailScreen}
+        options={{
+          headerShown: false, // Usamos header personalizado en el componente
+        }}
+      />
     </Stack.Navigator>
   );
 }
