@@ -160,10 +160,9 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // Función placeholder para "Olvidé mi contraseña"
+  // Función para navegar a la pantalla de recuperación de contraseña
   const handleForgotPassword = () => {
-    console.log('Forgot password pressed');
-    // Aquí se implementará la navegación a la pantalla de recuperación
+    navigation.navigate('ForgotPassword');
   };
 
   return (

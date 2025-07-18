@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { supabase } from '../services/supabase';
 import LoginScreen from '../pages/Auth/LoginScreen';
+import ForgotPasswordScreen from '../pages/Auth/ForgotPasswordScreen';
 import MainTabNavigator from './MainTabNavigator';
 import { colors } from '../styles';
 
@@ -54,11 +55,28 @@ export default function AppNavigator() {
             options={{ headerShown: false }}
           />
         ) : (
-          <Stack.Screen 
-            name="Login" 
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
+          <>
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="ForgotPassword" 
+              component={ForgotPasswordScreen}
+              options={{ 
+                headerShown: true,
+                title: 'Recuperar Contraseña',
+                headerStyle: {
+                  backgroundColor: colors.white,
+                },
+                headerTintColor: colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                },
+              }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
