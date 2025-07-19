@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MainTabNavigator from './MainTabNavigator';
 import CreateWorkOrderScreen from '../pages/WorkOrders/CreateWorkOrderScreen';
+import EditWorkOrderScreen from '../pages/WorkOrders/EditWorkOrderScreen';
 import WorkOrderDetailScreen from '../pages/WorkOrders/WorkOrderDetailScreen';
 import { colors } from '../styles';
 
@@ -46,6 +47,15 @@ export default function AppStack() {
           presentation: 'modal',
         }}
       />
+      
+      <Stack.Screen 
+        name="EditWorkOrder" 
+        component={EditWorkOrderScreen}
+        options={{
+          headerShown: false, // Usamos header personalizado en el componente
+        }}
+      />
+      
       <Stack.Screen 
         name="WorkOrderDetail" 
         component={WorkOrderDetailScreen}

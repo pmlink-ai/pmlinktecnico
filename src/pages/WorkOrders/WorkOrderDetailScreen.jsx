@@ -49,53 +49,83 @@ export default function WorkOrderDetailScreen() {
 
       console.log('Cargando detalles para orderId:', orderId);
 
-      // Intentar cargar directamente desde Supabase con estructura simplificada
-      const { data, error: supabaseError } = await supabase
+      // Cargar la orden de trabajo básica primero
+      const { data: orderData, error: orderError } = await supabase
         .from('orden_trabajo')
         .select('*')
         .eq('id', orderId)
         .single();
 
-      if (supabaseError) {
-        console.error('Error cargando desde Supabase:', supabaseError);
-        
-        // Si no se puede cargar desde Supabase, usar datos de fallback
-        const fallbackData = route.params?.workOrder || {
-          id: orderId,
-          numero_ot: 'OT-DEMO-001',
-          titulo: 'Orden de Trabajo Demo',
-          descripcion_corta: 'Esta es una orden de trabajo de demostración',
-          descripcion_larga: 'Descripción detallada de la orden de trabajo de demostración. Esta funcionalidad está en desarrollo.',
-          estado: 'pendiente',
-          prioridad: 'media',
-          fecha_programada: new Date().toISOString().split('T')[0],
-          cliente_nombre: 'Cliente Demo',
-          equipo_nombre: 'Equipo Demo'
-        };
-        
-        setWorkOrder(fallbackData);
-        setAttachments([]);
-        
-        // Cargar comentarios de ejemplo
-        await loadComments();
-        
-        console.log('Usando datos de fallback para la orden:', fallbackData);
-      } else {
-        console.log('Datos cargados exitosamente:', data);
-        
-        // Formatear datos para compatibilidad
-        const formattedData = {
-          ...data,
-          cliente_nombre: data.cliente_nombre || 'Cliente no especificado',
-          equipo_nombre: data.equipo_nombre || null
-        };
-        
-        setWorkOrder(formattedData);
-        setAttachments([]);
-        
-        // Cargar comentarios después de cargar la orden
-        await loadComments();
+      if (orderError) {
+        console.error('Error cargando orden desde Supabase:', orderError);
+        throw orderError;
       }
+
+      console.log('Orden básica cargada:', orderData);
+
+      // Cargar información adicional en paralelo
+      const [
+        { data: estadoData },
+        { data: prioridadData },
+        { data: equipoData },
+        { data: tipoData }
+      ] = await Promise.all([
+        // Cargar estado
+        supabase
+          .from('estados_orden_trabajo')
+          .select('id, nombre, descripcion')
+          .eq('id', orderData.estado_id)
+          .single(),
+        
+        // Cargar prioridad
+        supabase
+          .from('prioridades')
+          .select('id, nombre, nivel, descripcion')
+          .eq('id', orderData.prioridad_id)
+          .single(),
+        
+        // Cargar equipo
+        orderData.equipo_id ? supabase
+          .from('equipo')
+          .select('equipo_id, nombre_equipo, codigo_equipo, descripcion, marca, modelo')
+          .eq('equipo_id', orderData.equipo_id)
+          .single() : Promise.resolve({ data: null }),
+        
+        // Cargar tipo de mantenimiento
+        orderData.tipo_mantenimiento_id ? supabase
+          .from('tiposmantenimiento')
+          .select('tipo_id, nombre_tipo, descripcion')
+          .eq('tipo_id', orderData.tipo_mantenimiento_id)
+          .single() : Promise.resolve({ data: null })
+      ]);
+
+      // Combinar todos los datos
+      const data = {
+        ...orderData,
+        estados_orden_trabajo: estadoData,
+        prioridades: prioridadData,
+        equipo: equipoData,
+        tiposmantenimiento: tipoData
+      };
+
+      console.log('Datos cargados exitosamente:', data);
+      
+      // Formatear datos para compatibilidad con información completa
+      const formattedData = {
+        ...data,
+        cliente_nombre: data.cliente_nombre || 'Cliente no especificado',
+        equipo_nombre: data.equipo?.nombre_equipo || 'Equipo no especificado',
+        equipo_codigo: data.equipo?.codigo_equipo || null,
+        estado_nombre: data.estados_orden_trabajo?.nombre || 'Sin estado',
+        prioridad_nombre: data.prioridades?.nombre || 'Sin prioridad',
+        tipo_mantenimiento_nombre: data.tiposmantenimiento?.nombre_tipo || 'Sin tipo'
+      };
+      
+      setWorkOrder(formattedData);
+      setAttachments([]);
+      
+      // Cargar comentarios después de cargar la orden
+      await loadComments();
 
     } catch (error) {
       console.error('Error inesperado al cargar detalles:', error);
@@ -106,8 +136,10 @@ export default function WorkOrderDetailScreen() {
         numero_ot: 'OT-ERROR-001',
         titulo: 'Error al cargar orden',
         descripcion_corta: 'No se pudieron cargar los detalles',
-        estado: 'pendiente',
-        prioridad: 'media'
+        estado_id: 1,
+        estados_orden_trabajo: { nombre: 'Pendiente' },
+        prioridad_id: 2,
+        prioridades: { nombre: 'Media' }
       };
       
       setWorkOrder(fallbackData);
@@ -172,6 +204,14 @@ export default function WorkOrderDetailScreen() {
     } finally {
       setSubmittingComment(false);
     }
+  };
+
+  const handleEditWorkOrder = () => {
+    // Navegar a la pantalla de edición pasando los datos de la orden
+    navigation.navigate('EditWorkOrder', { 
+      workOrder: workOrder,
+      orderId: orderId 
+    });
   };
 
   // Formatear fecha
@@ -489,6 +529,17 @@ export default function WorkOrderDetailScreen() {
           </View>
         </View>
 
+        {/* Botón de Editar */}
+        <View style={styles.editButtonContainer}>
+          <TouchableOpacity
+            style={[globalStyles.button, styles.editButton]}
+            onPress={handleEditWorkOrder}
+          >
+            <Ionicons name="create-outline" size={20} color={colors.white} style={styles.editButtonIcon} />
+            <Text style={globalStyles.buttonText}>Editar Orden de Trabajo</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Espaciado inferior */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -758,6 +809,21 @@ const styles = StyleSheet.create({
 
   buttonLoader: {
     marginLeft: 10,
+  },
+
+  editButtonContainer: {
+    padding: 20,
+  },
+
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondary,
+  },
+
+  editButtonIcon: {
+    marginRight: 8,
   },
 
   bottomSpacing: {
