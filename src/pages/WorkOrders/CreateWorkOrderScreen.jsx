@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../services/supabase';
+import CustomDatePickerIOS from '../../components/CustomDatePickerIOS';
 import WorkOrderService from '../../services/WorkOrderService';
 import { globalStyles, colors } from '../../styles';
 
@@ -260,17 +261,34 @@ export default function CreateWorkOrderScreen() {
   };
 
   const handleDateChangeInicio = (event, selectedDate) => {
-    setShowDatePickerInicio(false);
+    // Para Android, cerrar el picker automáticamente
+    if (Platform.OS === 'android') {
+      setShowDatePickerInicio(false);
+    }
     if (selectedDate) {
       setFechaInicio(selectedDate);
     }
   };
 
   const handleDateChangeFin = (event, selectedDate) => {
-    setShowDatePickerFin(false);
+    // Para Android, cerrar el picker automáticamente
+    if (Platform.OS === 'android') {
+      setShowDatePickerFin(false);
+    }
     if (selectedDate) {
       setFechaEstimadaFin(selectedDate);
     }
+  };
+
+  // Funciones específicas para iOS con CustomDatePicker
+  const handleIOSDateSelectInicio = (selectedDate) => {
+    setFechaInicio(selectedDate);
+    setShowDatePickerInicio(false);
+  };
+
+  const handleIOSDateSelectFin = (selectedDate) => {
+    setFechaEstimadaFin(selectedDate);
+    setShowDatePickerFin(false);
   };
 
   const validateForm = () => {
@@ -564,13 +582,26 @@ export default function CreateWorkOrderScreen() {
                 {fechaInicio.toLocaleDateString()}
               </Text>
             </TouchableOpacity>
-            {showDatePickerInicio && (
-              <DateTimePicker
-                value={fechaInicio}
+            
+            {/* DatePicker para Fecha de Inicio */}
+            {Platform.OS === 'ios' ? (
+              <CustomDatePickerIOS
+                visible={showDatePickerInicio}
+                onClose={() => setShowDatePickerInicio(false)}
+                onSelectDate={handleIOSDateSelectInicio}
+                currentDate={fechaInicio}
+                title="Seleccionar Fecha de Inicio"
                 mode="date"
-                display="default"
-                onChange={handleDateChangeInicio}
               />
+            ) : (
+              showDatePickerInicio && (
+                <DateTimePicker
+                  value={fechaInicio}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChangeInicio}
+                />
+              )
             )}
           </View>
 
@@ -586,13 +617,26 @@ export default function CreateWorkOrderScreen() {
                 {fechaEstimadaFin.toLocaleDateString()}
               </Text>
             </TouchableOpacity>
-            {showDatePickerFin && (
-              <DateTimePicker
-                value={fechaEstimadaFin}
+            
+            {/* DatePicker para Fecha Estimada de Fin */}
+            {Platform.OS === 'ios' ? (
+              <CustomDatePickerIOS
+                visible={showDatePickerFin}
+                onClose={() => setShowDatePickerFin(false)}
+                onSelectDate={handleIOSDateSelectFin}
+                currentDate={fechaEstimadaFin}
+                title="Seleccionar Fecha Estimada de Fin"
                 mode="date"
-                display="default"
-                onChange={handleDateChangeFin}
               />
+            ) : (
+              showDatePickerFin && (
+                <DateTimePicker
+                  value={fechaEstimadaFin}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChangeFin}
+                />
+              )
             )}
           </View>
 

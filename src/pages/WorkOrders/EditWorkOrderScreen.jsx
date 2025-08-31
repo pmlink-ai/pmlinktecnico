@@ -8,7 +8,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -16,6 +17,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
 import { globalStyles, colors } from '../../styles';
+import CustomDatePickerIOS from '../../components/CustomDatePickerIOS';
 
 export default function EditWorkOrderScreen() {
   const navigation = useNavigation();
@@ -182,17 +184,34 @@ export default function EditWorkOrderScreen() {
   };
 
   const handleDateChangeInicio = (event, selectedDate) => {
-    setShowDatePickerInicio(false);
+    // Para Android, cerrar el picker automáticamente
+    if (Platform.OS === 'android') {
+      setShowDatePickerInicio(false);
+    }
     if (selectedDate) {
       setFechaInicio(selectedDate);
     }
   };
 
   const handleDateChangeFin = (event, selectedDate) => {
-    setShowDatePickerFin(false);
+    // Para Android, cerrar el picker automáticamente
+    if (Platform.OS === 'android') {
+      setShowDatePickerFin(false);
+    }
     if (selectedDate) {
       setFechaEstimadaFin(selectedDate);
     }
+  };
+
+  // Funciones específicas para iOS con CustomDatePicker
+  const handleIOSDateSelectInicio = (selectedDate) => {
+    setFechaInicio(selectedDate);
+    setShowDatePickerInicio(false);
+  };
+
+  const handleIOSDateSelectFin = (selectedDate) => {
+    setFechaEstimadaFin(selectedDate);
+    setShowDatePickerFin(false);
   };
 
   const validateForm = () => {
@@ -513,22 +532,48 @@ export default function EditWorkOrderScreen() {
       </ScrollView>
 
       {/* DatePickers */}
-      {showDatePickerInicio && (
-        <DateTimePicker
-          value={fechaInicio}
+      {/* iOS usa CustomDatePickerIOS, Android usa DateTimePicker nativo */}
+      
+      {/* DatePicker para Fecha de Inicio */}
+      {Platform.OS === 'ios' ? (
+        <CustomDatePickerIOS
+          visible={showDatePickerInicio}
+          onClose={() => setShowDatePickerInicio(false)}
+          onSelectDate={handleIOSDateSelectInicio}
+          currentDate={fechaInicio}
+          title="Seleccionar Fecha de Inicio"
           mode="date"
-          display="default"
-          onChange={handleDateChangeInicio}
         />
+      ) : (
+        showDatePickerInicio && (
+          <DateTimePicker
+            value={fechaInicio}
+            mode="date"
+            display="default"
+            onChange={handleDateChangeInicio}
+          />
+        )
       )}
 
-      {showDatePickerFin && (
-        <DateTimePicker
-          value={fechaEstimadaFin}
+      {/* DatePicker para Fecha Estimada de Fin */}
+      {Platform.OS === 'ios' ? (
+        <CustomDatePickerIOS
+          visible={showDatePickerFin}
+          onClose={() => setShowDatePickerFin(false)}
+          onSelectDate={handleIOSDateSelectFin}
+          currentDate={fechaEstimadaFin}
+          title="Seleccionar Fecha Estimada de Fin"
           mode="date"
-          display="default"
-          onChange={handleDateChangeFin}
         />
+      ) : (
+        showDatePickerFin && (
+          <DateTimePicker
+            value={fechaEstimadaFin}
+            mode="date"
+            display="default"
+            onChange={handleDateChangeFin}
+          />
+        )
       )}
 
       {/* Modales de Selección */}

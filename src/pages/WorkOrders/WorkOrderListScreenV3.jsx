@@ -10,6 +10,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { globalStyles, colors } from '../../styles';
 import { supabase } from '../../services/supabase';
@@ -51,9 +52,12 @@ const WorkOrderListScreenV3 = ({ navigation }) => {
     }
   ];
 
-  useEffect(() => {
-    loadWorkOrders();
-  }, []);
+  // Cargar órdenes cada vez que la pantalla obtiene el foco
+  useFocusEffect(
+    React.useCallback(() => {
+      loadWorkOrders();
+    }, [])
+  );
 
   const loadWorkOrders = async () => {
     setLoading(true);
@@ -79,7 +83,7 @@ const WorkOrderListScreenV3 = ({ navigation }) => {
         // Usar datos reales de Supabase con estructura simplificada
         const formattedOrders = data.map(order => ({
           id: order.id || Math.random(),
-          numero_ot: order.numero_ot || 'OT-SIN-NUMERO',
+          numero_ot: order.numero_ot || `OT-${order.id.substring(0, 8).toUpperCase()}`,
           titulo: order.titulo || 'Sin título',
           estado: order.estado || 'pendiente',
           prioridad: order.prioridad || 'media',

@@ -13,7 +13,7 @@ import {
   Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
 import WorkOrderService from '../../services/WorkOrderService';
@@ -37,10 +37,12 @@ export default function WorkOrderDetailScreen() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [error, setError] = useState('');
 
-  // Cargar detalles de la orden
-  useEffect(() => {
-    loadWorkOrderDetails();
-  }, [orderId]);
+  // Cargar detalles de la orden - se ejecuta cada vez que la pantalla obtiene el foco
+  useFocusEffect(
+    React.useCallback(() => {
+      loadWorkOrderDetails();
+    }, [orderId])
+  );
 
   const loadWorkOrderDetails = async () => {
     try {
