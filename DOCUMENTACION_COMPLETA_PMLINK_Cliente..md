@@ -192,16 +192,14 @@ Tipos disponibles:
 ### 4. Gestión de Órdenes de Trabajo
 
 #### Listado de Órdenes (Multiple Versiones)
-- **WorkOrderListScreenSimple:** Versión básica con consultas optimizadas y JOINs
-- **WorkOrderListScreenV3:** Versión avanzada con manejo de errores y consultas completas
-- **Consultas con JOINs:** Obtiene estados, prioridades, equipos y tipos reales de la BD
-- **Estados actualizados:** Refleja estados reales (Pendiente, En Progreso, Completada, etc.)
+- **WorkOrderListScreenSimple:** Versión básica con datos simplificados
+- **WorkOrderListScreenV3:** Versión avanzada con manejo de errores
 - **Pull-to-refresh** para actualización manual
 - **Auto-refresh con useFocusEffect** cuando la pantalla gana foco
 - **Generación automática de números de OT** usando UUID
 - **Formato:** OT-XXXXXXXX (primeros 8 caracteres del UUID)
-- **Estados visuales** con colores diferenciados según estado real
-- **Indicadores de prioridad** con iconografía y niveles de la BD
+- **Estados visuales** con colores diferenciados
+- **Indicadores de prioridad** con iconografía
 
 #### Creación de Órdenes (CreateWorkOrderScreen)
 - **Formulario completo** con validación
@@ -219,14 +217,11 @@ Tipos disponibles:
 - **Manejo de errores robusto**
 
 #### Detalle de Órdenes (WorkOrderDetailScreen)
-- **Consulta optimizada** con JOINs para obtener toda la información relacionada
-- **Vista completa** de información de la orden con datos reales de la BD
-- **Información de equipo, estado, prioridad** con nombres y descripciones reales
-- **Datos de usuario** que creó la orden
+- **Vista completa** de información de la orden
+- **Información de equipo, estado, prioridad**
 - **Navegación a edición**
 - **Auto-refresh** cuando regresa de edición
 - **Botón de edición integrado**
-- **Formateo de datos** para compatibilidad con componentes
 
 ### 5. Selección de Datos
 
@@ -429,9 +424,6 @@ module.exports = function(api) {
 - [x] Sistema de colores y estilos
 - [x] Componente CustomDatePickerIOS reutilizable
 - [x] Lógica específica por plataforma para DatePickers
-- [x] Consultas optimizadas con JOINs para estados reales
-- [x] Sincronización correcta de estados de BD a móvil
-- [x] Funciones de color normalizadas para todos los estados
 
 ### 🔄 En Desarrollo
 - [ ] Sistema de comentarios en órdenes
@@ -469,17 +461,9 @@ module.exports = function(api) {
 **Problema:** useEffect no se disparaba al regresar de pantallas
 **Solución:** useFocusEffect para auto-refresh cuando pantalla gana foco
 
-### 4. Estados No Actualizados en Móvil
-**Problema:** Las órdenes de trabajo no mostraban los estados reales de la base de datos
-**Solución:** Consultas optimizadas con JOINs para obtener datos relacionados actuales
-
-**Implementación:**
-- Consultas con JOINs a `estados_orden_trabajo`, `prioridades`, `equipo`, etc.
-- Filtrado por `activa = true` para mostrar solo órdenes activas
-- Normalización de estados para comparación (minúsculas, trim)
-- Funciones de color actualizadas para reconocer todos los estados posibles
-- Logging mejorado para debug de estados no reconocidos
-- Formateo consistente de datos en todas las pantallas
+### 4. Estados Duplicados en DatePicker
+**Problema:** Funciones de manejo de fecha declaradas múltiples veces
+**Solución:** Eliminación de duplicados y consolidación de funciones
 
 ## 📚 DOCUMENTACIÓN PARA DESARROLLADORES
 

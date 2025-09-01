@@ -66,10 +66,25 @@ const WorkOrderListScreenV3 = ({ navigation }) => {
     try {
       console.log('Intentando cargar órdenes de trabajo desde Supabase...');
       
-      // Intentar cargar desde Supabase con consulta simplificada
+      // Cargar órdenes con JOINs para obtener datos relacionados según el esquema actualizado
       const { data, error } = await supabase
         .from('orden_trabajo')
-        .select('*')
+        .select(`
+          id,
+          titulo,
+          descripcion_corta,
+          estado_id,
+          prioridad_id,
+          equipo_id,
+          tipo_mantenimiento_id,
+          fecha_inicio,
+          fecha_estimada_fin,
+          usuario_id,
+          created_at,
+          updated_at,
+          activa
+        `)
+        .eq('activa', true)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -78,19 +93,67 @@ const WorkOrderListScreenV3 = ({ navigation }) => {
       }
 
       console.log('Órdenes cargadas desde Supabase:', data?.length || 0);
+      console.log('Datos básicos cargados:', data);
       
       if (data && data.length > 0) {
-        // Usar datos reales de Supabase con estructura simplificada
-        const formattedOrders = data.map(order => ({
-          id: order.id || Math.random(),
-          numero_ot: order.numero_ot || `OT-${order.id.substring(0, 8).toUpperCase()}`,
-          titulo: order.titulo || 'Sin título',
-          estado: order.estado || 'pendiente',
-          prioridad: order.prioridad || 'media',
-          fecha_programada: order.fecha_programada || new Date().toISOString().split('T')[0],
-          cliente: order.cliente_nombre || 'Cliente no especificado',
-          equipo: order.equipo_nombre || null
+        // Cargar datos relacionados por separado para evitar problemas de JOIN
+        const formattedOrders = await Promise.all(data.map(async (order) => {
+          // Cargar estado
+          const { data: estadoData } = await supabase
+            .from('estados_orden_trabajo')
+            .select('nombre')
+            .eq('id', order.estado_id)
+            .single();
+
+          // Cargar prioridad
+          const { data: prioridadData } = await supabase
+            .from('prioridades')
+            .select('nombre, nivel')
+            .eq('id', order.prioridad_id)
+            .single();
+
+          // Cargar equipo si existe
+          let equipoData = null;
+          if (order.equipo_id) {
+            const { data } = await supabase
+              .from('equipo')
+              .select('nombre_equipo, codigo_equipo')
+              .eq('equipo_id', order.equipo_id)
+              .single();
+            equipoData = data;
+          }
+
+          // Cargar tipo de mantenimiento si existe
+          let tipoData = null;
+          if (order.tipo_mantenimiento_id) {
+            const { data } = await supabase
+              .from('tiposmantenimiento')
+              .select('nombre_tipo')
+              .eq('tipo_id', order.tipo_mantenimiento_id)
+              .single();
+            tipoData = data;
+          }
+
+          return {
+            id: order.id,
+            numero_ot: `OT-${order.id.substring(0, 8).toUpperCase()}`,
+            titulo: order.titulo || 'Sin título',
+            descripcion_corta: order.descripcion_corta,
+            estado: estadoData?.nombre || 'Sin estado',
+            estado_id: order.estado_id,
+            prioridad: prioridadData?.nombre || 'Sin prioridad',
+            prioridad_nivel: prioridadData?.nivel || 1,
+            fecha_programada: order.fecha_inicio ? new Date(order.fecha_inicio).toISOString().split('T')[0] : null,
+            fecha_estimada_fin: order.fecha_estimada_fin ? new Date(order.fecha_estimada_fin).toISOString().split('T')[0] : null,
+            equipo: equipoData?.nombre_equipo || 'Sin equipo',
+            equipo_codigo: equipoData?.codigo_equipo || null,
+            tipo_mantenimiento: tipoData?.nombre_tipo || 'Sin tipo',
+            created_at: order.created_at,
+            updated_at: order.updated_at
+          };
         }));
+        
+        console.log('Órdenes formateadas:', formattedOrders);
         setWorkOrders(formattedOrders);
       } else {
         // Si no hay datos reales, usar ejemplos
@@ -128,23 +191,55 @@ const WorkOrderListScreenV3 = ({ navigation }) => {
   const getStatusColor = (estado) => {
     if (!estado) return colors.textMuted;
     
-    switch (estado) {
-      case 'pendiente': return colors.warning;
-      case 'en_progreso': return colors.info;
-      case 'completada': return colors.success;
-      case 'cancelada': return colors.error;
-      default: return colors.textMuted;
+    // Normalizar el estado a minúsculas para comparación
+    const estadoNormalizado = estado.toLowerCase().trim();
+    
+    switch (estadoNormalizado) {
+      case 'pendiente':
+      case 'creada':
+      case 'nueva':
+        return colors.warning;
+      case 'en progreso':
+      case 'en_progreso':
+      case 'asignada':
+      case 'iniciada':
+        return colors.info;
+      case 'completada':
+      case 'terminada':
+      case 'finalizada':
+      case 'cerrada':
+        return colors.success;
+      case 'cancelada':
+      case 'anulada':
+      case 'rechazada':
+        return colors.error;
+      case 'pausada':
+      case 'suspendida':
+        return colors.textMuted;
+      default: 
+        console.log('Estado no reconocido:', estado);
+        return colors.textMuted;
     }
   };
 
   const getPriorityColor = (prioridad) => {
     if (!prioridad) return colors.textMuted;
     
-    switch (prioridad) {
-      case 'alta': return colors.error;
-      case 'media': return colors.warning;
-      case 'baja': return colors.success;
-      default: return colors.textMuted;
+    // Normalizar la prioridad para comparación
+    const prioridadNormalizada = prioridad.toLowerCase().trim();
+    
+    switch (prioridadNormalizada) {
+      case 'alta':
+      case 'crítica':
+      case 'urgente':
+        return colors.error;
+      case 'media':
+      case 'normal':
+        return colors.warning;
+      case 'baja':
+        return colors.success;
+      default: 
+        return colors.textMuted;
     }
   };
 

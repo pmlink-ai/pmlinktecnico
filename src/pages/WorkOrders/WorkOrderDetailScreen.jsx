@@ -54,7 +54,22 @@ export default function WorkOrderDetailScreen() {
       // Cargar la orden de trabajo básica primero
       const { data: orderData, error: orderError } = await supabase
         .from('orden_trabajo')
-        .select('*')
+        .select(`
+          id,
+          titulo,
+          descripcion_corta,
+          descripcion_larga,
+          estado_id,
+          prioridad_id,
+          equipo_id,
+          tipo_mantenimiento_id,
+          fecha_inicio,
+          fecha_estimada_fin,
+          fecha_cierre,
+          usuario_id,
+          created_at,
+          updated_at
+        `)
         .eq('id', orderId)
         .single();
 
@@ -65,13 +80,8 @@ export default function WorkOrderDetailScreen() {
 
       console.log('Orden básica cargada:', orderData);
 
-      // Cargar información adicional en paralelo
-      const [
-        { data: estadoData },
-        { data: prioridadData },
-        { data: equipoData },
-        { data: tipoData }
-      ] = await Promise.all([
+      // Cargar datos relacionados por separado
+      const [estadoData, prioridadData, equipoData, tipoData] = await Promise.all([
         // Cargar estado
         supabase
           .from('estados_orden_trabajo')
@@ -80,11 +90,11 @@ export default function WorkOrderDetailScreen() {
           .single(),
         
         // Cargar prioridad
-        supabase
+        orderData.prioridad_id ? supabase
           .from('prioridades')
           .select('id, nombre, nivel, descripcion')
           .eq('id', orderData.prioridad_id)
-          .single(),
+          .single() : Promise.resolve({ data: null }),
         
         // Cargar equipo
         orderData.equipo_id ? supabase
@@ -101,28 +111,27 @@ export default function WorkOrderDetailScreen() {
           .single() : Promise.resolve({ data: null })
       ]);
 
-      // Combinar todos los datos
-      const data = {
+      // Formatear datos para compatibilidad con el componente
+      const formattedData = {
         ...orderData,
-        estados_orden_trabajo: estadoData,
-        prioridades: prioridadData,
-        equipo: equipoData,
-        tiposmantenimiento: tipoData
+        numero_ot: `OT-${orderData.id.substring(0, 8).toUpperCase()}`,
+        estado_nombre: estadoData.data?.nombre || 'Sin estado',
+        prioridad_nombre: prioridadData.data?.nombre || 'Sin prioridad',
+        prioridad_nivel: prioridadData.data?.nivel || 1,
+        equipo_nombre: equipoData.data?.nombre_equipo || 'Sin equipo',
+        equipo_codigo: equipoData.data?.codigo_equipo || null,
+        equipo_descripcion: equipoData.data?.descripcion || null,
+        equipo_marca: equipoData.data?.marca || null,
+        equipo_modelo: equipoData.data?.modelo || null,
+        tipo_mantenimiento_nombre: tipoData.data?.nombre_tipo || 'Sin tipo',
+        tipo_mantenimiento_descripcion: tipoData.data?.descripcion || null,
+        // Mantener referencias para compatibilidad
+        estados_orden_trabajo: estadoData.data,
+        prioridades: prioridadData.data,
+        equipo: equipoData.data,
+        tiposmantenimiento: tipoData.data
       };
 
-      console.log('Datos cargados exitosamente:', data);
-      
-      // Formatear datos para compatibilidad con información completa
-      const formattedData = {
-        ...data,
-        cliente_nombre: data.cliente_nombre || 'Cliente no especificado',
-        equipo_nombre: data.equipo?.nombre_equipo || 'Equipo no especificado',
-        equipo_codigo: data.equipo?.codigo_equipo || null,
-        estado_nombre: data.estados_orden_trabajo?.nombre || 'Sin estado',
-        prioridad_nombre: data.prioridades?.nombre || 'Sin prioridad',
-        tipo_mantenimiento_nombre: data.tiposmantenimiento?.nombre_tipo || 'Sin tipo'
-      };
-      
       setWorkOrder(formattedData);
       setAttachments([]);
       

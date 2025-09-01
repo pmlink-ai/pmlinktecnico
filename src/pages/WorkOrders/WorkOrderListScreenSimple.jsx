@@ -33,16 +33,24 @@ const WorkOrderListScreenSimple = () => {
     try {
       console.log('Cargando órdenes de trabajo desde Supabase...');
       
-      // Cargar órdenes con joins para obtener datos relacionados
+      // Cargar órdenes básicas primero y luego los datos relacionados por separado
       const { data, error } = await supabase
         .from('orden_trabajo')
         .select(`
-          *,
-          estados_orden_trabajo(nombre),
-          prioridades(nombre),
-          equipo(nombre),
-          tiposmantenimiento(nombre)
+          id,
+          titulo,
+          descripcion_corta,
+          estado_id,
+          prioridad_id,
+          equipo_id,
+          tipo_mantenimiento_id,
+          fecha_inicio,
+          fecha_estimada_fin,
+          usuario_id,
+          created_at,
+          activa
         `)
+        .eq('activa', true)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -53,22 +61,62 @@ const WorkOrderListScreenSimple = () => {
       console.log('Órdenes cargadas desde Supabase:', data?.length || 0);
       
       if (data && data.length > 0) {
-        // Formatear datos con el ID UUID como número de OT
-        const formattedOrders = data.map(order => ({
-          id: order.id,
-          // Usar el ID UUID como base para el número de OT, tomando los primeros 8 caracteres
-          numero_ot: order.numero_ot || `OT-${order.id.substring(0, 8).toUpperCase()}`,
-          titulo: order.titulo || 'Sin título',
-          descripcion_corta: order.descripcion_corta,
-          estado: order.estados_orden_trabajo?.nombre || 'Sin estado',
-          prioridad: order.prioridades?.nombre || 'Media',
-          fecha_programada: order.fecha_programada,
-          fecha_estimada_fin: order.fecha_estimada_fin,
-          equipo: order.equipo?.nombre || 'Sin equipo',
-          tipo_mantenimiento: order.tiposmantenimiento?.nombre || 'Sin tipo',
-          ubicacion: order.ubicacion,
-          created_at: order.created_at
+        // Cargar datos relacionados por separado para cada orden
+        const formattedOrders = await Promise.all(data.map(async (order) => {
+          // Cargar estado
+          const { data: estadoData } = await supabase
+            .from('estados_orden_trabajo')
+            .select('nombre')
+            .eq('id', order.estado_id)
+            .single();
+
+          // Cargar prioridad
+          const { data: prioridadData } = await supabase
+            .from('prioridades')
+            .select('nombre, nivel')
+            .eq('id', order.prioridad_id)
+            .single();
+
+          // Cargar equipo si existe
+          let equipoData = null;
+          if (order.equipo_id) {
+            const { data } = await supabase
+              .from('equipo')
+              .select('nombre_equipo, codigo_equipo')
+              .eq('equipo_id', order.equipo_id)
+              .single();
+            equipoData = data;
+          }
+
+          // Cargar tipo de mantenimiento si existe
+          let tipoData = null;
+          if (order.tipo_mantenimiento_id) {
+            const { data } = await supabase
+              .from('tiposmantenimiento')
+              .select('nombre_tipo')
+              .eq('tipo_id', order.tipo_mantenimiento_id)
+              .single();
+            tipoData = data;
+          }
+
+          return {
+            id: order.id,
+            numero_ot: `OT-${order.id.substring(0, 8).toUpperCase()}`,
+            titulo: order.titulo || 'Sin título',
+            descripcion_corta: order.descripcion_corta,
+            estado: estadoData?.nombre || 'Sin estado',
+            estado_id: order.estado_id,
+            prioridad: prioridadData?.nombre || 'Sin prioridad',
+            prioridad_nivel: prioridadData?.nivel || 1,
+            fecha_programada: order.fecha_inicio,
+            fecha_estimada_fin: order.fecha_estimada_fin,
+            equipo: equipoData?.nombre_equipo || 'Sin equipo',
+            equipo_codigo: equipoData?.codigo_equipo || null,
+            tipo_mantenimiento: tipoData?.nombre_tipo || 'Sin tipo',
+            created_at: order.created_at
+          };
         }));
+        
         setWorkOrders(formattedOrders);
       } else {
         setWorkOrders([]);
@@ -98,23 +146,55 @@ const WorkOrderListScreenSimple = () => {
   const getStatusColor = (estado) => {
     if (!estado) return colors.textMuted;
     
-    switch (estado.toLowerCase()) {
-      case 'pendiente': return colors.warning;
-      case 'en progreso': return colors.info;
-      case 'completada': return colors.success;
-      case 'cancelada': return colors.danger;
-      default: return colors.textMuted;
+    // Normalizar el estado a minúsculas para comparación
+    const estadoNormalizado = estado.toLowerCase().trim();
+    
+    switch (estadoNormalizado) {
+      case 'pendiente':
+      case 'creada':
+      case 'nueva':
+        return colors.warning;
+      case 'en progreso':
+      case 'en_progreso':
+      case 'asignada':
+      case 'iniciada':
+        return colors.info;
+      case 'completada':
+      case 'terminada':
+      case 'finalizada':
+      case 'cerrada':
+        return colors.success;
+      case 'cancelada':
+      case 'anulada':
+      case 'rechazada':
+        return colors.danger;
+      case 'pausada':
+      case 'suspendida':
+        return colors.textMuted;
+      default: 
+        console.log('Estado no reconocido:', estado);
+        return colors.textMuted;
     }
   };
 
   const getPriorityColor = (prioridad) => {
     if (!prioridad) return colors.textMuted;
     
-    switch (prioridad.toLowerCase()) {
-      case 'alta': return colors.danger;
-      case 'media': return colors.warning;
-      case 'baja': return colors.success;
-      default: return colors.textMuted;
+    // Normalizar la prioridad para comparación
+    const prioridadNormalizada = prioridad.toLowerCase().trim();
+    
+    switch (prioridadNormalizada) {
+      case 'alta':
+      case 'crítica':
+      case 'urgente':
+        return colors.danger;
+      case 'media':
+      case 'normal':
+        return colors.warning;
+      case 'baja':
+        return colors.success;
+      default: 
+        return colors.textMuted;
     }
   };
 
