@@ -130,6 +130,14 @@ export default function DashboardScreen({ navigation }) {
     navigation.navigate('WorkOrders');
   };
 
+  const handleNavigateToEquipment = () => {
+    navigation.navigate('Equipment');
+  };
+
+  const handleNavigateToServices = () => {
+    navigation.navigate('Services');
+  };
+
   // Función para obtener el nombre completo del usuario
   const getDisplayName = () => {
     if (!userInfo) return 'Usuario';
@@ -269,17 +277,33 @@ export default function DashboardScreen({ navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionCard, styles.disabledCard]}
-              disabled={true}
+              style={styles.actionCard}
+              onPress={handleNavigateToEquipment}
               activeOpacity={0.7}
             >
               <View style={styles.actionIcon}>
                 <Text style={styles.actionIconText}>⚙️</Text>
               </View>
               <View style={styles.actionContent}>
-                <Text style={[styles.actionTitle, styles.disabledText]}>Equipos</Text>
-                <Text style={[styles.actionDescription, styles.disabledText]}>
-                  Listado de equipos (Próximamente)
+                <Text style={styles.actionTitle}>Equipos</Text>
+                <Text style={styles.actionDescription}>
+                  Visualizar información de equipos
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={handleNavigateToServices}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionIcon}>
+                <Text style={styles.actionIconText}>🔧</Text>
+              </View>
+              <View style={styles.actionContent}>
+                <Text style={styles.actionTitle}>Servicios</Text>
+                <Text style={styles.actionDescription}>
+                  Gestionar servicios y mantenimiento
                 </Text>
               </View>
             </TouchableOpacity>

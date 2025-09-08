@@ -6,6 +6,8 @@ import { colors } from '../styles';
 // Importar las pantallas
 import DashboardScreen from '../pages/DashboardScreen';
 import WorkOrdersScreenV3 from '../pages/WorkOrdersScreenV3';
+import EquipmentListScreen from '../pages/Equipment/EquipmentListScreen';
+import ServiceListScreen from '../pages/Services/ServiceListScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -20,6 +22,10 @@ export default function MainTabNavigator() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'WorkOrders') {
             iconName = focused ? 'clipboard' : 'clipboard-outline';
+          } else if (route.name === 'Equipment') {
+            iconName = focused ? 'construct' : 'construct-outline';
+          } else if (route.name === 'Services') {
+            iconName = focused ? 'settings' : 'settings-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -55,6 +61,22 @@ export default function MainTabNavigator() {
         options={{
           tabBarLabel: 'Órdenes',
           title: 'Órdenes de Trabajo',
+        }}
+      />
+      <Tab.Screen
+        name="Equipment"
+        component={EquipmentListScreen}
+        options={{
+          tabBarLabel: 'Equipos',
+          title: 'Equipos',
+        }}
+      />
+      <Tab.Screen
+        name="Services"
+        component={ServiceListScreen}
+        options={{
+          tabBarLabel: 'Servicios',
+          title: 'Servicios',
         }}
       />
     </Tab.Navigator>
