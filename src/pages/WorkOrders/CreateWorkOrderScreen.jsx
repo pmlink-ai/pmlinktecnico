@@ -32,6 +32,7 @@ export default function CreateWorkOrderScreen() {
   const [selectedEstadoId, setSelectedEstadoId] = useState('');
   const [selectedPrioridadId, setSelectedPrioridadId] = useState('');
   const [selectedEquipoId, setSelectedEquipoId] = useState('');
+  const [selectedServicioId, setSelectedServicioId] = useState('');
   const [selectedTipoMantenimientoId, setSelectedTipoMantenimientoId] = useState('');
   const [fechaInicio, setFechaInicio] = useState(new Date());
   const [fechaEstimadaFin, setFechaEstimadaFin] = useState(new Date());
@@ -47,6 +48,7 @@ export default function CreateWorkOrderScreen() {
   const [prioridadesList, setPrioridadesList] = useState([]);
   const [tiposMantenimientoList, setTiposMantenimientoList] = useState([]);
   const [equiposList, setEquiposList] = useState([]);
+  const [serviciosList, setServiciosList] = useState([]);
 
   // Estados para DatePickers
   const [showDatePickerInicio, setShowDatePickerInicio] = useState(false);
@@ -55,6 +57,7 @@ export default function CreateWorkOrderScreen() {
   // Estados para modales de selección
   const [showPrioridadModal, setShowPrioridadModal] = useState(false);
   const [showEquipoModal, setShowEquipoModal] = useState(false);
+  const [showServicioModal, setShowServicioModal] = useState(false);
   const [showTipoModal, setShowTipoModal] = useState(false);
 
   // Cargar datos para los selectores
@@ -149,6 +152,26 @@ export default function CreateWorkOrderScreen() {
         setEquiposList(equiposData || []);
       }
 
+      // Cargar servicios desde Supabase
+      const { data: serviciosData, error: serviciosError } = await supabase
+        .from('servicios')
+        .select('servicio_id, nombre_servicio, local_id, descripcion')
+        .eq('activo', true)
+        .order('nombre_servicio', { ascending: true });
+
+      if (serviciosError) {
+        console.error('Error al cargar servicios:', serviciosError);
+        // Usar datos de fallback
+        setServiciosList([
+          { servicio_id: 'fallback-serv-1', nombre_servicio: 'Servicio de Limpieza', local_id: 'fallback-serv-1' },
+          { servicio_id: 'fallback-serv-2', nombre_servicio: 'Servicio de Seguridad', local_id: 'fallback-serv-2' },
+          { servicio_id: 'fallback-serv-3', nombre_servicio: 'Servicio de Jardinería', local_id: 'fallback-serv-3' }
+        ]);
+      } else {
+        console.log('Servicios cargados:', serviciosData);
+        setServiciosList(serviciosData || []);
+      }
+
       // Establecer estado por defecto
       setSelectedEstadoId('1');
 
@@ -173,6 +196,9 @@ export default function CreateWorkOrderScreen() {
       ]);
       setEquiposList([
         { equipo_id: 'fallback-1', nombre_equipo: 'Equipo Demo', codigo_equipo: 'DEMO001' }
+      ]);
+      setServiciosList([
+        { servicio_id: 'fallback-1', nombre_servicio: 'Servicio Demo', local_id: 'LOC001' }
       ]);
     } finally {
       setLoadingData(false);
@@ -335,6 +361,7 @@ export default function CreateWorkOrderScreen() {
         estado_id: 1, // Por defecto "Pendiente" 
         prioridad_id: selectedPrioridadId ? parseInt(selectedPrioridadId) : null,
         equipo_id: selectedEquipoId || null, // UUID del equipo seleccionado
+        servicio_id: selectedServicioId || null, // UUID del servicio seleccionado
         tipo_mantenimiento_id: selectedTipoMantenimientoId || null, // UUID del tipo de mantenimiento
         fecha_inicio: fechaInicio.toISOString(),
         fecha_estimada_fin: fechaEstimadaFin.toISOString()
@@ -394,7 +421,14 @@ export default function CreateWorkOrderScreen() {
 
   const handleEquipoSelect = (equipo) => {
     setSelectedEquipoId(equipo.equipo_id);
+    setSelectedServicioId(''); // Limpiar servicio al seleccionar equipo
     setShowEquipoModal(false);
+  };
+
+  const handleServicioSelect = (servicio) => {
+    setSelectedServicioId(servicio.servicio_id);
+    setSelectedEquipoId(''); // Limpiar equipo al seleccionar servicio
+    setShowServicioModal(false);
   };
 
   const handleTipoSelect = (tipo) => {
@@ -412,6 +446,11 @@ export default function CreateWorkOrderScreen() {
     return equipo ? `${equipo.nombre_equipo}${equipo.codigo_equipo ? ` (${equipo.codigo_equipo})` : ''}` : 'Seleccionar equipo';
   };
 
+  const getServicioName = () => {
+    const servicio = serviciosList.find(s => s.servicio_id === selectedServicioId);
+    return servicio ? servicio.nombre_servicio : 'Seleccionar servicio';
+  };
+
   const getTipoName = () => {
     const tipo = tiposMantenimientoList.find(t => t.tipo_id === selectedTipoMantenimientoId);
     return tipo ? tipo.nombre_tipo : 'Seleccionar tipo';
@@ -423,6 +462,7 @@ export default function CreateWorkOrderScreen() {
     setDescripcionLarga('');
     setSelectedPrioridadId('');
     setSelectedEquipoId('');
+    setSelectedServicioId('');
     setSelectedTipoMantenimientoId('');
     setFechaInicio(new Date());
     setFechaEstimadaFin(new Date());
@@ -547,6 +587,24 @@ export default function CreateWorkOrderScreen() {
                 selectedEquipoId ? {} : { color: colors.textMuted }
               ]}>
                 {getEquipoName()}
+              </Text>
+              <Text style={styles.selectorArrow}>▼</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Servicio */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Servicio (Opcional)</Text>
+            <TouchableOpacity
+              style={styles.selectorButton}
+              onPress={() => setShowServicioModal(true)}
+              disabled={loading}
+            >
+              <Text style={[
+                styles.selectorText, 
+                selectedServicioId ? {} : { color: colors.textMuted }
+              ]}>
+                {getServicioName()}
               </Text>
               <Text style={styles.selectorArrow}>▼</Text>
             </TouchableOpacity>
@@ -757,6 +815,42 @@ export default function CreateWorkOrderScreen() {
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowEquipoModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Selección de Servicio */}
+      <Modal
+        visible={showServicioModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowServicioModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Servicio</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {serviciosList.map((servicio) => (
+                <TouchableOpacity
+                  key={servicio.servicio_id}
+                  style={styles.modalOption}
+                  onPress={() => handleServicioSelect(servicio)}
+                >
+                  <Text style={styles.modalOptionText}>
+                    {servicio.nombre_servicio}
+                  </Text>
+                  {servicio.descripcion && (
+                    <Text style={styles.equipoDescription}>{servicio.descripcion}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowServicioModal(false)}
             >
               <Text style={styles.modalCloseText}>Cancelar</Text>
             </TouchableOpacity>

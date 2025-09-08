@@ -62,6 +62,7 @@ export default function WorkOrderDetailScreen() {
           estado_id,
           prioridad_id,
           equipo_id,
+          servicio_id,
           tipo_mantenimiento_id,
           fecha_inicio,
           fecha_estimada_fin,
@@ -81,7 +82,7 @@ export default function WorkOrderDetailScreen() {
       console.log('Orden básica cargada:', orderData);
 
       // Cargar datos relacionados por separado
-      const [estadoData, prioridadData, equipoData, tipoData] = await Promise.all([
+      const [estadoData, prioridadData, equipoData, servicioData, tipoData] = await Promise.all([
         // Cargar estado
         supabase
           .from('estados_orden_trabajo')
@@ -101,6 +102,13 @@ export default function WorkOrderDetailScreen() {
           .from('equipo')
           .select('equipo_id, nombre_equipo, codigo_equipo, descripcion, marca, modelo')
           .eq('equipo_id', orderData.equipo_id)
+          .single() : Promise.resolve({ data: null }),
+        
+        // Cargar servicio
+        orderData.servicio_id ? supabase
+          .from('servicios')
+          .select('servicio_id, local_id, nombre_servicio, descripcion')
+          .eq('servicio_id', orderData.servicio_id)
           .single() : Promise.resolve({ data: null }),
         
         // Cargar tipo de mantenimiento
@@ -123,12 +131,15 @@ export default function WorkOrderDetailScreen() {
         equipo_descripcion: equipoData.data?.descripcion || null,
         equipo_marca: equipoData.data?.marca || null,
         equipo_modelo: equipoData.data?.modelo || null,
+        servicio_nombre: servicioData.data?.nombre_servicio || 'Sin servicio',
+        servicio_descripcion: servicioData.data?.descripcion || null,
         tipo_mantenimiento_nombre: tipoData.data?.nombre_tipo || 'Sin tipo',
         tipo_mantenimiento_descripcion: tipoData.data?.descripcion || null,
         // Mantener referencias para compatibilidad
         estados_orden_trabajo: estadoData.data,
         prioridades: prioridadData.data,
         equipo: equipoData.data,
+        servicio: servicioData.data,
         tiposmantenimiento: tipoData.data
       };
 
@@ -435,6 +446,12 @@ export default function WorkOrderDetailScreen() {
             icon="construct-outline"
             label="Equipo"
             value={workOrder.equipo ? `${workOrder.equipo.nombre_equipo} (${workOrder.equipo.codigo_equipo})` : null}
+          />
+          
+          <DetailRow
+            icon="settings-outline"
+            label="Servicio"
+            value={workOrder.servicio_nombre !== 'Sin servicio' ? workOrder.servicio_nombre : null}
           />
           
           <DetailRow
