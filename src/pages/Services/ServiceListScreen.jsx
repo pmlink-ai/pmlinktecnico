@@ -126,9 +126,7 @@ const ServiceListScreen = () => {
         <View style={styles.serviceHeader}>
           <View style={styles.serviceInfo}>
             <Text style={styles.serviceName}>{item.nombre_servicio}</Text>
-            {item.local_id && (
-              <Text style={styles.serviceLocation}>Local: {item.local_id}</Text>
-            )}
+            <Text style={styles.serviceLocation}>Local ID: {item.local_id}</Text>
           </View>
           <View style={styles.serviceActions}>
             {item.qr_code_url && (

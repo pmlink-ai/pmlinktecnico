@@ -193,9 +193,7 @@ const ServiceDetailScreen = () => {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.serviceName}>{service.nombre_servicio}</Text>
-            {service.local_id && (
-              <Text style={styles.serviceLocation}>Local: {service.local_id}</Text>
-            )}
+            <Text style={styles.serviceLocation}>Local ID: {service.local_id}</Text>
           </View>
           
           <View style={styles.statusBadge}>
@@ -214,7 +212,7 @@ const ServiceDetailScreen = () => {
         {renderSection('Información General', (
           <View>
             {renderDetailRow('ID del Servicio', service.servicio_id, 'finger-print')}
-            {service.local_id && renderDetailRow('ID del Local', service.local_id, 'business')}
+            {renderDetailRow('ID del Local', service.local_id, 'business')}
             {service.descripcion && renderDetailRow('Descripción', service.descripcion, 'document-text')}
             {renderDetailRow('Estado', service.activo ? 'Activo' : 'Inactivo', 'checkmark-circle')}
           </View>
