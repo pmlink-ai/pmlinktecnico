@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMLink CMMS - Sistema de Técnicos</title>
+    
+    <!-- React y React DOM desde CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Supabase desde CDN -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- Estilos básicos -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .form-title {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .form-section h3 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-actions {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #7f8c8d;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        .order-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .order-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .order-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .order-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .no-form {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://mwtdoidrjuahsejfctlm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13dGRvaWRyanVhaHNlamZjdGxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1NTczNDQsImV4cCI6MjA2NjEzMzM0NH0.QtKVhvZiY-ehpJlRMusUsjS6V7ZbyHtpMnvr60x9xEM';
+        
+        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Componentes Reutilizables
+        function FormSection({ title, children }) {
+            return React.createElement('div', { className: 'form-section' },
+                React.createElement('h3', null, title),
+                children
+            );
+        }
+
+        function FormInput({ label, value, onChange, type = 'text', placeholder }) {
+            return React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, label),
+                React.createElement('input', {
+                    type: type,
+                    value: value,
+                    onChange: (e) => onChange(e.target.value),
+                    placeholder: placeholder
+                })
+            );
+        }
+
+        function FormTextarea({ label, value, onChange, placeholder }) {
+            return React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, label),
+                React.createElement('textarea', {
+                    value: value,
+                    onChange: (e) => onChange(e.target.value),
+                    placeholder: placeholder
+                })
+            );
+        }
+
+        // Componente ANSUL R-102 Form
+        function AnsulR102Form({ order, onSaveSuccess }) {
+            const [formData, setFormData] = React.useState({
+                inspeccion_visual_montaje: '',
+                estado_cartuchos_gas: '',
+                estado_canerias_distribucion: '',
+                estado_montaje_conductos: '',
+                prueba_fuga_caneria: '',
+                prueba_soplado_canerias: '',
+                revision_agente: '',
+                estado_cilindro_agente: '',
+                estado_disco_ruptura: '',
+                cantidad_estado_boquillas: '',
+                tipo_tapones_boquillas: '',
+                estado_piola_acero: '',
+                verificacion_automan_gas: '',
+                verificacion_senal_alarma: '',
+                observaciones_generales: ''
+            });
+
+            const [isSaving, setIsSaving] = React.useState(false);
+
+            const handleInputChange = (field, value) => {
+                setFormData(prev => ({ ...prev, [field]: value }));
+            };
+
+            const handleSave = async () => {
+                setIsSaving(true);
+                try {
+                    const dataToSave = { ...formData, orden_trabajo_id: order.id };
+                    const { data, error } = await sbClient
+                        .from('informe_ansul_r102')
+                        .insert([dataToSave]);
+
+                    if (error) throw error;
+                    alert('¡Informe ANSUL R-102 guardado con éxito!');
+                    onSaveSuccess();
+                } catch (error) {
+                    console.error('Error al guardar informe ANSUL R-102:', error);
+                    alert('Error al guardar el informe: ' + error.message);
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
+            return React.createElement('div', { className: 'form-container' },
+                React.createElement('h2', { className: 'form-title' }, 'Informe Semestral ANSUL R-102'),
+                
+                React.createElement(FormSection, { title: 'Diagnóstico General' },
+                    React.createElement(FormInput, {
+                        label: 'Inspección Visual del Montaje',
+                        value: formData.inspeccion_visual_montaje,
+                        onChange: (value) => handleInputChange('inspeccion_visual_montaje', value),
+                        placeholder: 'Sistema montado correctamente'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Estado de Cartuchos de Gas',
+                        value: formData.estado_cartuchos_gas,
+                        onChange: (value) => handleInputChange('estado_cartuchos_gas', value),
+                        placeholder: 'Cartuchos en buen estado, sin fugas'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Estado de Cañerías de Distribución',
+                        value: formData.estado_canerias_distribucion,
+                        onChange: (value) => handleInputChange('estado_canerias_distribucion', value),
+                        placeholder: 'Cañerías sin obstrucciones ni daños'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Estado de Montaje de Conductos',
+                        value: formData.estado_montaje_conductos,
+                        onChange: (value) => handleInputChange('estado_montaje_conductos', value),
+                        placeholder: 'Conductos bien fijados y sellados'
+                    })
+                ),
+
+                React.createElement(FormSection, { title: 'Pruebas del Sistema' },
+                    React.createElement(FormInput, {
+                        label: 'Prueba de Fuga en Cañería',
+                        value: formData.prueba_fuga_caneria,
+                        onChange: (value) => handleInputChange('prueba_fuga_caneria', value),
+                        placeholder: 'Sin fugas detectadas en el sistema'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Prueba de Soplado de Cañerías',
+                        value: formData.prueba_soplado_canerias,
+                        onChange: (value) => handleInputChange('prueba_soplado_canerias', value),
+                        placeholder: 'Flujo de aire correcto en todas las líneas'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Revisión del Agente',
+                        value: formData.revision_agente,
+                        onChange: (value) => handleInputChange('revision_agente', value),
+                        placeholder: 'Agente extintor en condiciones óptimas'
+                    })
+                ),
+
+                React.createElement(FormSection, { title: 'Componentes del Sistema' },
+                    React.createElement(FormInput, {
+                        label: 'Estado del Cilindro de Agente',
+                        value: formData.estado_cilindro_agente,
+                        onChange: (value) => handleInputChange('estado_cilindro_agente', value),
+                        placeholder: 'Cilindro sin corrosión, presión correcta'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Estado del Disco de Ruptura',
+                        value: formData.estado_disco_ruptura,
+                        onChange: (value) => handleInputChange('estado_disco_ruptura', value),
+                        placeholder: 'Disco íntegro, sin deformaciones'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Cantidad y Estado de Boquillas',
+                        value: formData.cantidad_estado_boquillas,
+                        onChange: (value) => handleInputChange('cantidad_estado_boquillas', value),
+                        placeholder: '12 boquillas en buen estado'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Tipos de Tapones de Boquillas',
+                        value: formData.tipo_tapones_boquillas,
+                        onChange: (value) => handleInputChange('tipo_tapones_boquillas', value),
+                        placeholder: 'Tapones estándar, bien sellados'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Estado de Piola de Acero',
+                        value: formData.estado_piola_acero,
+                        onChange: (value) => handleInputChange('estado_piola_acero', value),
+                        placeholder: 'Cable de acero sin corte ni desgaste'
+                    })
+                ),
+
+                React.createElement(FormSection, { title: 'Verificaciones Finales' },
+                    React.createElement(FormInput, {
+                        label: 'Verificación Automática/Manual de Gas',
+                        value: formData.verificacion_automan_gas,
+                        onChange: (value) => handleInputChange('verificacion_automan_gas', value),
+                        placeholder: 'Sistema responde correctamente'
+                    }),
+                    React.createElement(FormInput, {
+                        label: 'Verificación de Señal de Alarma',
+                        value: formData.verificacion_senal_alarma,
+                        onChange: (value) => handleInputChange('verificacion_senal_alarma', value),
+                        placeholder: 'Alarma audible y visual funcionando'
+                    })
+                ),
+
+                React.createElement(FormSection, { title: 'Observaciones' },
+                    React.createElement(FormTextarea, {
+                        label: 'Observaciones Generales',
+                        value: formData.observaciones_generales,
+                        onChange: (value) => handleInputChange('observaciones_generales', value),
+                        placeholder: 'Registre aquí cualquier observación adicional sobre el sistema ANSUL R-102...'
+                    })
+                ),
+
+                React.createElement('div', { className: 'form-actions' },
+                    React.createElement('button', {
+                        className: 'btn btn-primary',
+                        onClick: handleSave,
+                        disabled: isSaving
+                    }, isSaving ? 'Guardando...' : 'Guardar Informe'),
+                    
+                    React.createElement('button', {
+                        className: 'btn btn-secondary',
+                        onClick: onSaveSuccess,
+                        disabled: isSaving
+                    }, 'Cancelar')
+                )
+            );
+        }
+
+        // Componente Reparaciones Adicionales Form
+        function ReparacionesAdicionalesForm({ order, onSaveSuccess }) {
+            const [formData, setFormData] = React.useState({
+                tipo_reparacion: '',
+                resumen_trabajos: '',
+                observaciones_generales: ''
+            });
+
+            const [isSaving, setIsSaving] = React.useState(false);
+
+            const handleInputChange = (field, value) => {
+                setFormData(prev => ({ ...prev, [field]: value }));
+            };
+
+            const handleSave = async () => {
+                setIsSaving(true);
+                try {
+                    const dataToSave = { ...formData, orden_trabajo_id: order.id };
+                    const { data, error } = await sbClient
+                        .from('informe_reparaciones_adicionales')
+                        .insert([dataToSave]);
+
+                    if (error) throw error;
+                    alert('¡Informe de Reparaciones Adicionales guardado con éxito!');
+                    onSaveSuccess();
+                } catch (error) {
+                    console.error('Error al guardar informe de reparaciones:', error);
+                    alert('Error al guardar el informe: ' + error.message);
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
+            return React.createElement('div', { className: 'form-container' },
+                React.createElement('h2', { className: 'form-title' }, 'Informe de Reparaciones Adicionales'),
+                
+                React.createElement(FormSection, { title: 'Información de la Reparación' },
+                    React.createElement(FormInput, {
+                        label: 'Tipo de Reparación',
+                        value: formData.tipo_reparacion,
+                        onChange: (value) => handleInputChange('tipo_reparacion', value),
+                        placeholder: 'Ej: Levantamiento, Montaje, Soldadura, Instalación'
+                    })
+                ),
+
+                React.createElement(FormSection, { title: 'Detalles del Trabajo' },
+                    React.createElement(FormTextarea, {
+                        label: 'Resumen de Trabajos Realizados',
+                        value: formData.resumen_trabajos,
+                        onChange: (value) => handleInputChange('resumen_trabajos', value),
+                        placeholder: 'Describa detalladamente los trabajos realizados, materiales utilizados, procedimientos aplicados...'
+                    }),
+                    React.createElement(FormTextarea, {
+                        label: 'Observaciones Generales',
+                        value: formData.observaciones_generales,
+                        onChange: (value) => handleInputChange('observaciones_generales', value),
+                        placeholder: 'Incluya observaciones adicionales, recomendaciones, seguimiento requerido...'
+                    })
+                ),
+
+                React.createElement('div', { className: 'form-actions' },
+                    React.createElement('button', {
+                        className: 'btn btn-primary',
+                        onClick: handleSave,
+                        disabled: isSaving
+                    }, isSaving ? 'Guardando...' : 'Guardar Informe'),
+                    
+                    React.createElement('button', {
+                        className: 'btn btn-secondary',
+                        onClick: onSaveSuccess,
+                        disabled: isSaving
+                    }, 'Cancelar')
+                )
+            );
+        }
+
+        // Componente Principal de Demo
+        function App() {
+            const [currentView, setCurrentView] = React.useState('demo');
+            const [selectedFormType, setSelectedFormType] = React.useState(null);
+
+            const demoOrder = {
+                id: 'demo-order-123',
+                numero_orden: 'OT-2024-001',
+                cliente: 'Cliente Demo',
+                estado: 'En Proceso'
+            };
+
+            const renderForm = () => {
+                switch (selectedFormType) {
+                    case 'informe_ansul_r102':
+                        return React.createElement(AnsulR102Form, {
+                            order: demoOrder,
+                            onSaveSuccess: () => {
+                                alert('Demo: Formulario guardado exitosamente');
+                                setSelectedFormType(null);
+                            }
+                        });
+                    case 'informe_reparaciones_adicionales':
+                        return React.createElement(ReparacionesAdicionalesForm, {
+                            order: demoOrder,
+                            onSaveSuccess: () => {
+                                alert('Demo: Formulario guardado exitosamente');
+                                setSelectedFormType(null);
+                            }
+                        });
+                    default:
+                        return React.createElement('div', { className: 'no-form' },
+                            React.createElement('h3', null, 'Selecciona un Formulario'),
+                            React.createElement('div', { style: { display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' } },
+                                React.createElement('button', {
+                                    className: 'btn btn-primary',
+                                    onClick: () => setSelectedFormType('informe_ansul_r102')
+                                }, '🚨 ANSUL R-102'),
+                                React.createElement('button', {
+                                    className: 'btn btn-primary',
+                                    onClick: () => setSelectedFormType('informe_reparaciones_adicionales')
+                                }, '🔨 Reparaciones Adicionales')
+                            )
+                        );
+                }
+            };
+
+            return React.createElement('div', { className: 'container' },
+                React.createElement('div', { className: 'header' },
+                    React.createElement('h1', null, '🔧 PMLink CMMS - Demo de Formularios'),
+                    React.createElement('p', null, 'Sistema de Gestión de Mantenimiento para Técnicos')
+                ),
+                React.createElement('div', { className: 'content' },
+                    renderForm()
+                )
+            );
+        }
+
+        // Renderizar la aplicación
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>
