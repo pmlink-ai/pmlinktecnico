@@ -1,15 +1,11 @@
 {
   "expo": {
-    "name": "pmlinkacliente",
-    "slug": "pmlinkacliente",
-    "version": "1.0.0",
+    "name": "PMLink Técnico",
+    "slug": "pmlinktecnico",
+    "version": "1.5.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
@@ -17,13 +13,15 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro"
+    },
+    "extra": {
+      "supabaseUrl": "https://mwtdoidrjuahsejfctlm.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13dGRvaWRyanVhaHNlamZjdGxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU4OTk4NzcsImV4cCI6MjA0MTQ3NTg3N30.FYQSUsRhbYefypoM2o0rh5J-UD7w1o0n6qfgUBfLqSg"
     }
   }
 }
