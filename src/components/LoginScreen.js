@@ -9,8 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { supabase, testConnection } from '../../lib/supabase';
+
+// Importar el logo
+const logoImage = require('../../assets/logo.png');
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -83,9 +87,11 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.loginContainer}>
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>PMLink</Text>
-            </View>
+            <Image 
+              source={logoImage} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>PMLink Técnico</Text>
             <Text style={styles.subtitle}>Sistema de Gestión de Mantenimiento</Text>
           </View>
@@ -173,24 +179,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  logoPlaceholder: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#3498db',
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   logo: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 120,
     marginBottom: 20,
+    // Sombra para iOS
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    // Sombra para Android
+    elevation: 3,
   },
   title: {
     fontSize: 28,
