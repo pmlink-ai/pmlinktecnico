@@ -24,27 +24,50 @@ export default function LoginScreen({ navigation }) {
     }
 
     setLoading(true);
+    console.log('🔐 Iniciando proceso de login...');
+    console.log('Email:', email);
+    
     try {
       // Primero verificar conexión a Supabase
+      console.log('🔄 Verificando conexión a Supabase...');
       const connectionTest = await testConnection();
+      
       if (!connectionTest.success) {
-        Alert.alert('Error de Conexión', 'No se puede conectar al servidor. Verifica tu conexión a internet.');
+        console.error('❌ Error de conexión:', connectionTest.error);
+        Alert.alert('Error de Conexión', 
+          'No se puede conectar al servidor. Verifica tu conexión a internet.\n\nDetalle: ' + connectionTest.error);
         setLoading(false);
         return;
       }
+      
+      console.log('✅ Conexión a Supabase exitosa');
 
+      // Intentar login
+      console.log('🔑 Intentando autenticación...');
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
+        email: email.trim(),
         password: password,
       });
 
       if (error) {
-        Alert.alert('Error de Login', error.message);
+        console.error('❌ Error de autenticación:', error);
+        
+        let errorMessage = 'Error de autenticación';
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email o contraseña incorrectos. \n\nCredenciales válidas:\n• Email: admin@pmlink.com\n• Password: admin123456';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Email no confirmado. Verifica tu bandeja de entrada.';
+        } else {
+          errorMessage = error.message;
+        }
+        
+        Alert.alert('Error de Login', errorMessage);
       } else {
+        console.log('✅ Login exitoso:', data.user?.email);
         // La navegación se manejará automáticamente por el AuthContext
-        console.log('Login exitoso', data);
       }
     } catch (error) {
+      console.error('❌ Error inesperado:', error);
       Alert.alert('Error', 'Ocurrió un error durante el login: ' + error.message);
     } finally {
       setLoading(false);
@@ -104,6 +127,22 @@ export default function LoginScreen({ navigation }) {
             <TouchableOpacity style={styles.forgotPasswordButton}>
               <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
+
+            {/* Credenciales de prueba - Solo para desarrollo */}
+            <View style={styles.testCredentialsContainer}>
+              <Text style={styles.testCredentialsTitle}>🔑 Credenciales de Prueba:</Text>
+              <Text style={styles.testCredentialsText}>Email: admin@pmlink.com</Text>
+              <Text style={styles.testCredentialsText}>Password: admin123456</Text>
+              <TouchableOpacity 
+                style={styles.autoFillButton}
+                onPress={() => {
+                  setEmail('admin@pmlink.com');
+                  setPassword('admin123456');
+                }}
+              >
+                <Text style={styles.autoFillButtonText}>Auto-completar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Footer */}
@@ -219,5 +258,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#bdc3c7',
     marginTop: 4,
+  },
+  testCredentialsContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  testCredentialsTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#495057',
+    marginBottom: 8,
+  },
+  testCredentialsText: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  autoFillButton: {
+    backgroundColor: '#28a745',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  autoFillButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
