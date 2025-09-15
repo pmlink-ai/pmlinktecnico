@@ -18,6 +18,11 @@ export default function DetalleOrdenScreen({ route, navigation }) {
   const [formularioData, setFormularioData] = useState(null);
   const [tablaCampos, setTablaCampos] = useState([]);
   const [error, setError] = useState(null);
+  const [ordenCompleta, setOrdenCompleta] = useState({
+    servicio: null,
+    local: null,
+    empresa: null
+  });
 
   // Función para obtener la cadena: servicio_id → formulario_id → form_key → tabla
   const obtenerFormularioDinamico = async () => {
@@ -31,11 +36,23 @@ export default function DetalleOrdenScreen({ route, navigation }) {
         return;
       }
 
-      // Paso 1: Obtener formulario_id desde servicios
-      console.log('🔗 Paso 1: Obteniendo formulario_id desde servicios...');
+      // Paso 1: Obtener formulario_id desde servicios con información adicional
+      console.log('🔗 Paso 1: Obteniendo formulario_id y datos del servicio...');
       const { data: servicioData, error: servicioError } = await supabase
         .from('servicios')
-        .select('formulario_id')
+        .select(`
+          formulario_id,
+          nombre,
+          descripcion,
+          locales(
+            nombre,
+            direccion,
+            empresas(
+              nombre,
+              rut
+            )
+          )
+        `)
         .eq('servicio_id', orden.servicio_id)
         .single();
 
@@ -50,7 +67,15 @@ export default function DetalleOrdenScreen({ route, navigation }) {
         return;
       }
 
-      console.log('✅ Formulario ID obtenido:', servicioData.formulario_id);
+      console.log('✅ Datos del servicio obtenidos:', servicioData);
+
+      // Guardar información adicional del servicio
+      setOrdenCompleta(prev => ({
+        ...prev,
+        servicio: servicioData,
+        local: servicioData.locales,
+        empresa: servicioData.locales?.empresas
+      }));
 
       // Paso 2: Obtener form_key desde formularios
       console.log('🔗 Paso 2: Obteniendo form_key desde formularios...');
@@ -165,6 +190,36 @@ export default function DetalleOrdenScreen({ route, navigation }) {
     });
   };
 
+  // Función para obtener color según estado
+  const getStatusColor = (estadoObj) => {
+    const estado = estadoObj?.nombre?.toLowerCase();
+    switch (estado) {
+      case 'pendiente': return '#f39c12';
+      case 'en progreso': return '#3498db';
+      case 'en_progreso': return '#3498db';
+      case 'completada': return '#27ae60';
+      case 'cancelada': return '#e74c3c';
+      case 'asignada': return '#9b59b6';
+      default: return '#95a5a6';
+    }
+  };
+
+  // Función para obtener texto de estado
+  const getStatusText = (estadoObj) => {
+    const estado = estadoObj?.nombre;
+    if (!estado) return 'Sin estado';
+    
+    switch (estado.toLowerCase()) {
+      case 'pendiente': return 'Pendiente';
+      case 'en progreso': return 'En Progreso';
+      case 'en_progreso': return 'En Progreso';
+      case 'completada': return 'Completada';
+      case 'cancelada': return 'Cancelada';
+      case 'asignada': return 'Asignada';
+      default: return estado;
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -233,42 +288,128 @@ export default function DetalleOrdenScreen({ route, navigation }) {
       <ScrollView style={styles.content}>
         {/* Información de la orden */}
         <View style={styles.ordenInfo}>
-          <Text style={styles.sectionTitle}>📋 Información de la Orden</Text>
+          <Text style={styles.sectionTitle}>📋 Información de la Orden de Trabajo</Text>
+          
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ID:</Text>
-            <Text style={styles.infoValue}>#{orden.id.split('-')[0]}</Text>
+            <Text style={styles.infoLabel}>Número:</Text>
+            <Text style={styles.infoValue}>#{orden.id}</Text>
           </View>
+          
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Título:</Text>
-            <Text style={styles.infoValue}>{orden.titulo}</Text>
+            <Text style={styles.infoValue}>{orden.titulo || 'Sin título'}</Text>
           </View>
-          {orden.descripcion_corta && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Descripción:</Text>
-              <Text style={styles.infoValue}>{orden.descripcion_corta}</Text>
-            </View>
-          )}
+          
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Creada:</Text>
+            <Text style={styles.infoLabel}>Descripción:</Text>
+            <Text style={styles.infoValue}>
+              {orden.descripcion_corta || orden.descripcion_larga || 'Sin descripción'}
+            </Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Fecha:</Text>
             <Text style={styles.infoValue}>{formatDate(orden.created_at)}</Text>
           </View>
+
+          {/* Información del local */}
+          {ordenCompleta.local && (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Local:</Text>
+                <Text style={styles.infoValue}>{ordenCompleta.local.nombre || 'Sin nombre'}</Text>
+              </View>
+              
+              {ordenCompleta.local.direccion && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Dirección:</Text>
+                  <Text style={styles.infoValue}>{ordenCompleta.local.direccion}</Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Información de la empresa */}
+          {ordenCompleta.empresa && (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Empresa:</Text>
+                <Text style={styles.infoValue}>{ordenCompleta.empresa.nombre || 'Sin nombre'}</Text>
+              </View>
+              
+              {ordenCompleta.empresa.rut && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>RUT:</Text>
+                  <Text style={styles.infoValue}>{ordenCompleta.empresa.rut}</Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Estado de la orden */}
+          {orden.estados_orden_trabajo && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Estado:</Text>
+              <View style={styles.estadoContainer}>
+                <View style={[styles.estadoBadge, { backgroundColor: getStatusColor(orden.estados_orden_trabajo) }]}>
+                  <Text style={styles.estadoText}>{getStatusText(orden.estados_orden_trabajo)}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Información adicional si existe */}
+          {orden.fecha_inicio && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Inicio:</Text>
+              <Text style={styles.infoValue}>{formatDate(orden.fecha_inicio)}</Text>
+            </View>
+          )}
+
+          {orden.fecha_estimada_fin && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Fin Estimado:</Text>
+              <Text style={styles.infoValue}>{formatDate(orden.fecha_estimada_fin)}</Text>
+            </View>
+          )}
         </View>
 
         {/* Información del formulario */}
         {formularioData && (
           <View style={styles.formularioInfo}>
-            <Text style={styles.sectionTitle}>📝 Formulario Dinámico</Text>
+            <Text style={styles.sectionTitle}>📝 Información del Servicio y Formulario</Text>
+            
+            {/* Información del servicio */}
+            {ordenCompleta.servicio && (
+              <>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Servicio:</Text>
+                  <Text style={styles.infoValue}>{ordenCompleta.servicio.nombre || 'Sin nombre'}</Text>
+                </View>
+                
+                {ordenCompleta.servicio.descripcion && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Desc. Servicio:</Text>
+                    <Text style={styles.infoValue}>{ordenCompleta.servicio.descripcion}</Text>
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Información del formulario */}
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nombre:</Text>
+              <Text style={styles.infoLabel}>Formulario:</Text>
               <Text style={styles.infoValue}>{formularioData.nombre}</Text>
             </View>
+            
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Tabla:</Text>
+              <Text style={styles.infoLabel}>Tabla BD:</Text>
               <Text style={styles.infoValue}>{formularioData.form_key}</Text>
             </View>
+            
             {formularioData.descripcion && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Descripción:</Text>
+                <Text style={styles.infoLabel}>Desc. Form.:</Text>
                 <Text style={styles.infoValue}>{formularioData.descripcion}</Text>
               </View>
             )}
@@ -407,5 +548,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2c3e50',
     flex: 1,
+  },
+  estadoContainer: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  estadoBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  estadoText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
