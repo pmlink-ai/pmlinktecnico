@@ -23,8 +23,12 @@ export default function OrdenesTrabajoScreen({ navigation }) {
       console.log('🔍 Obteniendo órdenes de trabajo...');
       
       const { data, error } = await supabase
-        .from('ordenes_trabajo')
-        .select('*')
+        .from('orden_trabajo')
+        .select(`
+          *,
+          estados_orden_trabajo(nombre),
+          prioridades(nombre)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -67,24 +71,32 @@ export default function OrdenesTrabajoScreen({ navigation }) {
   };
 
   // Función para obtener color según estado
-  const getStatusColor = (estado) => {
-    switch (estado?.toLowerCase()) {
+  const getStatusColor = (estadoObj) => {
+    const estado = estadoObj?.nombre?.toLowerCase();
+    switch (estado) {
       case 'pendiente': return '#f39c12';
+      case 'en progreso': return '#3498db';
       case 'en_progreso': return '#3498db';
       case 'completada': return '#27ae60';
       case 'cancelada': return '#e74c3c';
+      case 'asignada': return '#9b59b6';
       default: return '#95a5a6';
     }
   };
 
   // Función para obtener texto de estado
-  const getStatusText = (estado) => {
-    switch (estado?.toLowerCase()) {
+  const getStatusText = (estadoObj) => {
+    const estado = estadoObj?.nombre;
+    if (!estado) return 'Sin estado';
+    
+    switch (estado.toLowerCase()) {
       case 'pendiente': return 'Pendiente';
+      case 'en progreso': return 'En Progreso';
       case 'en_progreso': return 'En Progreso';
       case 'completada': return 'Completada';
       case 'cancelada': return 'Cancelada';
-      default: return estado || 'Sin estado';
+      case 'asignada': return 'Asignada';
+      default: return estado;
     }
   };
 
@@ -92,17 +104,17 @@ export default function OrdenesTrabajoScreen({ navigation }) {
   const renderOrden = (orden) => (
     <TouchableOpacity key={orden.id} style={styles.ordenItem}>
       <View style={styles.ordenHeader}>
-        <Text style={styles.ordenId}>#{orden.id}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(orden.estado) }]}>
-          <Text style={styles.statusText}>{getStatusText(orden.estado)}</Text>
+        <Text style={styles.ordenId}>#{orden.id.split('-')[0]}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(orden.estados_orden_trabajo) }]}>
+          <Text style={styles.statusText}>{getStatusText(orden.estados_orden_trabajo)}</Text>
         </View>
       </View>
       
       <Text style={styles.ordenTitulo}>{orden.titulo || 'Sin título'}</Text>
       
-      {orden.descripcion && (
+      {orden.descripcion_corta && (
         <Text style={styles.ordenDescripcion} numberOfLines={2}>
-          {orden.descripcion}
+          {orden.descripcion_corta}
         </Text>
       )}
       
@@ -110,10 +122,27 @@ export default function OrdenesTrabajoScreen({ navigation }) {
         <Text style={styles.ordenFecha}>
           📅 {formatDate(orden.created_at)}
         </Text>
-        {orden.prioridad && (
+        {orden.prioridades?.nombre && (
           <Text style={styles.ordenPrioridad}>
-            ⚡ {orden.prioridad}
+            ⚡ {orden.prioridades.nombre}
           </Text>
+        )}
+      </View>
+      
+      {/* Información adicional */}
+      <View style={styles.ordenExtra}>
+        {orden.fecha_inicio && (
+          <Text style={styles.ordenExtraText}>
+            🚀 Inicio: {formatDate(orden.fecha_inicio)}
+          </Text>
+        )}
+        {orden.fecha_estimada_fin && (
+          <Text style={styles.ordenExtraText}>
+            🎯 Est. fin: {formatDate(orden.fecha_estimada_fin)}
+          </Text>
+        )}
+        {!orden.activa && (
+          <Text style={styles.ordenInactiva}>❌ Inactiva</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -333,5 +362,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#f39c12',
     fontWeight: '600',
+  },
+  ordenExtra: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+  },
+  ordenExtraText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginBottom: 4,
+  },
+  ordenInactiva: {
+    fontSize: 12,
+    color: '#e74c3c',
+    fontWeight: '600',
+    marginTop: 4,
   },
 });
