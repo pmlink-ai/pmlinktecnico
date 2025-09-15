@@ -5,19 +5,23 @@
     "version": "1.5.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "platforms": ["ios", "android"],
     "splash": {
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pmlink.tecnico"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF"
-      }
+      },
+      "package": "com.pmlink.tecnico"
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "supabaseUrl": "https://mwtdoidrjuahsejfctlm.supabase.co",
