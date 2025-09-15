@@ -102,7 +102,11 @@ export default function OrdenesTrabajoScreen({ navigation }) {
 
   // Renderizar cada orden de trabajo
   const renderOrden = (orden) => (
-    <TouchableOpacity key={orden.id} style={styles.ordenItem}>
+    <TouchableOpacity 
+      key={orden.id} 
+      style={styles.ordenItem}
+      onPress={() => navigation.navigate('DetalleOrdenScreen', { orden })}
+    >
       <View style={styles.ordenHeader}>
         <Text style={styles.ordenId}>#{orden.id.split('-')[0]}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(orden.estados_orden_trabajo) }]}>
@@ -144,6 +148,16 @@ export default function OrdenesTrabajoScreen({ navigation }) {
         {!orden.activa && (
           <Text style={styles.ordenInactiva}>❌ Inactiva</Text>
         )}
+        {orden.servicio_id && (
+          <Text style={styles.ordenExtraText}>
+            📝 Servicio: {orden.servicio_id}
+          </Text>
+        )}
+      </View>
+      
+      {/* Indicador de navegación */}
+      <View style={styles.navigationIndicator}>
+        <Text style={styles.navigationText}>👆 Toca para ver formulario</Text>
       </View>
     </TouchableOpacity>
   );
@@ -379,5 +393,17 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     fontWeight: '600',
     marginTop: 4,
+  },
+  navigationIndicator: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+    alignItems: 'center',
+  },
+  navigationText: {
+    fontSize: 12,
+    color: '#3498db',
+    fontStyle: 'italic',
   },
 });

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../components/LoginScreen';
 import HomeScreen from '../components/HomeScreen';
 import OrdenesTrabajoScreen from '../components/OrdenesTrabajoScreen';
+import DetalleOrdenScreen from '../components/DetalleOrdenScreen';
 import { View, Text, StyleSheet } from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -32,6 +33,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="OrdenesTrabajoScreen" component={OrdenesTrabajoScreen} />
+            <Stack.Screen name="DetalleOrdenScreen" component={DetalleOrdenScreen} />
           </>
         ) : (
           // Usuario no autenticado
