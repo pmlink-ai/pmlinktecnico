@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../components/LoginScreen';
 import HomeScreen from '../components/HomeScreen';
+import OrdenesTrabajoScreen from '../components/OrdenesTrabajoScreen';
 import { View, Text, StyleSheet } from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -28,7 +29,10 @@ export default function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           // Usuario autenticado
-          <Stack.Screen name="Home" component={HomeScreen} />
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="OrdenesTrabajoScreen" component={OrdenesTrabajoScreen} />
+          </>
         ) : (
           // Usuario no autenticado
           <Stack.Screen name="Login" component={LoginScreen} />

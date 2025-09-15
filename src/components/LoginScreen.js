@@ -154,7 +154,7 @@ export default function LoginScreen({ navigation }) {
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>PMLink CMMS v1.5</Text>
-            <Text style={styles.footerSubtext}>Con Equipos Y Servicios</Text>
+            <Text style={styles.footerSubtext}>Sistema de Órdenes de Trabajo</Text>
           </View>
         </View>
       </KeyboardAvoidingView>

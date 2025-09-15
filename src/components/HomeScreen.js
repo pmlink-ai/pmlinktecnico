@@ -32,24 +32,12 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.menuContainer}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('OrdenesTrabajoScreen')}
+          >
             <Text style={styles.menuTitle}>Órdenes de Trabajo</Text>
             <Text style={styles.menuSubtitle}>Gestionar órdenes pendientes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>Equipos</Text>
-            <Text style={styles.menuSubtitle}>Inventario de equipos</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>Servicios</Text>
-            <Text style={styles.menuSubtitle}>Servicios de mantenimiento</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>Reportes</Text>
-            <Text style={styles.menuSubtitle}>Informes y estadísticas</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
