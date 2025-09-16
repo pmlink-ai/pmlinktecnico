@@ -36,45 +36,67 @@ export default function DetalleOrdenScreen({ route, navigation }) {
         return;
       }
 
-      // Paso 1: Obtener formulario_id desde servicios con información adicional
-      console.log('🔗 Paso 1: Obteniendo formulario_id y datos del servicio...');
-      const { data: servicioData, error: servicioError } = await supabase
+      // Paso 1: Obtener formulario_id desde servicios (consulta simple primero)
+      console.log('🔗 Paso 1: Obteniendo datos básicos del servicio...');
+      const { data: servicioBasic, error: servicioBasicError } = await supabase
         .from('servicios')
-        .select(`
-          formulario_id,
-          nombre,
-          descripcion,
-          locales(
-            nombre,
-            direccion,
-            empresas(
-              nombre,
-              rut
-            )
-          )
-        `)
+        .select('formulario_id, nombre, descripcion, local_id, empresa_id')
         .eq('servicio_id', orden.servicio_id)
         .single();
 
-      if (servicioError) {
-        console.error('❌ Error obteniendo servicio:', servicioError);
-        throw new Error('No se pudo obtener información del servicio: ' + servicioError.message);
+      if (servicioBasicError) {
+        console.error('❌ Error obteniendo servicio:', servicioBasicError);
+        throw new Error('No se pudo obtener información del servicio: ' + servicioBasicError.message);
       }
 
-      if (!servicioData?.formulario_id) {
+      if (!servicioBasic?.formulario_id) {
         setError('El servicio no tiene un formulario asignado');
         setLoading(false);
         return;
       }
 
-      console.log('✅ Datos del servicio obtenidos:', servicioData);
+      console.log('✅ Datos básicos del servicio obtenidos:', servicioBasic);
 
-      // Guardar información adicional del servicio
+      // Paso 1.1: Obtener información del local si existe local_id
+      let localData = null;
+      if (servicioBasic.local_id) {
+        console.log('🔗 Obteniendo información del local...');
+        const { data: local, error: localError } = await supabase
+          .from('locales')
+          .select('nombre, direccion, empresa_id')
+          .eq('id', servicioBasic.local_id)
+          .single();
+        
+        if (!localError && local) {
+          localData = local;
+          console.log('✅ Información del local obtenida:', local);
+        }
+      }
+
+      // Paso 1.2: Obtener información de la empresa
+      let empresaData = null;
+      const empresaId = localData?.empresa_id || servicioBasic.empresa_id;
+      
+      if (empresaId) {
+        console.log('🔗 Obteniendo información de la empresa...');
+        const { data: empresa, error: empresaError } = await supabase
+          .from('empresas')
+          .select('nombre, rut')
+          .eq('id', empresaId)
+          .single();
+        
+        if (!empresaError && empresa) {
+          empresaData = empresa;
+          console.log('✅ Información de la empresa obtenida:', empresa);
+        }
+      }
+
+      // Guardar información completa del servicio
       setOrdenCompleta(prev => ({
         ...prev,
-        servicio: servicioData,
-        local: servicioData.locales,
-        empresa: servicioData.locales?.empresas
+        servicio: servicioBasic,
+        local: localData,
+        empresa: empresaData
       }));
 
       // Paso 2: Obtener form_key desde formularios
@@ -82,7 +104,7 @@ export default function DetalleOrdenScreen({ route, navigation }) {
       const { data: formularioData, error: formularioError } = await supabase
         .from('formularios')
         .select('form_key, nombre, descripcion')
-        .eq('id', servicioData.formulario_id)
+        .eq('id', servicioBasic.formulario_id)
         .single();
 
       if (formularioError) {
