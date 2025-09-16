@@ -36,65 +36,67 @@ export default function DetalleOrdenScreen({ route, navigation }) {
         return;
       }
 
-      // Paso 1: Obtener formulario_id desde servicios (consulta simple primero)
-      console.log('🔗 Paso 1: Obteniendo datos básicos del servicio...');
-      const { data: servicioBasic, error: servicioBasicError } = await supabase
+      // Paso 1: Obtener local_id desde servicios
+      console.log('🔗 Paso 1: Obteniendo local_id desde servicios...');
+      const { data: servicioData, error: servicioError } = await supabase
         .from('servicios')
-        .select('formulario_id, nombre, descripcion, local_id, empresa_id')
+        .select('formulario_id, local_id')
         .eq('servicio_id', orden.servicio_id)
         .single();
 
-      if (servicioBasicError) {
-        console.error('❌ Error obteniendo servicio:', servicioBasicError);
-        throw new Error('No se pudo obtener información del servicio: ' + servicioBasicError.message);
+      if (servicioError) {
+        console.error('❌ Error obteniendo servicio:', servicioError);
+        throw new Error('No se pudo obtener información del servicio: ' + servicioError.message);
       }
 
-      if (!servicioBasic?.formulario_id) {
+      if (!servicioData?.formulario_id) {
         setError('El servicio no tiene un formulario asignado');
         setLoading(false);
         return;
       }
 
-      console.log('✅ Datos básicos del servicio obtenidos:', servicioBasic);
+      console.log('✅ Datos del servicio obtenidos:', servicioData);
 
-      // Paso 1.1: Obtener información del local si existe local_id
+      // Paso 1.1: Obtener información del local usando local_id
       let localData = null;
-      if (servicioBasic.local_id) {
+      if (servicioData.local_id) {
         console.log('🔗 Obteniendo información del local...');
         const { data: local, error: localError } = await supabase
-          .from('locales')
-          .select('nombre, direccion, empresa_id')
-          .eq('id', servicioBasic.local_id)
+          .from('local')
+          .select('nombre_local, empresa_id')
+          .eq('local_id', servicioData.local_id)
           .single();
         
         if (!localError && local) {
           localData = local;
           console.log('✅ Información del local obtenida:', local);
+        } else {
+          console.log('⚠️ No se pudo obtener información del local:', localError);
         }
       }
 
-      // Paso 1.2: Obtener información de la empresa
+      // Paso 1.2: Obtener información de la empresa usando empresa_id del local
       let empresaData = null;
-      const empresaId = localData?.empresa_id || servicioBasic.empresa_id;
-      
-      if (empresaId) {
+      if (localData?.empresa_id) {
         console.log('🔗 Obteniendo información de la empresa...');
         const { data: empresa, error: empresaError } = await supabase
-          .from('empresas')
-          .select('nombre, rut')
-          .eq('id', empresaId)
+          .from('empresa')
+          .select('nombre_empresa')
+          .eq('empresa_id', localData.empresa_id)
           .single();
         
         if (!empresaError && empresa) {
           empresaData = empresa;
           console.log('✅ Información de la empresa obtenida:', empresa);
+        } else {
+          console.log('⚠️ No se pudo obtener información de la empresa:', empresaError);
         }
       }
 
-      // Guardar información completa del servicio
+      // Guardar información completa
       setOrdenCompleta(prev => ({
         ...prev,
-        servicio: servicioBasic,
+        servicio: servicioData,
         local: localData,
         empresa: empresaData
       }));
@@ -104,7 +106,7 @@ export default function DetalleOrdenScreen({ route, navigation }) {
       const { data: formularioData, error: formularioError } = await supabase
         .from('formularios')
         .select('form_key, nombre, descripcion')
-        .eq('id', servicioBasic.formulario_id)
+        .eq('id', servicioData.formulario_id)
         .single();
 
       if (formularioError) {
@@ -336,36 +338,18 @@ export default function DetalleOrdenScreen({ route, navigation }) {
 
           {/* Información del local */}
           {ordenCompleta.local && (
-            <>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Local:</Text>
-                <Text style={styles.infoValue}>{ordenCompleta.local.nombre || 'Sin nombre'}</Text>
-              </View>
-              
-              {ordenCompleta.local.direccion && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Dirección:</Text>
-                  <Text style={styles.infoValue}>{ordenCompleta.local.direccion}</Text>
-                </View>
-              )}
-            </>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Local:</Text>
+              <Text style={styles.infoValue}>{ordenCompleta.local.nombre_local || 'Sin nombre'}</Text>
+            </View>
           )}
 
           {/* Información de la empresa */}
           {ordenCompleta.empresa && (
-            <>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Empresa:</Text>
-                <Text style={styles.infoValue}>{ordenCompleta.empresa.nombre || 'Sin nombre'}</Text>
-              </View>
-              
-              {ordenCompleta.empresa.rut && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>RUT:</Text>
-                  <Text style={styles.infoValue}>{ordenCompleta.empresa.rut}</Text>
-                </View>
-              )}
-            </>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Empresa:</Text>
+              <Text style={styles.infoValue}>{ordenCompleta.empresa.nombre_empresa || 'Sin nombre'}</Text>
+            </View>
           )}
 
           {/* Estado de la orden */}

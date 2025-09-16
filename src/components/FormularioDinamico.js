@@ -128,6 +128,24 @@ export default function FormularioDinamico({ tablaCampos, nombreTabla, ordenId }
       return null;
     }
 
+    // Campo orden_trabajo_id debe ser de solo lectura
+    if (fieldName === 'orden_trabajo_id') {
+      return (
+        <View key={fieldName} style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>
+            {formatFieldName(fieldName)}
+            <Text style={styles.readOnlyLabel}> (Solo lectura)</Text>
+          </Text>
+          <TextInput
+            style={[styles.textInput, styles.readOnlyInput]}
+            value={fieldValue.toString()}
+            editable={false}
+            placeholder="ID de la orden de trabajo"
+          />
+        </View>
+      );
+    }
+
     // Determinar el tipo de input según el tipo de dato
     const dataType = campo.data_type.toLowerCase();
     
@@ -339,6 +357,17 @@ const styles = StyleSheet.create({
     color: '#95a5a6',
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  readOnlyLabel: {
+    fontSize: 12,
+    color: '#95a5a6',
+    fontStyle: 'italic',
+    fontWeight: 'normal',
+  },
+  readOnlyInput: {
+    backgroundColor: '#ecf0f1',
+    color: '#7f8c8d',
+    borderColor: '#bdc3c7',
   },
   saveButton: {
     backgroundColor: '#27ae60',
