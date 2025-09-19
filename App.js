@@ -41,9 +41,23 @@ const Stack = createStackNavigator();
 
 // ================== COMPONENTE IMAGE UPLOADER ==================
 const ImageUploader = ({ orderId, informeTabla }) => {
-  const [images, setImages] = useState([]);
-  const [uploading, setUploading] = useState(false);
+  const [imagesBySection, setImagesBySection] = useState({
+    ANTES: [],
+    PROCESO: [],
+    DESPUES: []
+  });
+  const [uploading, setUploading] = useState({
+    ANTES: false,
+    PROCESO: false,
+    DESPUES: false
+  });
   const [loading, setLoading] = useState(true);
+
+  const secciones = [
+    { key: 'ANTES', title: 'ANTES', color: '#FF6B6B' },
+    { key: 'PROCESO', title: 'PROCESO', color: '#4ECDC4' },
+    { key: 'DESPUES', title: 'DESPUÉS', color: '#45B7D1' }
+  ];
 
   useEffect(() => {
     loadImages();
@@ -65,7 +79,21 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
-      setImages(data || []);
+      // Organizar imágenes por sección
+      const organizedImages = {
+        ANTES: [],
+        PROCESO: [],
+        DESPUES: []
+      };
+
+      (data || []).forEach(image => {
+        const seccion = image.seccion || 'ANTES'; // Por defecto ANTES para compatibilidad
+        if (organizedImages[seccion]) {
+          organizedImages[seccion].push(image);
+        }
+      });
+
+      setImagesBySection(organizedImages);
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Error', 'Error inesperado al cargar imágenes');
@@ -74,7 +102,7 @@ const ImageUploader = ({ orderId, informeTabla }) => {
     }
   };
 
-  const pickImage = async () => {
+  const pickImage = async (seccion) => {
     try {
       // Solicitar permisos
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -83,13 +111,13 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
-      // Mostrar opciones
+      // Mostrar opciones con componente
       Alert.alert(
-        'Seleccionar Imagen',
+        `Foto ${seccion}`,
         'Elige una opción',
         [
-          { text: 'Cámara', onPress: () => openCamera() },
-          { text: 'Galería', onPress: () => openGallery() },
+          { text: 'Cámara', onPress: () => selectComponent(seccion, 'camera') },
+          { text: 'Galería', onPress: () => selectComponent(seccion, 'gallery') },
           { text: 'Cancelar', style: 'cancel' }
         ]
       );
@@ -99,7 +127,30 @@ const ImageUploader = ({ orderId, informeTabla }) => {
     }
   };
 
-  const openCamera = async () => {
+  const selectComponent = (seccion, imageSource) => {
+    Alert.prompt(
+      'Especificar Componente',
+      'Opcional: Ingresa el nombre del componente fotografiado',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Continuar', 
+          onPress: (componente) => {
+            if (imageSource === 'camera') {
+              openCamera(seccion, componente);
+            } else {
+              openGallery(seccion, componente);
+            }
+          }
+        }
+      ],
+      'plain-text',
+      '', // Valor por defecto vacío
+      'default'
+    );
+  };
+
+  const openCamera = async (seccion, componente = null) => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -115,7 +166,7 @@ const ImageUploader = ({ orderId, informeTabla }) => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        uploadImage(result.assets[0]);
+        uploadImage(result.assets[0], seccion, componente);
       }
     } catch (error) {
       console.error('Error abriendo cámara:', error);
@@ -123,7 +174,7 @@ const ImageUploader = ({ orderId, informeTabla }) => {
     }
   };
 
-  const openGallery = async () => {
+  const openGallery = async (seccion, componente = null) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -133,7 +184,7 @@ const ImageUploader = ({ orderId, informeTabla }) => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        uploadImage(result.assets[0]);
+        uploadImage(result.assets[0], seccion, componente);
       }
     } catch (error) {
       console.error('Error abriendo galería:', error);
@@ -141,14 +192,14 @@ const ImageUploader = ({ orderId, informeTabla }) => {
     }
   };
 
-  const uploadImage = async (asset) => {
+  const uploadImage = async (asset, seccion, componente = null) => {
     try {
-      setUploading(true);
+      setUploading(prev => ({ ...prev, [seccion]: true }));
 
       // Generar nombre único
       const fileExtension = asset.uri.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-      const filePath = `public/${orderId}/${informeTabla}/${fileName}`;
+      const filePath = `public/${orderId}/${informeTabla}/${seccion}/${fileName}`;
 
       // Crear FormData
       const formData = new FormData();
@@ -172,6 +223,11 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
+      // Crear etiqueta con componente si está especificado
+      const etiqueta = componente 
+        ? `Foto ${seccion} - ${componente}` 
+        : `Foto ${seccion}`;
+
       // Guardar referencia en base de datos
       const { error: dbError } = await supabase
         .from('informe_fotografias')
@@ -179,7 +235,9 @@ const ImageUploader = ({ orderId, informeTabla }) => {
           orden_trabajo_id: orderId,
           informe_tabla: informeTabla,
           storage_path: filePath,
-          etiqueta: 'Foto de campo'
+          seccion: seccion,
+          etiqueta: etiqueta,
+          componente: componente // Usar el componente especificado o null
         });
 
       if (dbError) {
@@ -188,14 +246,18 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
-      Alert.alert('Éxito', 'Imagen subida correctamente');
+      const mensaje = componente 
+        ? `Imagen agregada a ${seccion} (${componente}) correctamente`
+        : `Imagen agregada a ${seccion} correctamente`;
+      
+      Alert.alert('Éxito', mensaje);
       loadImages(); // Recargar lista
 
     } catch (error) {
       console.error('Error general:', error);
       Alert.alert('Error', 'Error inesperado al subir la imagen');
     } finally {
-      setUploading(false);
+      setUploading(prev => ({ ...prev, [seccion]: false }));
     }
   };
 
@@ -257,7 +319,46 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         resizeMode="cover"
       />
       <Text style={styles.imageLabel}>{item.etiqueta}</Text>
+      {item.componente && (
+        <Text style={styles.componentLabel}>📍 {item.componente}</Text>
+      )}
     </TouchableOpacity>
+  );
+
+  const renderSection = (seccionData) => (
+    <View key={seccionData.key} style={styles.photoSection}>
+      <View style={[styles.sectionHeader, { backgroundColor: seccionData.color }]}>
+        <Text style={styles.sectionTitle}>{seccionData.title}</Text>
+      </View>
+      
+      {imagesBySection[seccionData.key] && imagesBySection[seccionData.key].length > 0 && (
+        <FlatList
+          data={imagesBySection[seccionData.key]}
+          renderItem={renderImage}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.sectionImagesList}
+        />
+      )}
+      
+      <TouchableOpacity 
+        style={[styles.addSectionPhotoButton, { borderColor: seccionData.color }]}
+        onPress={() => pickImage(seccionData.key)}
+        disabled={uploading[seccionData.key]}
+      >
+        {uploading[seccionData.key] ? (
+          <ActivityIndicator size="small" color={seccionData.color} />
+        ) : (
+          <>
+            <Text style={[styles.addPhotoIcon, { color: seccionData.color }]}>📷</Text>
+            <Text style={[styles.addSectionPhotoText, { color: seccionData.color }]}>
+              Añadir Foto {seccionData.title}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -265,39 +366,15 @@ const ImageUploader = ({ orderId, informeTabla }) => {
       <Text style={styles.imageUploaderTitle}>📸 Fotografías del Informe</Text>
       
       {loading ? (
-        <ActivityIndicator size="small" color="#007AFF" />
+        <ActivityIndicator size="large" color="#007AFF" />
       ) : (
-        <>
-          {images.length > 0 && (
-            <FlatList
-              data={images}
-              renderItem={renderImage}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.imagesList}
-            />
-          )}
-          
-          <TouchableOpacity 
-            style={styles.addPhotoButton}
-            onPress={pickImage}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <>
-                <Text style={styles.addPhotoIcon}>📷</Text>
-                <Text style={styles.addPhotoText}>Añadir Foto</Text>
-              </>
-            )}
-          </TouchableOpacity>
+        <View style={styles.sectionsContainer}>
+          {secciones.map(renderSection)}
           
           <Text style={styles.imageHelperText}>
             Mantén presionada una imagen para eliminarla
           </Text>
-        </>
+        </View>
       )}
     </View>
   );
@@ -1671,6 +1748,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 100,
   },
+  componentLabel: {
+    fontSize: 10,
+    color: '#3498DB',
+    textAlign: 'center',
+    maxWidth: 100,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   addPhotoButton: {
     backgroundColor: '#007AFF',
     borderRadius: 8,
@@ -1694,6 +1779,48 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     textAlign: 'center',
     fontStyle: 'italic',
+    marginTop: 10,
+  },
+  
+  // Nuevos estilos para secciones de fotografías
+  sectionsContainer: {
+    gap: 20,
+  },
+  photoSection: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+  },
+  sectionHeader: {
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  sectionImagesList: {
+    marginBottom: 15,
+  },
+  addSectionPhotoButton: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  addSectionPhotoText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   
   // Utils
