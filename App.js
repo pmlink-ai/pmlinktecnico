@@ -1,51 +1,1471 @@
-import React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Platform, View, Text, StyleSheet } from 'react-native';
-import { AuthProvider } from './src/contexts/AuthContext';
-import AppNavigator from './src/navigation/AppNavigator';
+import React, { useState, useEffect, useRef } from 'react';
+import 'react-native-url-polyfill/auto';
+import 'react-native-get-random-values';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  Modal,
+  SafeAreaView,
+  ActivityIndicator,
+  Image,
+  FlatList,
+  Dimensions
+} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient } from '@supabase/supabase-js';
+import * as ImagePicker from 'expo-image-picker';
 
-// Componente de aviso para web
-function WebWarning() {
-  if (Platform.OS !== 'web') return null;
-  
-  return (
-    <View style={styles.webWarning}>
-      <Text style={styles.webWarningText}>
-        ⚠️ Esta app está diseñada para móvil (Android/iOS)
-      </Text>
-      <Text style={styles.webWarningSubtext}>
-        Para mejor experiencia, úsala en Expo Go en tu dispositivo móvil
-      </Text>
-    </View>
-  );
-}
+const { width } = Dimensions.get('window');
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <WebWarning />
-      <AppNavigator />
-      <StatusBar style="auto" />
-    </AuthProvider>
-  );
-}
+// Configuración de Supabase
+const supabaseUrl = 'https://mwtdoidrjuahsejfctlm.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13dGRvaWRyanVhaHNlamZjdGxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1NTczNDQsImV4cCI6MjA2NjEzMzM0NH0.QtKVhvZiY-ehpJlRMusUsjS6V7ZbyHtpMnvr60x9xEM';
 
-const styles = StyleSheet.create({
-  webWarning: {
-    backgroundColor: '#fff3cd',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ffeaa7',
-    padding: 12,
-    alignItems: 'center',
-  },
-  webWarningText: {
-    color: '#856404',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  webWarningSubtext: {
-    color: '#856404',
-    fontSize: 12,
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
   },
 });
+
+const Stack = createStackNavigator();
+
+// ================== COMPONENTE IMAGE UPLOADER ==================
+const ImageUploader = ({ orderId, informeTabla }) => {
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadImages();
+  }, []);
+
+  const loadImages = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('informe_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', orderId)
+        .eq('informe_tabla', informeTabla)
+        .order('uploaded_at', { ascending: false });
+
+      if (error) {
+        console.error('Error cargando imágenes:', error);
+        Alert.alert('Error', 'No se pudieron cargar las imágenes');
+        return;
+      }
+
+      setImages(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      Alert.alert('Error', 'Error inesperado al cargar imágenes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      // Solicitar permisos
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos', 'Se necesitan permisos para acceder a la galería');
+        return;
+      }
+
+      // Mostrar opciones
+      Alert.alert(
+        'Seleccionar Imagen',
+        'Elige una opción',
+        [
+          { text: 'Cámara', onPress: () => openCamera() },
+          { text: 'Galería', onPress: () => openGallery() },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      console.error('Error solicitando permisos:', error);
+      Alert.alert('Error', 'Error al solicitar permisos');
+    }
+  };
+
+  const openCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos', 'Se necesitan permisos para usar la cámara');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        uploadImage(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error abriendo cámara:', error);
+      Alert.alert('Error', 'Error al abrir la cámara');
+    }
+  };
+
+  const openGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        uploadImage(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error abriendo galería:', error);
+      Alert.alert('Error', 'Error al abrir la galería');
+    }
+  };
+
+  const uploadImage = async (asset) => {
+    try {
+      setUploading(true);
+
+      // Generar nombre único
+      const fileExtension = asset.uri.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+      const filePath = `public/${orderId}/${informeTabla}/${fileName}`;
+
+      // Crear FormData
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: fileName,
+      });
+
+      // Subir a Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('fotos_informes')
+        .upload(filePath, formData, {
+          contentType: asset.type || 'image/jpeg',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Error subiendo imagen:', uploadError);
+        Alert.alert('Error', 'No se pudo subir la imagen');
+        return;
+      }
+
+      // Guardar referencia en base de datos
+      const { error: dbError } = await supabase
+        .from('informe_fotografias')
+        .insert({
+          orden_trabajo_id: orderId,
+          informe_tabla: informeTabla,
+          storage_path: filePath,
+          etiqueta: 'Foto de campo'
+        });
+
+      if (dbError) {
+        console.error('Error guardando en BD:', dbError);
+        Alert.alert('Error', 'Imagen subida pero no se pudo guardar la referencia');
+        return;
+      }
+
+      Alert.alert('Éxito', 'Imagen subida correctamente');
+      loadImages(); // Recargar lista
+
+    } catch (error) {
+      console.error('Error general:', error);
+      Alert.alert('Error', 'Error inesperado al subir la imagen');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deleteImage = async (imageId, storagePath) => {
+    Alert.alert(
+      'Eliminar Imagen',
+      '¿Estás seguro de que quieres eliminar esta imagen?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Eliminar de Storage
+              await supabase.storage
+                .from('fotos_informes')
+                .remove([storagePath]);
+
+              // Eliminar de BD
+              const { error } = await supabase
+                .from('informe_fotografias')
+                .delete()
+                .eq('id', imageId);
+
+              if (error) {
+                console.error('Error eliminando:', error);
+                Alert.alert('Error', 'No se pudo eliminar la imagen');
+                return;
+              }
+
+              Alert.alert('Éxito', 'Imagen eliminada correctamente');
+              loadImages();
+            } catch (error) {
+              console.error('Error:', error);
+              Alert.alert('Error', 'Error inesperado al eliminar');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const getImageUrl = (storagePath) => {
+    const { data } = supabase.storage
+      .from('fotos_informes')
+      .getPublicUrl(storagePath);
+    return data?.publicUrl;
+  };
+
+  const renderImage = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.imageContainer}
+      onLongPress={() => deleteImage(item.id, item.storage_path)}
+    >
+      <Image 
+        source={{ uri: getImageUrl(item.storage_path) }}
+        style={styles.uploadedImage}
+        resizeMode="cover"
+      />
+      <Text style={styles.imageLabel}>{item.etiqueta}</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.imageUploaderContainer}>
+      <Text style={styles.imageUploaderTitle}>📸 Fotografías del Informe</Text>
+      
+      {loading ? (
+        <ActivityIndicator size="small" color="#007AFF" />
+      ) : (
+        <>
+          {images.length > 0 && (
+            <FlatList
+              data={images}
+              renderItem={renderImage}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.imagesList}
+            />
+          )}
+          
+          <TouchableOpacity 
+            style={styles.addPhotoButton}
+            onPress={pickImage}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <>
+                <Text style={styles.addPhotoIcon}>📷</Text>
+                <Text style={styles.addPhotoText}>Añadir Foto</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <Text style={styles.imageHelperText}>
+            Mantén presionada una imagen para eliminarla
+          </Text>
+        </>
+      )}
+    </View>
+  );
+};
+
+// ================== LOGIN SCREEN ==================
+const LoginScreen = ({ navigation }) => {
+  const [email, setEmail] = useState('admin@pmlink.com');
+  const [password, setPassword] = useState('admin123456');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
+
+      if (error) {
+        Alert.alert('Error de autenticación', error.message);
+        return;
+      }
+
+      if (data?.user) {
+        navigation.replace('Home');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Error de conexión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.loginContainer}>
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('./assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+
+        <Text style={styles.title}>PMLink Técnico</Text>
+        <Text style={styles.subtitle}>Sistema de Órdenes de Trabajo</Text>
+
+        <View style={styles.formContainer}>
+          <Text style={styles.inputLabel}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="admin@pmlink.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.inputLabel}>Contraseña</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="admin123456"
+            secureTextEntry
+          />
+
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.buttonText}>Iniciar Sesión</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// ================== HOME SCREEN ==================
+const HomeScreen = ({ navigation }) => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 Obteniendo órdenes de trabajo...');
+      
+      const { data, error } = await supabase
+        .from('orden_trabajo')
+        .select(`
+          *,
+          estados_orden_trabajo(nombre),
+          prioridades(nombre),
+          informe_limpieza_ductos(id)
+        `)
+        .eq('activa', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error cargando órdenes:', error);
+        Alert.alert('Error', 'No se pudieron cargar las órdenes de trabajo');
+        return;
+      }
+
+      console.log('✅ Órdenes obtenidas:', data?.length || 0);
+      setOrders(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      Alert.alert('Error', 'Error inesperado');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getEstadoColor = (estadoId) => {
+    switch (estadoId) {
+      case 1: return '#FFA500'; // Pendiente
+      case 2: return '#007AFF'; // En Progreso  
+      case 3: return '#28A745'; // Completada
+      case 4: return '#DC3545'; // Cancelada
+      default: return '#6C757D';
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigation.replace('Login');
+  };
+
+  const renderOrder = ({ item }) => (
+    <TouchableOpacity 
+      style={[
+        styles.orderCard,
+        item.informe_limpieza_ductos?.length > 0 && styles.orderCardWithReport
+      ]}
+      onPress={() => navigation.navigate('OrderDetail', { order: item })}
+    >
+      <View style={styles.orderHeader}>
+        <Text style={styles.orderId}>#{item.id.substring(0, 8)}</Text>
+        <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(item.estado_id) }]}>
+          <Text style={styles.estadoText}>
+            {item.estados_orden_trabajo?.nombre || 'Sin estado'}
+          </Text>
+        </View>
+        {item.informe_limpieza_ductos?.length > 0 && (
+          <View style={styles.reportBadge}>
+            <Text style={styles.reportBadgeText}>✅</Text>
+          </View>
+        )}
+      </View>
+      
+      <Text style={styles.orderTitle}>{item.titulo}</Text>
+      <Text style={styles.orderDescription} numberOfLines={2}>
+        {item.descripcion_corta}
+      </Text>
+      
+      {item.informe_limpieza_ductos?.length > 0 && (
+        <Text style={styles.reportIndicator}>📋 Informe completado</Text>
+      )}
+      
+      <View style={styles.orderFooter}>
+        <Text style={styles.orderDate}>
+          📅 {new Date(item.created_at).toLocaleDateString()}
+        </Text>
+        {item.prioridades?.nombre && (
+          <Text style={styles.orderPriority}>
+            ⚡ {item.prioridades.nombre}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Cargando órdenes...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Órdenes de Trabajo</Text>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Salir</Text>
+        </TouchableOpacity>
+      </View>
+
+      {orders.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyText}>No hay órdenes de trabajo</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={orders}
+          renderItem={renderOrder}
+          keyExtractor={(item) => item.id}
+          refreshing={loading}
+          onRefresh={loadOrders}
+          contentContainerStyle={styles.ordersList}
+        />
+      )}
+    </SafeAreaView>
+  );
+};
+
+// ================== ORDER DETAIL SCREEN ==================
+const OrderDetailScreen = ({ route, navigation }) => {
+  const { order } = route.params;
+  const [servicioInfo, setServicioInfo] = useState(null);
+  const [localInfo, setLocalInfo] = useState(null);
+  const [empresaInfo, setEmpresaInfo] = useState(null);
+  const [formularioInfo, setFormularioInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showFormModal, setShowFormModal] = useState(false);
+
+  useEffect(() => {
+    loadOrderDetails();
+  }, []);
+
+  const loadOrderDetails = async () => {
+    try {
+      console.log('🔍 Iniciando cadena de consultas para orden:', order.id);
+      console.log('📋 Servicio ID:', order.servicio_id);
+
+      if (!order.servicio_id) {
+        setLoading(false);
+        return;
+      }
+
+      // Paso 1: Obtener local_id desde servicios
+      console.log('🔗 Paso 1: Obteniendo local_id desde servicios...');
+      const { data: servicioData, error: servicioError } = await supabase
+        .from('servicios')
+        .select('formulario_id, local_id')
+        .eq('servicio_id', order.servicio_id)
+        .single();
+
+      if (servicioError) {
+        console.error('❌ Error obteniendo servicio:', servicioError);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Datos del servicio obtenidos:', servicioData);
+      setServicioInfo(servicioData);
+
+      // Obtener información del local
+      if (servicioData?.local_id) {
+        console.log('🔗 Obteniendo información del local...');
+        const { data: localData, error: localError } = await supabase
+          .from('local')
+          .select('nombre_local, empresa_id')
+          .eq('local_id', servicioData.local_id)
+          .single();
+
+        if (localError) {
+          console.error('❌ Error obteniendo local:', localError);
+        } else {
+          console.log('✅ Información del local obtenida:', localData);
+          setLocalInfo(localData);
+
+          // Obtener información de la empresa
+          if (localData?.empresa_id) {
+            console.log('🔗 Obteniendo información de la empresa...');
+            const { data: empresaData, error: empresaError } = await supabase
+              .from('empresa')
+              .select('nombre_empresa')
+              .eq('empresa_id', localData.empresa_id)
+              .single();
+
+            if (empresaError) {
+              console.error('❌ Error obteniendo empresa:', empresaError);
+            } else {
+              console.log('✅ Información de la empresa obtenida:', empresaData);
+              setEmpresaInfo(empresaData);
+            }
+          }
+        }
+      }
+
+      // Paso 2: Obtener form_key desde formularios
+      if (servicioData?.formulario_id) {
+        console.log('🔗 Paso 2: Obteniendo form_key desde formularios...');
+        const { data: formularioData, error: formularioError } = await supabase
+          .from('formularios')
+          .select('form_key, nombre, descripcion')
+          .eq('id', servicioData.formulario_id)
+          .single();
+
+        if (formularioError) {
+          console.error('❌ Error obteniendo formulario:', formularioError);
+        } else {
+          console.log('✅ Form key obtenido:', formularioData.form_key);
+          setFormularioInfo(formularioData);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error cargando detalles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getFormComponent = () => {
+    if (!formularioInfo?.form_key) return null;
+
+    const formKey = formularioInfo.form_key.toLowerCase();
+    
+    if (formKey.includes('limpieza_ductos')) {
+      return <FormularioDinamico order={order} onClose={() => setShowFormModal(false)} />;
+    }
+    
+    return (
+      <View style={styles.formContainer}>
+        <Text style={styles.formTitle}>Formulario: {formularioInfo.nombre}</Text>
+        <Text style={styles.formDescription}>
+          Form Key: {formularioInfo.form_key}
+        </Text>
+        <Text style={styles.infoText}>
+          Este formulario aún no está implementado
+        </Text>
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={() => setShowFormModal(false)}
+        >
+          <Text style={styles.buttonText}>Cerrar</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Cargando detalles...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.detailContainer}>
+        <View style={styles.detailHeader}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>← Volver</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.detailCard}>
+          <Text style={styles.detailTitle}>📋 Información de la Orden</Text>
+          
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Número:</Text>
+            <Text style={styles.detailValue}>
+              {order.numero || `#${order.id.substring(0, 8)}`}
+            </Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Título:</Text>
+            <Text style={styles.detailValue}>{order.titulo}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Descripción:</Text>
+            <Text style={styles.detailValue}>
+              {order.descripcion_corta}
+              {order.descripcion_larga && ` ${order.descripcion_larga}`}
+            </Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Fecha:</Text>
+            <Text style={styles.detailValue}>
+              {new Date(order.created_at).toLocaleString()}
+            </Text>
+          </View>
+
+          {empresaInfo && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Empresa:</Text>
+              <Text style={styles.detailValue}>{empresaInfo.nombre_empresa}</Text>
+            </View>
+          )}
+
+          {localInfo && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Local:</Text>
+              <Text style={styles.detailValue}>{localInfo.nombre_local}</Text>
+            </View>
+          )}
+        </View>
+
+        {servicioInfo && (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailTitle}>🔧 Información del Servicio</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Servicio ID:</Text>
+              <Text style={styles.detailValue}>{order.servicio_id}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Local ID:</Text>
+              <Text style={styles.detailValue}>{servicioInfo.local_id || 'No asignado'}</Text>
+            </View>
+          </View>
+        )}
+
+        {formularioInfo && (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailTitle}>📝 Formulario Asignado</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Formulario:</Text>
+              <Text style={styles.detailValue}>{formularioInfo.nombre}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Tipo:</Text>
+              <Text style={styles.detailValue}>{formularioInfo.form_key}</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={() => setShowFormModal(true)}
+            >
+              <Text style={styles.buttonText}>Abrir Formulario</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!servicioInfo && (
+          <View style={styles.detailCard}>
+            <Text style={styles.infoText}>
+              Esta orden no tiene un servicio asignado o no se pudo cargar la información.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      <Modal
+        visible={showFormModal}
+        animationType="slide"
+        presentationStyle="formSheet"
+      >
+        {getFormComponent()}
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+// ================== FORMULARIO DINÁMICO ==================
+const FormularioDinamico = ({ order, onClose }) => {
+  const [campos, setCampos] = useState([]);
+  const [formData, setFormData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [tableName, setTableName] = useState('');
+  const [existingRecord, setExistingRecord] = useState(null);
+
+  useEffect(() => {
+    cargarEstructuraFormulario();
+  }, []);
+
+  const cargarEstructuraFormulario = async () => {
+    try {
+      console.log('🔗 Paso 3: Obteniendo estructura de tabla: INFORME_LIMPIEZA_DUCTOS');
+      
+      const tableNameQuery = 'INFORME_LIMPIEZA_DUCTOS';
+      setTableName('informe_limpieza_ductos');
+
+      // Verificar si la tabla es accesible
+      const { data: testData, error: testError } = await supabase
+        .from('informe_limpieza_ductos')
+        .select('*')
+        .limit(1);
+
+      if (testError) {
+        console.error('❌ Error accediendo a la tabla:', testError);
+        Alert.alert('Error', 'No se pudo acceder a la tabla del formulario');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Tabla accesible:', tableNameQuery);
+
+      // Obtener estructura de la tabla
+      const { data: estructura, error: estructuraError } = await supabase
+        .rpc('get_table_structure', { table_name: tableNameQuery });
+
+      if (estructuraError) {
+        console.error('❌ Error obteniendo estructura:', estructuraError);
+        Alert.alert('Error', 'No se pudo obtener la estructura del formulario');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Estructura de tabla obtenida:', estructura);
+
+      // Filtrar campos que no queremos mostrar
+      const camposExcluidos = ['id', 'created_at', 'updated_at'];
+      const camposFiltrados = estructura.filter(campo => 
+        !camposExcluidos.includes(campo.column_name.toLowerCase())
+      );
+
+      setCampos(camposFiltrados);
+
+      // Inicializar formData
+      const initialData = { orden_trabajo_id: order.id };
+      camposFiltrados.forEach(campo => {
+        initialData[campo.column_name] = '';
+      });
+      setFormData(initialData);
+
+      // Buscar datos existentes
+      await buscarDatosExistentes();
+
+    } catch (error) {
+      console.error('❌ Error general:', error);
+      Alert.alert('Error', 'Error inesperado al cargar el formulario');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const buscarDatosExistentes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('informe_limpieza_ductos')
+        .select('*')
+        .eq('orden_trabajo_id', order.id)
+        .single();
+
+      if (data) {
+        console.log('✅ Datos existentes encontrados:', data);
+        setExistingRecord(data);
+        setFormData(data);
+      } else {
+        console.log('ℹ️ No se encontraron datos existentes');
+      }
+    } catch (error) {
+      console.log('ℹ️ No hay datos existentes para esta orden');
+    }
+  };
+
+  const handleInputChange = (fieldName, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+  };
+
+  const formatFieldName = (fieldName) => {
+    return fieldName
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const isRequired = (fieldName) => {
+    const requiredFields = ['orden_trabajo_id'];
+    return requiredFields.includes(fieldName);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setSaving(true);
+
+      // Validar campos requeridos
+      const missingFields = campos
+        .filter(campo => isRequired(campo.column_name) && !formData[campo.column_name])
+        .map(campo => formatFieldName(campo.column_name));
+
+      if (missingFields.length > 0) {
+        Alert.alert('Campos Requeridos', `Por favor completa: ${missingFields.join(', ')}`);
+        return;
+      }
+
+      let result;
+      if (existingRecord) {
+        // Actualizar registro existente
+        result = await supabase
+          .from('informe_limpieza_ductos')
+          .update(formData)
+          .eq('id', existingRecord.id);
+      } else {
+        // Crear nuevo registro
+        result = await supabase
+          .from('informe_limpieza_ductos')
+          .insert([formData]);
+      }
+
+      if (result.error) {
+        console.error('❌ Error guardando:', result.error);
+        Alert.alert('Error', 'No se pudo guardar el formulario');
+        return;
+      }
+
+      Alert.alert(
+        'Éxito', 
+        existingRecord ? 'Formulario actualizado correctamente' : 'Formulario guardado correctamente',
+        [{ text: 'OK', onPress: onClose }]
+      );
+
+    } catch (error) {
+      console.error('❌ Error general al guardar:', error);
+      Alert.alert('Error', 'Error inesperado al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderField = (campo) => {
+    const fieldName = campo.column_name;
+    const fieldValue = formData[fieldName] || '';
+
+    if (fieldName === 'orden_trabajo_id') {
+      return (
+        <View key={fieldName} style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>
+            {formatFieldName(fieldName)} {isRequired(fieldName) && '*'}
+          </Text>
+          <TextInput
+            style={[styles.input, styles.readOnlyInput]}
+            value={fieldValue}
+            editable={false}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View key={fieldName} style={styles.fieldContainer}>
+        <Text style={styles.fieldLabel}>
+          {formatFieldName(fieldName)} {isRequired(fieldName) && '*'}
+        </Text>
+        <TextInput
+          style={campo.data_type === 'text' ? styles.textArea : styles.input}
+          value={fieldValue}
+          onChangeText={(value) => handleInputChange(fieldName, value)}
+          placeholder={`Ingresa ${formatFieldName(fieldName).toLowerCase()}`}
+          multiline={campo.data_type === 'text'}
+          numberOfLines={campo.data_type === 'text' ? 3 : 1}
+        />
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Cargando formulario...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.formHeader}>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Text style={styles.closeButtonText}>✕ Cerrar</Text>
+        </TouchableOpacity>
+        <Text style={styles.formHeaderTitle}>
+          Formulario {tableName.replace(/_/g, ' ').toUpperCase()}
+        </Text>
+      </View>
+
+      <ScrollView style={styles.formScrollView}>
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>📋 Información del Formulario</Text>
+          {campos.map(renderField)}
+        </View>
+
+        {/* COMPONENTE IMAGE UPLOADER */}
+        <ImageUploader 
+          orderId={order.id} 
+          informeTabla="informe_limpieza_ductos" 
+        />
+
+        <TouchableOpacity 
+          style={styles.saveButton}
+          onPress={handleSubmit}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.saveButtonText}>
+              {existingRecord ? 'Actualizar Datos' : 'Guardar Formulario'}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ height: 50 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// ================== APP PRINCIPAL ==================
+const App = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuthState();
+  }, []);
+
+  const checkAuthState = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+    } catch (error) {
+      console.error('Error checking auth state:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator 
+        screenOptions={{ headerShown: false }}
+        initialRouteName={isLoggedIn ? "Home" : "Login"}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+// ================== ESTILOS ==================
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+  },
+  
+  // Login Styles
+  loginContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#2C3E50',
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#7F8C8D',
+    marginBottom: 40,
+  },
+  formContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E0E6ED',
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
+  },
+  readOnlyInput: {
+    backgroundColor: '#F8F9FA',
+    color: '#6C757D',
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: '#E0E6ED',
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Home Styles
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E6ED',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  logoutButton: {
+    padding: 8,
+  },
+  logoutText: {
+    color: '#DC3545',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  ordersList: {
+    padding: 20,
+  },
+  orderCard: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  orderCardWithReport: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#28A745',
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  reportBadge: {
+    backgroundColor: '#28A745',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 5,
+  },
+  reportBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  reportIndicator: {
+    fontSize: 12,
+    color: '#28A745',
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  orderId: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  estadoBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  estadoText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  orderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 5,
+  },
+  orderDescription: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  orderFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  orderDate: {
+    fontSize: 12,
+    color: '#7F8C8D',
+  },
+  orderPriority: {
+    fontSize: 12,
+    color: '#E67E22',
+    fontWeight: '600',
+  },
+  
+  // Detail Styles
+  detailContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  detailHeader: {
+    marginBottom: 20,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    padding: 10,
+  },
+  backButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  detailCard: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  detailTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 15,
+  },
+  detailRow: {
+    marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7F8C8D',
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 16,
+    color: '#2C3E50',
+    lineHeight: 22,
+  },
+  
+  // Form Styles
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E6ED',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  closeButtonText: {
+    color: '#DC3545',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  formHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    flex: 1,
+    textAlign: 'center',
+    marginRight: 50,
+  },
+  formScrollView: {
+    flex: 1,
+    padding: 20,
+  },
+  formSection: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 15,
+  },
+  fieldContainer: {
+    marginBottom: 15,
+  },
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  saveButton: {
+    backgroundColor: '#28A745',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Image Uploader Styles
+  imageUploaderContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  imageUploaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 15,
+  },
+  imagesList: {
+    marginBottom: 15,
+  },
+  imageContainer: {
+    marginRight: 15,
+    alignItems: 'center',
+  },
+  uploadedImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    marginBottom: 5,
+  },
+  imageLabel: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    maxWidth: 100,
+  },
+  addPhotoButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  addPhotoIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  addPhotoText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  imageHelperText: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  
+  // Utils
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#7F8C8D',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#7F8C8D',
+    textAlign: 'center',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+});
+
+export default App;
