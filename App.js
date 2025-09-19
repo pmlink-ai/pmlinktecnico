@@ -934,17 +934,31 @@ const FormularioDinamico = ({ order, onClose }) => {
 
       setCampos(camposFiltrados);
 
-      // Inicializar formData
+      // Inicializar formData básico
       const initialData = { orden_trabajo_id: order.id };
       camposFiltrados.forEach(campo => {
         initialData[campo.column_name] = '';
       });
-      setFormData(initialData);
+      
+      console.log('💾 FormData inicial básico:', initialData);
 
-      console.log('💾 FormData inicial:', initialData);
+      // Buscar datos existentes DESPUÉS de configurar tableName
+      console.log('� Buscando datos existentes en tabla:', tableNameLower);
+      
+      const { data: existingData, error: existingError } = await supabase
+        .from(tableNameLower)
+        .select('*')
+        .eq('orden_trabajo_id', order.id)
+        .single();
 
-      // Buscar datos existentes
-      await buscarDatosExistentes();
+      if (existingData && !existingError) {
+        console.log('✅ Datos existentes encontrados:', existingData);
+        setExistingRecord(existingData);
+        setFormData(existingData);
+      } else {
+        console.log('ℹ️ No se encontraron datos existentes, usando datos iniciales');
+        setFormData(initialData);
+      }
 
     } catch (error) {
       console.error('❌ Error general:', error);
@@ -1059,7 +1073,8 @@ const FormularioDinamico = ({ order, onClose }) => {
         // Crear nuevo registro
         result = await supabase
           .from(tableName)
-          .insert([formData]);
+          .insert([formData])
+          .select();
       }
 
       if (result.error) {
@@ -1069,10 +1084,25 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       console.log('✅ Formulario guardado exitosamente');
+      
+      // Si es un nuevo registro, necesitamos obtener el ID del registro creado
+      if (!existingRecord && result.data && result.data.length > 0) {
+        const newRecord = result.data[0];
+        console.log('✅ Nuevo registro creado:', newRecord);
+        setExistingRecord(newRecord);
+        setFormData(newRecord);
+      }
+      
       Alert.alert(
         'Éxito', 
         existingRecord ? 'Formulario actualizado correctamente' : 'Formulario guardado correctamente',
-        [{ text: 'OK', onPress: onClose }]
+        [{ 
+          text: 'Continuar editando', 
+          style: 'default'
+        }, {
+          text: 'Cerrar', 
+          onPress: onClose 
+        }]
       );
 
     } catch (error) {
