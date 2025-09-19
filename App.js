@@ -675,6 +675,11 @@ const OrderDetailScreen = ({ route, navigation }) => {
           <Text style={styles.detailTitle}>📋 Información de la Orden</Text>
           
           <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>ID Orden:</Text>
+            <Text style={styles.detailValue}>{order.id}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Número:</Text>
             <Text style={styles.detailValue}>
               {order.numero || `#${order.id.substring(0, 8)}`}
@@ -786,20 +791,110 @@ const FormularioDinamico = ({ order, onClose }) => {
 
   const cargarEstructuraFormulario = async () => {
     try {
-      console.log('🔗 Paso 3: Obteniendo estructura de tabla: INFORME_LIMPIEZA_DUCTOS');
+      console.log('🔗 Paso 1: Obteniendo información de la orden y servicio');
+      console.log('🔍 Orden recibida:', order.id);
+
+      // Paso 1: Obtener el servicio_id de la orden de trabajo
+      console.log('📋 Consultando orden_trabajo para ID:', order.id);
+      const { data: ordenData, error: ordenError } = await supabase
+        .from('orden_trabajo')
+        .select('servicio_id')
+        .eq('id', order.id)
+        .single();
+
+      console.log('📋 Datos de orden obtenidos:', ordenData);
+      console.log('❌ Error de orden:', ordenError);
+
+      if (ordenError || !ordenData?.servicio_id) {
+        console.error('❌ Error obteniendo servicio de la orden:', ordenError);
+        Alert.alert('Error', `No se pudo obtener el servicio de la orden: ${ordenError?.message || 'Servicio ID no encontrado'}`);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Servicio ID obtenido:', ordenData.servicio_id);
+
+      // Paso 2: Obtener el formulario_id desde la tabla servicios
+      console.log('🔍 Buscando formulario para servicio:', ordenData.servicio_id);
       
-      const tableNameQuery = 'INFORME_LIMPIEZA_DUCTOS';
-      setTableName('informe_limpieza_ductos');
+      const { data: servicioData, error: servicioError } = await supabase
+        .from('servicios')
+        .select('formulario_id, nombre_servicio')
+        .eq('servicio_id', ordenData.servicio_id)
+        .single();
+
+      console.log('📋 Respuesta de servicios:', servicioData);
+      console.log('❌ Error de servicios:', servicioError);
+
+      if (servicioError) {
+        console.error('❌ Error obteniendo formulario del servicio:', servicioError);
+        Alert.alert('Error', `Error consultando servicio: ${servicioError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!servicioData) {
+        console.error('❌ No se encontró el servicio:', ordenData.servicio_id);
+        Alert.alert('Error', `No se encontró el servicio con ID: ${ordenData.servicio_id}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!servicioData.formulario_id) {
+        console.error('❌ El servicio no tiene formulario_id configurado');
+        Alert.alert('Error', `El servicio "${servicioData.nombre_servicio}" no tiene formulario configurado`);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Formulario ID obtenido:', servicioData.formulario_id);
+
+      // Paso 3: Obtener el form_key desde la tabla formularios
+      console.log('🔍 Buscando form_key para formulario:', servicioData.formulario_id);
+      
+      const { data: formularioData, error: formularioError } = await supabase
+        .from('formularios')
+        .select('form_key, nombre')
+        .eq('id', servicioData.formulario_id)
+        .single();
+
+      console.log('📋 Respuesta de formularios:', formularioData);
+      console.log('❌ Error de formularios:', formularioError);
+
+      if (formularioError) {
+        console.error('❌ Error obteniendo form_key:', formularioError);
+        Alert.alert('Error', `Error consultando formulario: ${formularioError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!formularioData?.form_key) {
+        console.error('❌ No se encontró form_key en el formulario');
+        Alert.alert('Error', `El formulario no tiene form_key configurado`);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Form Key obtenido:', formularioData.form_key);
+
+      // Paso 4: Usar el form_key como nombre de tabla
+      const tableNameQuery = formularioData.form_key.toUpperCase();
+      const tableNameLower = formularioData.form_key.toLowerCase();
+      
+      setTableName(tableNameLower);
+
+      console.log('🔍 Verificando acceso a tabla:', tableNameLower);
+      console.log('🔍 Query de tabla en mayúsculas:', tableNameQuery);
 
       // Verificar si la tabla es accesible
       const { data: testData, error: testError } = await supabase
-        .from('informe_limpieza_ductos')
+        .from(tableNameLower)
         .select('*')
         .limit(1);
 
       if (testError) {
         console.error('❌ Error accediendo a la tabla:', testError);
-        Alert.alert('Error', 'No se pudo acceder a la tabla del formulario');
+        Alert.alert('Error', `No se pudo acceder a la tabla ${tableNameLower}: ${testError.message}`);
         setLoading(false);
         return;
       }
@@ -807,23 +902,35 @@ const FormularioDinamico = ({ order, onClose }) => {
       console.log('✅ Tabla accesible:', tableNameQuery);
 
       // Obtener estructura de la tabla
+      console.log('🔍 Llamando a get_table_structure con:', tableNameQuery);
       const { data: estructura, error: estructuraError } = await supabase
-        .rpc('get_table_structure', { table_name: tableNameQuery });
+        .rpc('get_table_structure', { input_table_name: tableNameQuery });
 
       if (estructuraError) {
         console.error('❌ Error obteniendo estructura:', estructuraError);
-        Alert.alert('Error', 'No se pudo obtener la estructura del formulario');
+        Alert.alert('Error', `No se pudo obtener la estructura del formulario: ${estructuraError.message}`);
         setLoading(false);
         return;
       }
 
       console.log('✅ Estructura de tabla obtenida:', estructura);
+      console.log('📊 Número de campos encontrados:', estructura?.length || 0);
+
+      if (!estructura || estructura.length === 0) {
+        console.error('❌ No se encontraron campos en la tabla');
+        Alert.alert('Error', `La tabla ${tableNameLower} no tiene campos configurados`);
+        setLoading(false);
+        return;
+      }
 
       // Filtrar campos que no queremos mostrar
       const camposExcluidos = ['id', 'created_at', 'updated_at'];
       const camposFiltrados = estructura.filter(campo => 
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
+
+      console.log('📋 Campos filtrados:', camposFiltrados);
+      console.log('📈 Número de campos después del filtro:', camposFiltrados.length);
 
       setCampos(camposFiltrados);
 
@@ -834,12 +941,14 @@ const FormularioDinamico = ({ order, onClose }) => {
       });
       setFormData(initialData);
 
+      console.log('💾 FormData inicial:', initialData);
+
       // Buscar datos existentes
       await buscarDatosExistentes();
 
     } catch (error) {
       console.error('❌ Error general:', error);
-      Alert.alert('Error', 'Error inesperado al cargar el formulario');
+      Alert.alert('Error', `Error inesperado al cargar el formulario: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -847,8 +956,15 @@ const FormularioDinamico = ({ order, onClose }) => {
 
   const buscarDatosExistentes = async () => {
     try {
+      if (!tableName) {
+        console.log('ℹ️ No hay tabla definida aún');
+        return;
+      }
+
+      console.log('🔍 Buscando datos existentes en tabla:', tableName);
+      
       const { data, error } = await supabase
-        .from('informe_limpieza_ductos')
+        .from(tableName)
         .select('*')
         .eq('orden_trabajo_id', order.id)
         .single();
@@ -873,6 +989,30 @@ const FormularioDinamico = ({ order, onClose }) => {
   };
 
   const formatFieldName = (fieldName) => {
+    // Mapeo de nombres específicos para campos del formulario
+    const fieldNameMappings = {
+      'campanas_estado': 'CAMPANAS',
+      'filtros_estado': 'FILTROS', 
+      'ductos_estado': 'DUCTOS',
+      'damper_estado': 'DAMPER',
+      'drenajes_estado': 'DRENAJES',
+      'registros_local_estado': 'REGISTROS LOCAL',
+      'registros_techumbre_estado': 'REGISTROS TECHUMBRE',
+      'rejillas_en_el_motor': 'REJILLAS EN EL MOTOR',
+      'cantidad_de_motores': 'CANTIDAD DE MOTORES',
+      'fuelle': 'FUELLE',
+      'correas': 'CORREAS',
+      'rodamientos': 'RODAMIENTOS',
+      'observaciones': 'OBSERVACIONES',
+      'orden_trabajo_id': 'ORDEN DE TRABAJO'
+    };
+
+    // Si existe un mapeo específico, usarlo
+    if (fieldNameMappings[fieldName]) {
+      return fieldNameMappings[fieldName];
+    }
+
+    // Si no, usar el formato estándar
     return fieldName
       .replace(/_/g, ' ')
       .replace(/\b\w/g, l => l.toUpperCase());
@@ -887,6 +1027,11 @@ const FormularioDinamico = ({ order, onClose }) => {
     try {
       setSaving(true);
 
+      if (!tableName) {
+        Alert.alert('Error', 'No se ha configurado la tabla del formulario');
+        return;
+      }
+
       // Validar campos requeridos
       const missingFields = campos
         .filter(campo => isRequired(campo.column_name) && !formData[campo.column_name])
@@ -897,17 +1042,20 @@ const FormularioDinamico = ({ order, onClose }) => {
         return;
       }
 
+      console.log('💾 Guardando en tabla:', tableName);
+      console.log('📝 Datos a guardar:', formData);
+
       let result;
       if (existingRecord) {
         // Actualizar registro existente
         result = await supabase
-          .from('informe_limpieza_ductos')
+          .from(tableName)
           .update(formData)
           .eq('id', existingRecord.id);
       } else {
         // Crear nuevo registro
         result = await supabase
-          .from('informe_limpieza_ductos')
+          .from(tableName)
           .insert([formData]);
       }
 
@@ -917,6 +1065,7 @@ const FormularioDinamico = ({ order, onClose }) => {
         return;
       }
 
+      console.log('✅ Formulario guardado exitosamente');
       Alert.alert(
         'Éxito', 
         existingRecord ? 'Formulario actualizado correctamente' : 'Formulario guardado correctamente',
@@ -992,13 +1141,42 @@ const FormularioDinamico = ({ order, onClose }) => {
       <ScrollView style={styles.formScrollView}>
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>📋 Información del Formulario</Text>
-          {campos.map(renderField)}
+          
+          {/* Mostrar ID del registro si existe */}
+          {existingRecord && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>ID del Registro:</Text>
+              <Text style={styles.infoValue}>{existingRecord.id}</Text>
+            </View>
+          )}
+          
+          {/* Mostrar ID de la orden */}
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>ID de la Orden:</Text>
+            <Text style={styles.infoValue}>{order.id}</Text>
+          </View>
+          
+          {/* Mostrar nombre de la tabla */}
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Tabla del Formulario:</Text>
+            <Text style={styles.infoValue}>{tableName}</Text>
+          </View>
+          
+          {console.log('🎨 Renderizando campos:', campos.length)}
+          {campos.length === 0 ? (
+            <Text style={styles.noCamposText}>
+              No se encontraron campos para mostrar. 
+              Revisando estructura de la tabla...
+            </Text>
+          ) : (
+            campos.map(renderField)
+          )}
         </View>
 
         {/* COMPONENTE IMAGE UPLOADER */}
         <ImageUploader 
           orderId={order.id} 
-          informeTabla="informe_limpieza_ductos" 
+          informeTabla={tableName} 
         />
 
         <TouchableOpacity 
@@ -1385,6 +1563,40 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  
+  // Debug styles
+  noCamposText: {
+    fontSize: 16,
+    color: '#E74C3C',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: 20,
+  },
+  
+  // Info rows styles
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8F9FA',
+    marginBottom: 5,
+    borderRadius: 6,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#495057',
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontFamily: 'monospace',
+    flex: 2,
+    textAlign: 'right',
   },
   
   // Image Uploader Styles
