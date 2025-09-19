@@ -924,7 +924,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       // Filtrar campos que no queremos mostrar
-      const camposExcluidos = ['id', 'created_at', 'updated_at'];
+      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id'];
       const camposFiltrados = estructura.filter(campo => 
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
@@ -982,9 +982,12 @@ const FormularioDinamico = ({ order, onClose }) => {
   };
 
   const handleInputChange = (fieldName, value) => {
+    // Convertir automáticamente a mayúsculas
+    const upperCaseValue = value.toUpperCase();
+    
     setFormData(prev => ({
       ...prev,
-      [fieldName]: value
+      [fieldName]: upperCaseValue
     }));
   };
 
@@ -1111,6 +1114,8 @@ const FormularioDinamico = ({ order, onClose }) => {
           placeholder={`Ingresa ${formatFieldName(fieldName).toLowerCase()}`}
           multiline={campo.data_type === 'text'}
           numberOfLines={campo.data_type === 'text' ? 3 : 1}
+          autoCapitalize="characters"
+          autoCorrect={false}
         />
       </View>
     );
