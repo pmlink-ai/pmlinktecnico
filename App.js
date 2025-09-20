@@ -21,6 +21,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
+import * as Print from 'expo-print';
+import PDFService from './services/pdfService';
+import EmailService from './services/emailService';
 
 const { width } = Dimensions.get('window');
 
@@ -1010,6 +1013,8 @@ const FormularioDinamico = ({ order, onClose }) => {
   const [saving, setSaving] = useState(false);
   const [tableName, setTableName] = useState('');
   const [existingRecord, setExistingRecord] = useState(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     cargarEstructuraFormulario();
@@ -1390,6 +1395,101 @@ const FormularioDinamico = ({ order, onClose }) => {
     }
   };
 
+  // ==================== FUNCIONES PARA PDF Y EMAIL ====================
+  
+  const handleGeneratePDF = async () => {
+    try {
+      setGeneratingPDF(true);
+      
+      if (!existingRecord) {
+        Alert.alert(
+          'Guardar primero',
+          'Debes guardar el formulario antes de generar el PDF',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      console.log('📄 Generando PDF para orden:', order.id);
+      
+      await PDFService.generateAndSharePDF(
+        order.id, 
+        tableName, 
+        `Informe_${order.id?.substring(0, 8)}`
+      );
+      
+      Alert.alert('Éxito', 'PDF generado y listo para compartir');
+      
+    } catch (error) {
+      console.error('❌ Error generando PDF:', error);
+      Alert.alert('Error', 'No se pudo generar el PDF: ' + error.message);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handleSendByEmail = async () => {
+    try {
+      setSendingEmail(true);
+      
+      if (!existingRecord) {
+        Alert.alert(
+          'Guardar primero',
+          'Debes guardar el formulario antes de enviar por email',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Verificar disponibilidad de email
+      const isEmailAvailable = await EmailService.isEmailAvailable();
+      if (!isEmailAvailable) {
+        Alert.alert(
+          'Email no disponible',
+          'Este dispositivo no tiene configurado un cliente de email'
+        );
+        return;
+      }
+
+      console.log('📧 Preparando email para orden:', order.id);
+      
+      // Solicitar email del destinatario
+      const recipientEmail = await EmailService.promptForRecipientEmail();
+      if (recipientEmail === null) {
+        return; // Usuario canceló
+      }
+
+      // Generar PDF
+      const data = await PDFService.getCompleteOrderData(order.id, tableName);
+      const htmlContent = PDFService.generatePDFHTML(data);
+      
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        width: 612,
+        height: 792,
+        margins: {
+          left: 20,
+          top: 20,
+          right: 20,
+          bottom: 20,
+        },
+      });
+
+      // Enviar por email
+      const result = await EmailService.sendPDFByEmail(uri, order, recipientEmail);
+      
+      if (result.success) {
+        Alert.alert('Email preparado', 'Se ha abierto el cliente de email con el informe adjunto');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error enviando email:', error);
+      Alert.alert('Error', 'No se pudo preparar el email: ' + error.message);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const renderField = (campo) => {
     const fieldName = campo.column_name;
     const fieldValue = formData[fieldName] || '';
@@ -1522,6 +1622,41 @@ const FormularioDinamico = ({ order, onClose }) => {
             </Text>
           )}
         </TouchableOpacity>
+
+        {/* BOTONES PARA PDF Y EMAIL */}
+        {existingRecord && (
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.pdfButton]}
+              onPress={handleGeneratePDF}
+              disabled={generatingPDF}
+            >
+              {generatingPDF ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.actionButtonIcon}>📄</Text>
+                  <Text style={styles.actionButtonText}>Generar PDF</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.emailButton]}
+              onPress={handleSendByEmail}
+              disabled={sendingEmail}
+            >
+              {sendingEmail ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.actionButtonIcon}>📧</Text>
+                  <Text style={styles.actionButtonText}>Enviar Email</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={{ height: 50 }} />
       </ScrollView>
@@ -1892,6 +2027,39 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: 'white',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Estilos para botones de acción (PDF y Email)
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 15,
+    marginBottom: 20,
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 50,
+  },
+  pdfButton: {
+    backgroundColor: '#E74C3C',
+  },
+  emailButton: {
+    backgroundColor: '#3498DB',
+  },
+  actionButtonIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 14,
     fontWeight: '600',
   },
   

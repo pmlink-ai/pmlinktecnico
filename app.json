@@ -5,7 +5,10 @@
     "version": "1.5.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "splash": {
       "backgroundColor": "#ffffff"
     },
@@ -39,7 +42,8 @@
           "photosPermission": "La aplicación accede a tus fotos para adjuntar imágenes a los informes de mantenimiento.",
           "cameraPermission": "La aplicación accede a tu cámara para tomar fotos de los informes de mantenimiento."
         }
-      ]
+      ],
+      "expo-mail-composer"
     ],
     "extra": {
       "supabaseUrl": "https://mwtdoidrjuahsejfctlm.supabase.co",
