@@ -41,23 +41,44 @@ const Stack = createStackNavigator();
 
 // ================== COMPONENTE IMAGE UPLOADER ==================
 const ImageUploader = ({ orderId, informeTabla }) => {
-  const [imagesBySection, setImagesBySection] = useState({
-    ANTES: [],
-    PROCESO: [],
-    DESPUES: []
-  });
-  const [uploading, setUploading] = useState({
-    ANTES: false,
-    PROCESO: false,
-    DESPUES: false
-  });
+  // Configuración de componentes por servicio
+  const componentesPorServicio = {
+    'informe_limpieza_ductos': [
+      { key: 'Campana_1', title: 'Campana 1', icon: '🏭' },
+      { key: 'Campana_2', title: 'Campana 2', icon: '🏭' },
+      { key: 'Ductos_y_Registros', title: 'Ductos y Registros', icon: '🔧' },
+      { key: 'Motores_y_Cubierta', title: 'Motores y Cubierta', icon: '⚙️' },
+      { key: 'Panoramica_y_Sector', title: 'Panorámica y/o Sector', icon: '📷' },
+      { key: 'Recibo_Conforme', title: 'Recibo Conforme', icon: '✅' }
+    ],
+    'informe_mantenimiento_motor': [
+      { key: 'Motor_Principal', title: 'Motor Principal', icon: '⚙️' },
+      { key: 'Sistema_Electrico', title: 'Sistema Eléctrico', icon: '⚡' },
+      { key: 'Rodamientos', title: 'Rodamientos', icon: '🔩' }
+    ],
+    // Agregar más servicios según necesidad
+    'default': [
+      { key: 'General', title: 'General', icon: '📋' }
+    ]
+  };
+
+  // Estado jerárquico: componente → sección → fotos
+  const [imagesByComponenteAndSeccion, setImagesByComponenteAndSeccion] = useState({});
+  const [uploading, setUploading] = useState({});
   const [loading, setLoading] = useState(true);
+  const [expandedComponents, setExpandedComponents] = useState({});
 
   const secciones = [
     { key: 'ANTES', title: 'ANTES', color: '#FF6B6B' },
     { key: 'PROCESO', title: 'PROCESO', color: '#4ECDC4' },
     { key: 'DESPUES', title: 'DESPUÉS', color: '#45B7D1' }
   ];
+
+  // Obtener componentes para el servicio actual
+  const getComponentesActuales = () => {
+    const tablaKey = informeTabla?.toLowerCase() || 'default';
+    return componentesPorServicio[tablaKey] || componentesPorServicio.default;
+  };
 
   useEffect(() => {
     loadImages();
@@ -79,21 +100,48 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
-      // Organizar imágenes por sección
-      const organizedImages = {
-        ANTES: [],
-        PROCESO: [],
-        DESPUES: []
-      };
+      // Organizar imágenes por componente y sección
+      const componentesActuales = getComponentesActuales();
+      const organizedImages = {};
 
+      // Inicializar estructura
+      componentesActuales.forEach(componente => {
+        organizedImages[componente.key] = {
+          ANTES: [],
+          PROCESO: [],
+          DESPUES: []
+        };
+      });
+
+      // Organizar fotos existentes
       (data || []).forEach(image => {
-        const seccion = image.seccion || 'ANTES'; // Por defecto ANTES para compatibilidad
-        if (organizedImages[seccion]) {
-          organizedImages[seccion].push(image);
+        const seccion = image.seccion || 'ANTES';
+        const componente = image.componente || 'General';
+        
+        // Si el componente existe en la configuración actual
+        if (organizedImages[componente]) {
+          organizedImages[componente][seccion]?.push(image);
+        } else {
+          // Para compatibilidad, asignar a 'General' o al primer componente
+          const firstComponent = componentesActuales[0]?.key || 'General';
+          if (organizedImages[firstComponent]) {
+            organizedImages[firstComponent][seccion]?.push(image);
+          }
         }
       });
 
-      setImagesBySection(organizedImages);
+      setImagesByComponenteAndSeccion(organizedImages);
+      
+      // Expandir automáticamente componentes que tienen fotos
+      const newExpandedState = {};
+      Object.keys(organizedImages).forEach(componenteKey => {
+        const hasImages = secciones.some(seccion => 
+          organizedImages[componenteKey][seccion.key]?.length > 0
+        );
+        newExpandedState[componenteKey] = hasImages;
+      });
+      setExpandedComponents(newExpandedState);
+
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Error', 'Error inesperado al cargar imágenes');
@@ -102,7 +150,7 @@ const ImageUploader = ({ orderId, informeTabla }) => {
     }
   };
 
-  const pickImage = async (seccion) => {
+  const pickImage = async (componente, seccion) => {
     try {
       // Solicitar permisos
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -111,13 +159,13 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
-      // Mostrar opciones con componente
+      // Mostrar opciones de fuente de imagen
       Alert.alert(
-        `Foto ${seccion}`,
+        `Foto ${seccion} - ${componente}`,
         'Elige una opción',
         [
-          { text: 'Cámara', onPress: () => selectComponent(seccion, 'camera') },
-          { text: 'Galería', onPress: () => selectComponent(seccion, 'gallery') },
+          { text: 'Cámara', onPress: () => openCamera(componente, seccion) },
+          { text: 'Galería', onPress: () => openGallery(componente, seccion) },
           { text: 'Cancelar', style: 'cancel' }
         ]
       );
@@ -127,36 +175,16 @@ const ImageUploader = ({ orderId, informeTabla }) => {
     }
   };
 
-  const selectComponent = (seccion, imageSource) => {
-    Alert.prompt(
-      'Especificar Componente',
-      'Opcional: Ingresa el nombre del componente fotografiado',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Continuar', 
-          onPress: (componente) => {
-            if (imageSource === 'camera') {
-              openCamera(seccion, componente);
-            } else {
-              openGallery(seccion, componente);
-            }
-          }
-        }
-      ],
-      'plain-text',
-      '', // Valor por defecto vacío
-      'default'
-    );
-  };
-
-  const openCamera = async (seccion, componente = null) => {
+  const openCamera = async (componente, seccion) => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permisos', 'Se necesitan permisos para usar la cámara');
         return;
       }
+
+      // Configurar estado de carga
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: true }));
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -166,16 +194,22 @@ const ImageUploader = ({ orderId, informeTabla }) => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        uploadImage(result.assets[0], seccion, componente);
+        uploadImage(result.assets[0], componente, seccion);
+      } else {
+        setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
       }
     } catch (error) {
       console.error('Error abriendo cámara:', error);
       Alert.alert('Error', 'Error al abrir la cámara');
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
   };
 
-  const openGallery = async (seccion, componente = null) => {
+  const openGallery = async (componente, seccion) => {
     try {
+      // Configurar estado de carga
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: true }));
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -184,22 +218,23 @@ const ImageUploader = ({ orderId, informeTabla }) => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        uploadImage(result.assets[0], seccion, componente);
+        uploadImage(result.assets[0], componente, seccion);
+      } else {
+        setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
       }
     } catch (error) {
       console.error('Error abriendo galería:', error);
       Alert.alert('Error', 'Error al abrir la galería');
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
   };
 
-  const uploadImage = async (asset, seccion, componente = null) => {
+  const uploadImage = async (asset, componente, seccion) => {
     try {
-      setUploading(prev => ({ ...prev, [seccion]: true }));
-
       // Generar nombre único
       const fileExtension = asset.uri.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-      const filePath = `public/${orderId}/${informeTabla}/${seccion}/${fileName}`;
+      const filePath = `public/${orderId}/${informeTabla}/${componente}/${seccion}/${fileName}`;
 
       // Crear FormData
       const formData = new FormData();
@@ -223,10 +258,9 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
-      // Crear etiqueta con componente si está especificado
-      const etiqueta = componente 
-        ? `Foto ${seccion} - ${componente}` 
-        : `Foto ${seccion}`;
+      // Crear etiqueta descriptiva
+      const componenteTitle = getComponentesActuales().find(c => c.key === componente)?.title || componente;
+      const etiqueta = `${seccion} - ${componenteTitle}`;
 
       // Guardar referencia en base de datos
       const { error: dbError } = await supabase
@@ -237,7 +271,7 @@ const ImageUploader = ({ orderId, informeTabla }) => {
           storage_path: filePath,
           seccion: seccion,
           etiqueta: etiqueta,
-          componente: componente // Usar el componente especificado o null
+          componente: componente
         });
 
       if (dbError) {
@@ -246,18 +280,14 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         return;
       }
 
-      const mensaje = componente 
-        ? `Imagen agregada a ${seccion} (${componente}) correctamente`
-        : `Imagen agregada a ${seccion} correctamente`;
-      
-      Alert.alert('Éxito', mensaje);
+      Alert.alert('Éxito', `Imagen agregada: ${componenteTitle} - ${seccion}`);
       loadImages(); // Recargar lista
 
     } catch (error) {
       console.error('Error general:', error);
       Alert.alert('Error', 'Error inesperado al subir la imagen');
     } finally {
-      setUploading(prev => ({ ...prev, [seccion]: false }));
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
   };
 
@@ -319,47 +349,166 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         resizeMode="cover"
       />
       <Text style={styles.imageLabel}>{item.etiqueta}</Text>
-      {item.componente && (
-        <Text style={styles.componentLabel}>📍 {item.componente}</Text>
-      )}
     </TouchableOpacity>
   );
 
-  const renderSection = (seccionData) => (
-    <View key={seccionData.key} style={styles.photoSection}>
-      <View style={[styles.sectionHeader, { backgroundColor: seccionData.color }]}>
-        <Text style={styles.sectionTitle}>{seccionData.title}</Text>
-      </View>
-      
-      {imagesBySection[seccionData.key] && imagesBySection[seccionData.key].length > 0 && (
-        <FlatList
-          data={imagesBySection[seccionData.key]}
-          renderItem={renderImage}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.sectionImagesList}
-        />
-      )}
-      
-      <TouchableOpacity 
-        style={[styles.addSectionPhotoButton, { borderColor: seccionData.color }]}
-        onPress={() => pickImage(seccionData.key)}
-        disabled={uploading[seccionData.key]}
-      >
-        {uploading[seccionData.key] ? (
-          <ActivityIndicator size="small" color={seccionData.color} />
-        ) : (
-          <>
-            <Text style={[styles.addPhotoIcon, { color: seccionData.color }]}>📷</Text>
-            <Text style={[styles.addSectionPhotoText, { color: seccionData.color }]}>
-              Añadir Foto {seccionData.title}
-            </Text>
-          </>
+  const renderSeccionInComponent = (seccionData, componenteKey) => {
+    const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionData.key] || [];
+    const uploadingKey = `${componenteKey}_${seccionData.key}`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View key={seccionData.key} style={styles.componentSection}>
+        <View style={[styles.sectionHeader, { backgroundColor: seccionData.color }]}>
+          <Text style={styles.sectionTitle}>{seccionData.title}</Text>
+          {images.length > 0 && (
+            <Text style={styles.sectionCount}>({images.length})</Text>
+          )}
+        </View>
+        
+        {images.length > 0 && (
+          <FlatList
+            data={images}
+            renderItem={renderImage}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sectionImagesList}
+          />
         )}
-      </TouchableOpacity>
-    </View>
-  );
+        
+        <TouchableOpacity 
+          style={[styles.addSectionPhotoButton, { borderColor: seccionData.color }]}
+          onPress={() => pickImage(componenteKey, seccionData.key)}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color={seccionData.color} />
+          ) : (
+            <>
+              <Text style={[styles.addPhotoIcon, { color: seccionData.color }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: seccionData.color }]}>
+                Añadir Foto {seccionData.title}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const toggleComponent = (componenteKey) => {
+    setExpandedComponents(prev => ({
+      ...prev,
+      [componenteKey]: !prev[componenteKey]
+    }));
+  };
+
+  const renderReciboConformeSection = (componenteKey) => {
+    // Para Recibo Conforme, solo usamos la sección 'ANTES' como sección única
+    const seccionUnica = 'ANTES';
+    const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionUnica] || [];
+    const uploadingKey = `${componenteKey}_${seccionUnica}`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentSection}>
+        <View style={[styles.sectionHeader, { backgroundColor: '#28A745' }]}>
+          <Text style={styles.sectionTitle}>FOTOGRAFÍA DE CONFORMIDAD</Text>
+          {images.length > 0 && (
+            <Text style={styles.sectionCount}>({images.length})</Text>
+          )}
+        </View>
+        
+        {images.length > 0 && (
+          <FlatList
+            data={images}
+            renderItem={renderImage}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sectionImagesList}
+          />
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.addSectionPhotoButton, { borderColor: '#28A745' }]}
+          onPress={() => pickImage(componenteKey, seccionUnica)}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color="#28A745" />
+          ) : (
+            <>
+              <Text style={[styles.addPhotoIcon, { color: '#28A745' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: '#28A745' }]}>
+                Tomar Fotografía de Conformidad
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderComponent = (componenteData) => {
+    const isExpanded = expandedComponents[componenteData.key];
+    const totalImages = secciones.reduce((total, seccion) => {
+      return total + (imagesByComponenteAndSeccion[componenteData.key]?.[seccion.key]?.length || 0);
+    }, 0);
+
+    // Renderizado especial para "Recibo Conforme" - solo una opción de foto
+    if (componenteData.key === 'Recibo_Conforme') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <TouchableOpacity 
+            style={styles.componentHeader}
+            onPress={() => toggleComponent(componenteData.key)}
+          >
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+          </TouchableOpacity>
+          
+          {isExpanded && (
+            <View style={styles.componentContent}>
+              {renderReciboConformeSection(componenteData.key)}
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    // Renderizado normal para otros componentes
+    return (
+      <View key={componenteData.key} style={styles.componentContainer}>
+        <TouchableOpacity 
+          style={styles.componentHeader}
+          onPress={() => toggleComponent(componenteData.key)}
+        >
+          <View style={styles.componentHeaderLeft}>
+            <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+            <Text style={styles.componentTitle}>{componenteData.title}</Text>
+            {totalImages > 0 && (
+              <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+            )}
+          </View>
+          <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+        </TouchableOpacity>
+        
+        {isExpanded && (
+          <View style={styles.componentContent}>
+            {secciones.map(seccion => renderSeccionInComponent(seccion, componenteData.key))}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.imageUploaderContainer}>
@@ -369,7 +518,7 @@ const ImageUploader = ({ orderId, informeTabla }) => {
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
         <View style={styles.sectionsContainer}>
-          {secciones.map(renderSection)}
+          {getComponentesActuales().map(renderComponent)}
           
           <Text style={styles.imageHelperText}>
             Mantén presionada una imagen para eliminarla
@@ -866,6 +1015,14 @@ const FormularioDinamico = ({ order, onClose }) => {
     cargarEstructuraFormulario();
   }, []);
 
+  // Debug useEffect para monitorear cambios en formData
+  useEffect(() => {
+    console.log('📊 FormData actualizado:', formData);
+    if (formData.cantidad_de_motores !== undefined) {
+      console.log('🔍 cantidad_de_motores en formData:', formData.cantidad_de_motores);
+    }
+  }, [formData]);
+
   const cargarEstructuraFormulario = async () => {
     try {
       console.log('🔗 Paso 1: Obteniendo información de la orden y servicio');
@@ -1014,7 +1171,20 @@ const FormularioDinamico = ({ order, onClose }) => {
       // Inicializar formData básico
       const initialData = { orden_trabajo_id: order.id };
       camposFiltrados.forEach(campo => {
-        initialData[campo.column_name] = '';
+        // Inicializar según el tipo de dato
+        if (campo.data_type === 'integer' || campo.data_type === 'numeric' || campo.data_type === 'bigint') {
+          initialData[campo.column_name] = '';  // Mantener como string vacío para el input
+        } else {
+          initialData[campo.column_name] = '';
+        }
+        
+        // Debug específico para cantidad_de_motores
+        if (campo.column_name === 'cantidad_de_motores') {
+          console.log('🔍 Inicializando cantidad_de_motores:');
+          console.log('  - Nombre del campo:', campo.column_name);
+          console.log('  - Tipo de dato:', campo.data_type);
+          console.log('  - Valor inicial asignado:', initialData[campo.column_name]);
+        }
       });
       
       console.log('💾 FormData inicial básico:', initialData);
@@ -1030,10 +1200,24 @@ const FormularioDinamico = ({ order, onClose }) => {
 
       if (existingData && !existingError) {
         console.log('✅ Datos existentes encontrados:', existingData);
+        console.log('🔍 Valor de cantidad_de_motores:', existingData.cantidad_de_motores);
+        
+        // Procesar datos existentes para manejar valores null/undefined
+        const processedData = {};
+        Object.keys(existingData).forEach(key => {
+          processedData[key] = existingData[key] === null || existingData[key] === undefined 
+            ? '' 
+            : String(existingData[key]);
+        });
+        
+        console.log('🔍 Datos procesados:', processedData);
+        console.log('🔍 cantidad_de_motores procesado:', processedData.cantidad_de_motores);
+        
         setExistingRecord(existingData);
-        setFormData(existingData);
+        setFormData(processedData);
       } else {
         console.log('ℹ️ No se encontraron datos existentes, usando datos iniciales');
+        console.log('🔍 FormData inicial:', initialData);
         setFormData(initialData);
       }
 
@@ -1073,13 +1257,29 @@ const FormularioDinamico = ({ order, onClose }) => {
   };
 
   const handleInputChange = (fieldName, value) => {
-    // Convertir automáticamente a mayúsculas
-    const upperCaseValue = value.toUpperCase();
+    // Debug para cantidad_de_motores
+    if (fieldName === 'cantidad_de_motores') {
+      console.log('🔍 handleInputChange para cantidad_de_motores:');
+      console.log('  - Campo:', fieldName);
+      console.log('  - Valor recibido:', value);
+    }
+
+    // Para campos numéricos, mantener el valor original sin convertir a mayúsculas
+    const isNumericField = fieldName === 'cantidad_de_motores' || 
+                          fieldName.includes('cantidad') || 
+                          fieldName.includes('numero');
+    
+    const finalValue = isNumericField ? value : value.toUpperCase();
     
     setFormData(prev => ({
       ...prev,
-      [fieldName]: upperCaseValue
+      [fieldName]: finalValue
     }));
+
+    // Debug adicional
+    if (fieldName === 'cantidad_de_motores') {
+      console.log('  - Valor final guardado:', finalValue);
+    }
   };
 
   const formatFieldName = (fieldName) => {
@@ -1194,6 +1394,15 @@ const FormularioDinamico = ({ order, onClose }) => {
     const fieldName = campo.column_name;
     const fieldValue = formData[fieldName] || '';
 
+    // Debug específico para cantidad_de_motores
+    if (fieldName === 'cantidad_de_motores') {
+      console.log('🔍 Renderizando cantidad_de_motores:');
+      console.log('  - Campo:', fieldName);
+      console.log('  - Valor en formData:', formData[fieldName]);
+      console.log('  - Valor final:', fieldValue);
+      console.log('  - FormData completo:', formData);
+    }
+
     if (fieldName === 'orden_trabajo_id') {
       return (
         <View key={fieldName} style={styles.fieldContainer}>
@@ -1216,12 +1425,21 @@ const FormularioDinamico = ({ order, onClose }) => {
         </Text>
         <TextInput
           style={campo.data_type === 'text' ? styles.textArea : styles.input}
-          value={fieldValue}
+          value={String(fieldValue)} // Asegurar que siempre sea string para el TextInput
           onChangeText={(value) => handleInputChange(fieldName, value)}
           placeholder={`Ingresa ${formatFieldName(fieldName).toLowerCase()}`}
           multiline={campo.data_type === 'text'}
           numberOfLines={campo.data_type === 'text' ? 3 : 1}
-          autoCapitalize="characters"
+          keyboardType={
+            (campo.data_type === 'integer' || campo.data_type === 'numeric' || campo.data_type === 'bigint') 
+              ? 'numeric' 
+              : 'default'
+          }
+          autoCapitalize={
+            (campo.data_type === 'integer' || campo.data_type === 'numeric' || campo.data_type === 'bigint') 
+              ? 'none' 
+              : 'characters'
+          }
           autoCorrect={false}
         />
       </View>
@@ -1821,6 +2039,87 @@ const styles = StyleSheet.create({
   addSectionPhotoText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // Estilos para organización jerárquica por componentes
+  componentContainer: {
+    marginBottom: 15,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  componentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#E3F2FD',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  componentHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  componentIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  componentTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1976D2',
+    flex: 1,
+  },
+  componentCount: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  expandIcon: {
+    fontSize: 14,
+    color: '#1976D2',
+    fontWeight: 'bold',
+  },
+  componentToggleIcon: {
+    fontSize: 18,
+    color: '#1976D2',
+    fontWeight: 'bold',
+  },
+  componentContent: {
+    padding: 15,
+  },
+  componentSection: {
+    marginBottom: 15,
+  },
+  sectionCount: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  addPhotoIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  sectionInComponent: {
+    marginBottom: 15,
+  },
+  sectionTitleInComponent: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   
   // Utils
