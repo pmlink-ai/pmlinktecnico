@@ -221,6 +221,8 @@ export class PDFService {
         color: #333;
         margin: 0;
         padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
       
       .header {
@@ -328,8 +330,10 @@ export class PDFService {
         color: white;
         padding: 8px;
         font-weight: bold;
-        font-size: 12px;
-        margin: 0 0 10px 0;
+        font-size: 11px;
+        margin: 15px 0 10px 0;
+        text-transform: uppercase;
+        page-break-inside: avoid;
       }
       
       .photo-section {
@@ -458,12 +462,16 @@ export class PDFService {
             <td>${service.local?.nombre_local || 'No disponible'}</td>
           </tr>
           <tr>
-            <td class="label">Asistencia de Personal</td>
-            <td>SÍ</td>
+            <td class="label">ENCARGADO</td>
+            <td>${formData.encargado || 'No especificado'}</td>
           </tr>
           <tr>
-            <td class="label">Horas de Trabajo</td>
-            <td>08 HRS</td>
+            <td class="label">ASISTENCIA DE PERSONAL</td>
+            <td>${formData.asist_personal || 'No especificado'}</td>
+          </tr>
+          <tr>
+            <td class="label">HORAS DE TRABAJO</td>
+            <td>${formData.horas_trabajo ? formData.horas_trabajo + ' HRS' : 'No especificado'}</td>
           </tr>
         </table>
       </div>
@@ -566,8 +574,11 @@ export class PDFService {
       // Siempre mostrar el componente, incluso si no tiene fotografías
       photosHTML += `
         <div class="component-section">
-          <div class="component-title">${componentTitle}</div>
+          <div class="section-title" style="background-color: #2196F3; color: white; padding: 8px; font-weight: bold; font-size: 11px; margin: 15px 0 10px 0; text-transform: uppercase;">${componentTitle}</div>
       `;
+
+      // Log para verificar que se está aplicando el nuevo formato
+      console.log(`🎨 DEBUG: Aplicando formato section-title para ${componentTitle}`);
 
       // Para Recibo Conforme, tratamiento especial
       if (componentKey === 'Recibo_Conforme') {

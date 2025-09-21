@@ -1186,8 +1186,8 @@ const FormularioDinamico = ({ order, onClose }) => {
         return;
       }
 
-      // Filtrar campos que no queremos mostrar
-      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id'];
+      // Filtrar campos que no queremos mostrar (incluyendo los especiales que se muestran al inicio)
+      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'encargado', 'asist_personal', 'horas_trabajo'];
       const camposFiltrados = estructura.filter(campo => 
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
@@ -1327,7 +1327,10 @@ const FormularioDinamico = ({ order, onClose }) => {
       'correas': 'CORREAS',
       'rodamientos': 'RODAMIENTOS',
       'observaciones': 'OBSERVACIONES',
-      'orden_trabajo_id': 'ORDEN DE TRABAJO'
+      'orden_trabajo_id': 'ORDEN DE TRABAJO',
+      'encargado': 'ENCARGADO',
+      'asist_personal': 'ASISTENCIA PERSONAL',
+      'horas_trabajo': 'HORAS DE TRABAJO'
     };
 
     // Si existe un mapeo específico, usarlo
@@ -1342,7 +1345,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   };
 
   const isRequired = (fieldName) => {
-    const requiredFields = ['orden_trabajo_id'];
+    const requiredFields = ['orden_trabajo_id', 'encargado', 'asist_personal'];
     return requiredFields.includes(fieldName);
   };
 
@@ -1450,6 +1453,51 @@ const FormularioDinamico = ({ order, onClose }) => {
     } finally {
       setGeneratingPDF(false);
     }
+  };
+
+  // Función para renderizar los campos especiales al inicio del formulario
+  const renderSpecialFields = () => {
+    const specialFields = [
+      {
+        key: 'encargado',
+        label: 'ENCARGADO',
+        required: true,
+        type: 'text'
+      },
+      {
+        key: 'asist_personal', 
+        label: 'ASISTENCIA PERSONAL',
+        required: true,
+        type: 'text'
+      },
+      {
+        key: 'horas_trabajo',
+        label: 'HORAS DE TRABAJO', 
+        required: false,
+        type: 'numeric'
+      }
+    ];
+
+    return specialFields.map((field) => {
+      const fieldValue = formData[field.key] || '';
+      
+      return (
+        <View key={field.key} style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>
+            {field.label} {field.required && '*'}
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={String(fieldValue)}
+            onChangeText={(value) => handleInputChange(field.key, value)}
+            placeholder={`Ingresa ${field.label.toLowerCase()}`}
+            keyboardType={field.type === 'numeric' ? 'numeric' : 'default'}
+            autoCapitalize={field.type === 'numeric' ? 'none' : 'characters'}
+            autoCorrect={false}
+          />
+        </View>
+      );
+    });
   };
 
 
@@ -1570,7 +1618,18 @@ const FormularioDinamico = ({ order, onClose }) => {
               Revisando estructura de la tabla...
             </Text>
           ) : (
-            campos.map(renderField)
+            <>
+              {/* Campos especiales al inicio */}
+              {renderSpecialFields()}
+              
+              {/* Separador visual */}
+              <View style={styles.separator}>
+                <Text style={styles.separatorText}>📊 Datos Técnicos</Text>
+              </View>
+              
+              {/* Campos dinámicos de la tabla */}
+              {campos.map(renderField)}
+            </>
           )}
         </View>
 
@@ -2263,6 +2322,21 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     textAlign: 'center',
     marginVertical: 20,
+  },
+  separator: {
+    marginVertical: 20,
+    paddingVertical: 12,
+    backgroundColor: '#E8F4FD',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+    alignItems: 'center',
+  },
+  separatorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+    textAlign: 'center',
   },
 });
 
