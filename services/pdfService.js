@@ -105,6 +105,34 @@ export class PDFService {
         console.error('❌ Error obteniendo fotografías:', photosError);
       }
 
+      // 5. Obtener técnicos asignados
+      console.log('👥 DEBUG: Consultando técnicos asignados para orden:', orderId);
+      
+      const { data: asignaciones, error: asignacionesError } = await supabase
+        .from('asignaciones_ot')
+        .select('tecnico_id')
+        .eq('orden_id', orderId);
+
+      let tecnicos = [];
+      if (asignaciones && asignaciones.length > 0 && !asignacionesError) {
+        const tecnicoIds = asignaciones.map(asig => asig.tecnico_id);
+        console.log('👥 DEBUG: IDs de técnicos encontrados:', tecnicoIds);
+        
+        const { data: usuariosTecnicos, error: usuariosError } = await supabase
+          .from('usuario')
+          .select('usuario_id, nombre, apellido')
+          .in('usuario_id', tecnicoIds);
+
+        if (usuariosTecnicos && !usuariosError) {
+          tecnicos = usuariosTecnicos;
+          console.log('👥 DEBUG: Técnicos obtenidos para PDF:', tecnicos);
+        } else {
+          console.error('❌ Error obteniendo datos de técnicos:', usuariosError);
+        }
+      } else {
+        console.log('ℹ️ No se encontraron técnicos asignados o error:', asignacionesError);
+      }
+
       // Organizar fotografías por componente y sección
       const organizedPhotos = this.organizePhotosByComponent(photos || []);
 
@@ -113,6 +141,7 @@ export class PDFService {
         formData: formData || {},
         service: serviceData || {},
         photos: organizedPhotos,
+        tecnicos: tecnicos,
         generatedAt: new Date().toISOString()
       };
 
@@ -184,7 +213,7 @@ export class PDFService {
 
   // Generar HTML del PDF
   static generatePDFHTML(data) {
-    const { order, formData, service, photos } = data;
+    const { order, formData, service, photos, tecnicos } = data;
     
     return `
       <!DOCTYPE html>
@@ -198,6 +227,7 @@ export class PDFService {
         </head>
         <body>
           ${this.generateHeaderSection(order, service)}
+          ${this.generateTecnicosSection(tecnicos)}
           ${this.generateServiceDataSection(order, service, formData)}
           ${this.generateDiagnosticTable(formData)}
           ${this.generatePhotosSection(photos)}
@@ -440,6 +470,39 @@ export class PDFService {
           <td colspan="3">${service.local?.direccion || 'Dirección no disponible'}</td>
         </tr>
       </table>
+    `;
+  }
+
+  // Generar sección de técnicos asignados
+  static generateTecnicosSection(tecnicos) {
+    if (!tecnicos || tecnicos.length === 0) {
+      return `
+        <div class="section">
+          <div class="section-title">TÉCNICOS ASIGNADOS</div>
+          <table class="data-table">
+            <tr>
+              <td class="label">TÉCNICOS</td>
+              <td>No hay técnicos asignados</td>
+            </tr>
+          </table>
+        </div>
+      `;
+    }
+
+    const tecnicosRows = tecnicos.map((tecnico, index) => `
+      <tr>
+        <td class="label">TÉCNICO ${index + 1}</td>
+        <td>${tecnico.nombre} ${tecnico.apellido}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="section">
+        <div class="section-title">TÉCNICOS ASIGNADOS</div>
+        <table class="data-table">
+          ${tecnicosRows}
+        </table>
+      </div>
     `;
   }
 
