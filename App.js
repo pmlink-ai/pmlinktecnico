@@ -23,7 +23,6 @@ import { createClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import PDFService from './services/pdfService';
-import EmailService from './services/emailService';
 
 const { width } = Dimensions.get('window');
 
@@ -43,7 +42,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const Stack = createStackNavigator();
 
 // ================== COMPONENTE IMAGE UPLOADER ==================
-const ImageUploader = ({ orderId, informeTabla }) => {
+const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
   // Configuración de componentes por servicio
   const componentesPorServicio = {
     'informe_limpieza_ductos': [
@@ -284,7 +283,12 @@ const ImageUploader = ({ orderId, informeTabla }) => {
       }
 
       Alert.alert('Éxito', `Imagen agregada: ${componenteTitle} - ${seccion}`);
-      loadImages(); // Recargar lista
+      await loadImages(); // Recargar lista
+      
+      // Restaurar posición del scroll después de cargar las imágenes
+      if (onScrollRestore) {
+        onScrollRestore();
+      }
 
     } catch (error) {
       console.error('Error general:', error);
@@ -323,7 +327,12 @@ const ImageUploader = ({ orderId, informeTabla }) => {
               }
 
               Alert.alert('Éxito', 'Imagen eliminada correctamente');
-              loadImages();
+              await loadImages();
+              
+              // Restaurar posición del scroll después de cargar las imágenes
+              if (onScrollRestore) {
+                onScrollRestore();
+              }
             } catch (error) {
               console.error('Error:', error);
               Alert.alert('Error', 'Error inesperado al eliminar');
@@ -1013,8 +1022,11 @@ const FormularioDinamico = ({ order, onClose }) => {
   const [saving, setSaving] = useState(false);
   const [tableName, setTableName] = useState('');
   const [existingRecord, setExistingRecord] = useState(null);
+  const [currentScrollY, setCurrentScrollY] = useState(0);
+  
+  // Referencia simple para el scroll
+  const scrollRef = useRef(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     cargarEstructuraFormulario();
@@ -1027,6 +1039,18 @@ const FormularioDinamico = ({ order, onClose }) => {
       console.log('🔍 cantidad_de_motores en formData:', formData.cantidad_de_motores);
     }
   }, [formData]);
+
+  // Función simple para restaurar posición de scroll
+  const restoreScroll = () => {
+    if (scrollRef.current && currentScrollY > 0) {
+      setTimeout(() => {
+        scrollRef.current.scrollTo({
+          y: currentScrollY,
+          animated: true
+        });
+      }, 300); // Delay para asegurar que el contenido esté cargado
+    }
+  };
 
   const cargarEstructuraFormulario = async () => {
     try {
@@ -1428,67 +1452,7 @@ const FormularioDinamico = ({ order, onClose }) => {
     }
   };
 
-  const handleSendByEmail = async () => {
-    try {
-      setSendingEmail(true);
-      
-      if (!existingRecord) {
-        Alert.alert(
-          'Guardar primero',
-          'Debes guardar el formulario antes de enviar por email',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
 
-      // Verificar disponibilidad de email
-      const isEmailAvailable = await EmailService.isEmailAvailable();
-      if (!isEmailAvailable) {
-        Alert.alert(
-          'Email no disponible',
-          'Este dispositivo no tiene configurado un cliente de email'
-        );
-        return;
-      }
-
-      console.log('📧 Preparando email para orden:', order.id);
-      
-      // Solicitar email del destinatario
-      const recipientEmail = await EmailService.promptForRecipientEmail();
-      if (recipientEmail === null) {
-        return; // Usuario canceló
-      }
-
-      // Generar PDF
-      const data = await PDFService.getCompleteOrderData(order.id, tableName);
-      const htmlContent = PDFService.generatePDFHTML(data);
-      
-      const { uri } = await Print.printToFileAsync({
-        html: htmlContent,
-        width: 612,
-        height: 792,
-        margins: {
-          left: 20,
-          top: 20,
-          right: 20,
-          bottom: 20,
-        },
-      });
-
-      // Enviar por email
-      const result = await EmailService.sendPDFByEmail(uri, order, recipientEmail);
-      
-      if (result.success) {
-        Alert.alert('Email preparado', 'Se ha abierto el cliente de email con el informe adjunto');
-      }
-      
-    } catch (error) {
-      console.error('❌ Error enviando email:', error);
-      Alert.alert('Error', 'No se pudo preparar el email: ' + error.message);
-    } finally {
-      setSendingEmail(false);
-    }
-  };
 
   const renderField = (campo) => {
     const fieldName = campo.column_name;
@@ -1568,7 +1532,14 @@ const FormularioDinamico = ({ order, onClose }) => {
         </Text>
       </View>
 
-      <ScrollView style={styles.formScrollView}>
+      <ScrollView 
+        ref={scrollRef}
+        style={styles.formScrollView}
+        onScroll={(event) => {
+          setCurrentScrollY(event.nativeEvent.contentOffset.y);
+        }}
+        scrollEventThrottle={100}
+      >
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>📋 Información del Formulario</Text>
           
@@ -1606,7 +1577,8 @@ const FormularioDinamico = ({ order, onClose }) => {
         {/* COMPONENTE IMAGE UPLOADER */}
         <ImageUploader 
           orderId={order.id} 
-          informeTabla={tableName} 
+          informeTabla={tableName}
+          onScrollRestore={restoreScroll}
         />
 
         <TouchableOpacity 
@@ -1637,21 +1609,6 @@ const FormularioDinamico = ({ order, onClose }) => {
                 <>
                   <Text style={styles.actionButtonIcon}>📄</Text>
                   <Text style={styles.actionButtonText}>Generar PDF</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.emailButton]}
-              onPress={handleSendByEmail}
-              disabled={sendingEmail}
-            >
-              {sendingEmail ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <Text style={styles.actionButtonIcon}>📧</Text>
-                  <Text style={styles.actionButtonText}>Enviar Email</Text>
                 </>
               )}
             </TouchableOpacity>
