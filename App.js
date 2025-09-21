@@ -909,74 +909,113 @@ const OrderDetailScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.detailCard}>
-          <Text style={styles.detailTitle}>📋 Información de la Orden</Text>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>ID Orden:</Text>
-            <Text style={styles.detailValue}>{order.id}</Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Número:</Text>
-            <Text style={styles.detailValue}>
-              {order.numero || `#${order.id.substring(0, 8)}`}
-            </Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Título:</Text>
-            <Text style={styles.detailValue}>{order.titulo}</Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Descripción:</Text>
-            <Text style={styles.detailValue}>
-              {order.descripcion_corta}
-              {order.descripcion_larga && ` ${order.descripcion_larga}`}
-            </Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Fecha:</Text>
-            <Text style={styles.detailValue}>
-              {new Date(order.created_at).toLocaleString()}
-            </Text>
-          </View>
-
-          {empresaInfo && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Empresa:</Text>
-              <Text style={styles.detailValue}>{empresaInfo.nombre_empresa}</Text>
+        <View style={styles.techCard}>
+          <View style={styles.techCardHeader}>
+            <View style={styles.techIconContainer}>
+              <Text style={styles.techIcon}>📋</Text>
             </View>
-          )}
-
-          {localInfo && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Local:</Text>
-              <Text style={styles.detailValue}>{localInfo.nombre_local}</Text>
+            <Text style={styles.techCardTitle}>INFORMACIÓN DE LA ORDEN</Text>
+            <View style={styles.techAccent} />
+          </View>
+          
+          <View style={styles.techDataContainer}>
+            <View style={styles.techDataRow}>
+              <View style={styles.techLabelContainer}>
+                <Text style={styles.techLabel}>ID ORDEN</Text>
+                <View style={styles.techLabelLine} />
+              </View>
+              <Text style={styles.techValue}>{order.id}</Text>
             </View>
-          )}
+            
+            <View style={styles.techDataRow}>
+              <View style={styles.techLabelContainer}>
+                <Text style={styles.techLabel}>NÚMERO</Text>
+                <View style={styles.techLabelLine} />
+              </View>
+              <Text style={styles.techValue}>
+                {order.numero || `#${order.id.substring(0, 8)}`}
+              </Text>
+            </View>
+            
+            <View style={styles.techDataRow}>
+              <View style={styles.techLabelContainer}>
+                <Text style={styles.techLabel}>TÍTULO</Text>
+                <View style={styles.techLabelLine} />
+              </View>
+              <Text style={styles.techValue}>{order.titulo}</Text>
+            </View>
+            
+            <View style={styles.techDataRow}>
+              <View style={styles.techLabelContainer}>
+                <Text style={styles.techLabel}>DESCRIPCIÓN</Text>
+                <View style={styles.techLabelLine} />
+              </View>
+              <Text style={styles.techValue}>
+                {order.descripcion_corta}
+                {order.descripcion_larga && ` ${order.descripcion_larga}`}
+              </Text>
+            </View>
+            
+            <View style={styles.techDataRow}>
+              <View style={styles.techLabelContainer}>
+                <Text style={styles.techLabel}>FECHA</Text>
+                <View style={styles.techLabelLine} />
+              </View>
+              <Text style={styles.techValue}>
+                {new Date(order.created_at).toLocaleString()}
+              </Text>
+            </View>
+
+            {empresaInfo && (
+              <View style={styles.techDataRow}>
+                <View style={styles.techLabelContainer}>
+                  <Text style={styles.techLabel}>EMPRESA</Text>
+                  <View style={styles.techLabelLine} />
+                </View>
+                <Text style={styles.techValue}>{empresaInfo.nombre_empresa}</Text>
+              </View>
+            )}
+
+            {localInfo && (
+              <View style={styles.techDataRow}>
+                <View style={styles.techLabelContainer}>
+                  <Text style={styles.techLabel}>LOCAL</Text>
+                  <View style={styles.techLabelLine} />
+                </View>
+                <Text style={styles.techValue}>{localInfo.nombre_local}</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {formularioInfo && (
-          <View style={styles.detailCard}>
-            <Text style={styles.detailTitle}>📝 Formulario Asignado</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Formulario:</Text>
-              <Text style={styles.detailValue}>{formularioInfo.nombre}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Tipo:</Text>
-              <Text style={styles.detailValue}>{formularioInfo.form_key}</Text>
+          <View style={styles.techCard}>
+            <View style={styles.techCardHeader}>
+              <View style={styles.techIconContainer}>
+                <Text style={styles.techIcon}>📝</Text>
+              </View>
+              <Text style={styles.techCardTitle}>FORMULARIO ASIGNADO</Text>
+              <View style={styles.techAccent} />
             </View>
             
-            <TouchableOpacity 
-              style={styles.button}
-              onPress={() => setShowFormModal(true)}
-            >
-              <Text style={styles.buttonText}>Abrir Formulario</Text>
-            </TouchableOpacity>
+            <View style={styles.techDataContainer}>
+              <View style={styles.techDataRow}>
+                <View style={styles.techLabelContainer}>
+                  <Text style={styles.techLabel}>TIPO</Text>
+                  <View style={styles.techLabelLine} />
+                </View>
+                <Text style={styles.techValue}>{formularioInfo.form_key}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.techCardFooter}>
+              <TouchableOpacity 
+                style={styles.techButton}
+                onPress={() => setShowFormModal(true)}
+              >
+                <Text style={styles.techButtonText}>▶ ABRIR FORMULARIO</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -1544,6 +1583,18 @@ const FormularioDinamico = ({ order, onClose }) => {
     );
   };
 
+  // Función para obtener el nombre correcto del formulario
+  const getFormDisplayName = (tableName) => {
+    const formNames = {
+      'informe_limpieza_ductos': 'FORMULARIO INFORME LIMPIEZA DUCTOS',
+      'informe_limpiza_ductos': 'FORMULARIO INFORME LIMPIEZA DUCTOS', // Corregir error de tipeo
+      'informe_ansul_r102': 'FORMULARIO INFORME ANSUL R102',
+      // Agregar más formularios según sea necesario
+    };
+    
+    return formNames[tableName] || `FORMULARIO ${tableName.replace(/_/g, ' ').toUpperCase()}`;
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -1557,13 +1608,21 @@ const FormularioDinamico = ({ order, onClose }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.formHeader}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>✕ Cerrar</Text>
-        </TouchableOpacity>
-        <Text style={styles.formHeaderTitle}>
-          Formulario {tableName.replace(/_/g, ' ').toUpperCase()}
-        </Text>
+      <View style={styles.modernFormHeader}>
+        <View style={styles.modernFormHeaderContent}>
+          <View style={styles.modernFormIconContainer}>
+            <Text style={styles.modernFormIcon}>📋</Text>
+          </View>
+          <View style={styles.modernFormTitleContainer}>
+            <Text style={styles.modernFormTitle}>
+              {getFormDisplayName(tableName)}
+            </Text>
+            <View style={styles.modernFormAccent} />
+          </View>
+          <TouchableOpacity onPress={onClose} style={styles.modernCloseButton}>
+            <Text style={styles.modernCloseButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView 
@@ -1962,6 +2021,154 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   
+  // Estilos tecnológicos
+  techCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  techCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#00D4AA',
+  },
+  techIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  techIcon: {
+    fontSize: 20,
+    color: 'white',
+  },
+  techCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a202c',
+    letterSpacing: 1.5,
+    flex: 1,
+  },
+  techAccent: {
+    width: 4,
+    height: 30,
+    backgroundColor: '#00D4AA',
+    borderRadius: 2,
+    shadowColor: '#00D4AA',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  techDataContainer: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 15,
+  },
+  techDataRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  techLabelContainer: {
+    flex: 1,
+    marginRight: 15,
+  },
+  techLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+    letterSpacing: 1,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  techLabelLine: {
+    height: 2,
+    backgroundColor: '#cbd5e1',
+    borderRadius: 1,
+    width: '60%',
+  },
+  techValue: {
+    fontSize: 15,
+    color: '#1e293b',
+    fontWeight: '500',
+    flex: 2,
+    lineHeight: 22,
+  },
+  techCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  techStatusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00D4AA',
+    marginRight: 8,
+    shadowColor: '#00D4AA',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  techStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  techButton: {
+    backgroundColor: '#667eea',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#5a67d8',
+  },
+  techButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  
   // Form Styles
   formHeader: {
     flexDirection: 'row',
@@ -1987,6 +2194,74 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     marginRight: 50,
+  },
+  
+  // Estilos modernos para el header del formulario
+  modernFormHeader: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  modernFormHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    paddingVertical: 16,
+  },
+  modernFormIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  modernFormIcon: {
+    fontSize: 18,
+    color: 'white',
+  },
+  modernFormTitleContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  modernFormTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a202c',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  modernFormAccent: {
+    height: 2,
+    backgroundColor: '#00D4AA',
+    borderRadius: 1,
+    width: '40%',
+  },
+  modernCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  modernCloseButtonText: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '600',
   },
   formScrollView: {
     flex: 1,
