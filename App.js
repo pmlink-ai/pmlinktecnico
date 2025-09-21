@@ -53,6 +53,16 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
       { key: 'Panoramica_y_Sector', title: 'Panorámica y/o Sector', icon: '📷' },
       { key: 'Recibo_Conforme', title: 'Recibo Conforme', icon: '✅' }
     ],
+    'informe_ansul_r102': [
+      { key: 'Sistema_Supresion', title: 'Observaciones Fotográficas', icon: '�' },
+      { key: 'Cartuchos_Gas', title: 'Recambio de fusibles térmicos', icon: '⚡' },
+      { key: 'Canerias_Distribucion', title: 'Cañerías de Distribución', icon: '🔧' },
+      { key: 'Cilindro_Agente', title: 'Cilindro de Agente', icon: '🛡️' },
+      { key: 'Boquillas_Sistema', title: 'Boquillas del Sistema', icon: '💧' },
+      { key: 'Panel_Control', title: 'Panel de Control', icon: '🎛️' },
+      { key: 'Pruebas_Sistema', title: 'Pruebas del Sistema', icon: '🔍' },
+      { key: 'Recibo_Conforme', title: 'Recibo Conforme', icon: '✅' }
+    ],
     'informe_mantenimiento_motor': [
       { key: 'Motor_Principal', title: 'Motor Principal', icon: '⚙️' },
       { key: 'Sistema_Electrico', title: 'Sistema Eléctrico', icon: '⚡' },
@@ -69,6 +79,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
   const [uploading, setUploading] = useState({});
   const [loading, setLoading] = useState(true);
   const [expandedComponents, setExpandedComponents] = useState({});
+  const [observacionesPorComponente, setObservacionesPorComponente] = useState({});
 
   const secciones = [
     { key: 'ANTES', title: 'ANTES', color: '#FF6B6B' },
@@ -405,6 +416,22 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
             </>
           )}
         </TouchableOpacity>
+        
+        {/* Campo de observaciones para Recambio de fusibles térmicos después de la sección DESPUÉS */}
+        {componenteKey === 'Cartuchos_Gas' && seccionData.key === 'DESPUES' && (
+          <View style={styles.observacionesContainer}>
+            <Text style={styles.observacionesLabel}>Observaciones:</Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese observaciones sobre el recambio de fusibles térmicos..."
+              multiline
+              numberOfLines={3}
+              value={observacionesPorComponente[componenteKey] || ''}
+              onChangeText={(text) => handleObservacionChange(componenteKey, text)}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
       </View>
     );
   };
@@ -413,6 +440,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     setExpandedComponents(prev => ({
       ...prev,
       [componenteKey]: !prev[componenteKey]
+    }));
+  };
+
+  const handleObservacionChange = (componenteKey, text) => {
+    setObservacionesPorComponente(prev => ({
+      ...prev,
+      [componenteKey]: text
     }));
   };
 
@@ -865,7 +899,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
 
     const formKey = formularioInfo.form_key.toLowerCase();
     
-    if (formKey.includes('limpieza_ductos')) {
+    if (formKey.includes('limpieza_ductos') || formKey.includes('ansul_r102')) {
       return <FormularioDinamico order={order} onClose={() => setShowFormModal(false)} />;
     }
     
@@ -1458,6 +1492,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   const formatFieldName = (fieldName) => {
     // Mapeo de nombres específicos para campos del formulario
     const fieldNameMappings = {
+      // Campos de limpieza de ductos
       'campanas_estado': 'CAMPANAS',
       'filtros_estado': 'FILTROS', 
       'ductos_estado': 'DUCTOS',
@@ -1470,6 +1505,25 @@ const FormularioDinamico = ({ order, onClose }) => {
       'fuelle': 'FUELLE',
       'correas': 'CORREAS',
       'rodamientos': 'RODAMIENTOS',
+      
+      // Campos de ANSUL R102
+      'inspeccion_visual_montaje': 'INSPECCIÓN VISUAL DEL MONTAJE',
+      'estado_cartuchos_gas': 'ESTADO DE CARTUCHOS DE GAS',
+      'estado_canerias_distribucion': 'ESTADO DE CAÑERÍAS DE DISTRIBUCIÓN',
+      'estado_montaje_conductos': 'ESTADO DEL MONTAJE DE CONDUCTOS',
+      'prueba_fuga_caneria': 'PRUEBA DE FUGA EN CAÑERÍAS',
+      'prueba_soplado_canerias': 'PRUEBA DE SOPLADO DE CAÑERÍAS',
+      'revision_agente': 'REVISIÓN DEL AGENTE',
+      'estado_cilindro_agente': 'ESTADO DEL CILINDRO DE AGENTE',
+      'estado_disco_ruptura': 'ESTADO DEL DISCO DE RUPTURA',
+      'cantidad_estado_boquillas': 'CANTIDAD Y ESTADO DE BOQUILLAS',
+      'tipo_tapones_boquillas': 'TIPO DE TAPONES DE BOQUILLAS',
+      'estado_piola_acero': 'ESTADO DE LA PIOLA DE ACERO',
+      'verificacion_automan_gas': 'VERIFICACIÓN AUTO/MAN GAS',
+      'verificacion_senal_alarma': 'VERIFICACIÓN SEÑAL DE ALARMA',
+      'observaciones_generales': 'OBSERVACIONES GENERALES',
+      
+      // Campos comunes
       'observaciones': 'OBSERVACIONES',
       'orden_trabajo_id': 'ORDEN DE TRABAJO',
       'encargado': 'ENCARGADO',
@@ -2611,6 +2665,32 @@ const styles = StyleSheet.create({
   addSectionPhotoText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  
+  // Estilos para observaciones por componente
+  observacionesContainer: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E6ED',
+  },
+  observacionesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  observacionesInput: {
+    borderWidth: 1,
+    borderColor: '#E0E6ED',
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 14,
+    backgroundColor: '#FFFFFF',
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
 
   // Estilos para organización jerárquica por componentes
