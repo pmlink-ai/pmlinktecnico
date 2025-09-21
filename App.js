@@ -1039,6 +1039,125 @@ const OrderDetailScreen = ({ route, navigation }) => {
   );
 };
 
+// ================== TÉCNICOS ASIGNADOS ==================
+const TecnicosAsignados = ({ orderId }) => {
+  const [tecnicos, setTecnicos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    cargarTecnicosAsignados();
+  }, [orderId]);
+
+  const cargarTecnicosAsignados = async () => {
+    try {
+      console.log('🔍 Buscando técnicos asignados para orden:', orderId);
+      console.log('🔍 Tipo de orderId:', typeof orderId);
+      console.log('🔍 Valor exacto de orderId:', JSON.stringify(orderId));
+      
+      // Paso 1: Obtener asignaciones usando la relación correcta
+      // orden_trabajo.id = asignaciones_ot.orden_id
+      console.log('🔍 Consultando: asignaciones_ot WHERE orden_id =', orderId);
+      const { data: asignaciones, error: asignacionesError } = await supabase
+        .from('asignaciones_ot')
+        .select('tecnico_id')  // Solo necesitamos el tecnico_id
+        .eq('orden_id', orderId);  // orden_trabajo.id = asignaciones_ot.orden_id
+
+      console.log('📋 Asignaciones encontradas:', asignaciones);
+
+      if (asignacionesError) {
+        console.error('❌ Error obteniendo asignaciones:', asignacionesError);
+        setLoading(false);
+        return;
+      }
+
+      if (!asignaciones || asignaciones.length === 0) {
+        console.log('� No hay técnicos asignados a esta orden');
+        setTecnicos([]);
+        setLoading(false);
+        return;
+      }
+
+      // Paso 2: Obtener información de los técnicos usando la relación correcta
+      // asignaciones_ot.tecnico_id = usuario.usuario_id
+      const tecnicoIds = asignaciones.map(asig => asig.tecnico_id);
+      console.log('👥 IDs de técnicos extraídos:', tecnicoIds);
+
+      console.log('🔍 Consultando: usuario WHERE usuario_id IN', tecnicoIds);
+      const { data: usuariosTecnicos, error: usuariosError } = await supabase
+        .from('usuario')
+        .select('usuario_id, nombre, apellido')
+        .in('usuario_id', tecnicoIds);  // asignaciones_ot.tecnico_id = usuario.usuario_id
+
+      console.log('📋 Usuarios técnicos encontrados:', usuariosTecnicos);
+
+      if (usuariosError) {
+        console.error('❌ Error obteniendo datos de técnicos:', usuariosError);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Técnicos obtenidos exitosamente:', usuariosTecnicos?.length || 0);
+      setTecnicos(usuariosTecnicos || []);
+      
+    } catch (error) {
+      console.error('❌ Error general cargando técnicos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.techCard}>
+        <View style={styles.techCardHeader}>
+          <View style={styles.techIconContainer}>
+            <Text style={styles.techIcon}>👥</Text>
+          </View>
+          <Text style={styles.techCardTitle}>TÉCNICOS ASIGNADOS</Text>
+          <View style={styles.techAccent} />
+        </View>
+        <View style={styles.techDataContainer}>
+          <Text style={styles.loadingText}>Cargando técnicos...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.techCard}>
+      <View style={styles.techCardHeader}>
+        <View style={styles.techIconContainer}>
+          <Text style={styles.techIcon}>👥</Text>
+        </View>
+        <Text style={styles.techCardTitle}>TÉCNICOS ASIGNADOS</Text>
+        <View style={styles.techAccent} />
+      </View>
+      
+      <View style={styles.techDataContainer}>
+        {tecnicos.length === 0 ? (
+          <View style={styles.techDataRow}>
+            <Text style={styles.noTecnicosText}>
+              No hay técnicos asignados a esta orden de trabajo
+            </Text>
+          </View>
+        ) : (
+          tecnicos.map((tecnico, index) => (
+            <View key={tecnico.usuario_id} style={styles.techDataRow}>
+              <View style={styles.techLabelContainer}>
+                <Text style={styles.techLabel}>TÉCNICO {index + 1}</Text>
+                <View style={styles.techLabelLine} />
+              </View>
+              <Text style={styles.techValue}>
+                {tecnico.nombre} {tecnico.apellido}
+              </Text>
+            </View>
+          ))
+        )}
+      </View>
+    </View>
+  );
+};
+
 // ================== FORMULARIO DINÁMICO ==================
 const FormularioDinamico = ({ order, onClose }) => {
   const [campos, setCampos] = useState([]);
@@ -1650,11 +1769,8 @@ const FormularioDinamico = ({ order, onClose }) => {
             <Text style={styles.infoValue}>{order.id}</Text>
           </View>
           
-          {/* Mostrar nombre de la tabla */}
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Tabla del Formulario:</Text>
-            <Text style={styles.infoValue}>{tableName}</Text>
-          </View>
+          {/* Mostrar técnicos asignados en lugar de la tabla del formulario */}
+          <TecnicosAsignados orderId={order.id} />
           
           {console.log('🎨 Renderizando campos:', campos.length)}
           {campos.length === 0 ? (
@@ -2347,6 +2463,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     padding: 20,
+  },
+  noTecnicosText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   
   // Info rows styles
