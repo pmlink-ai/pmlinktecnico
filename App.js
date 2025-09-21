@@ -959,20 +959,6 @@ const OrderDetailScreen = ({ route, navigation }) => {
           )}
         </View>
 
-        {servicioInfo && (
-          <View style={styles.detailCard}>
-            <Text style={styles.detailTitle}>🔧 Información del Servicio</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Servicio ID:</Text>
-              <Text style={styles.detailValue}>{order.servicio_id}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Local ID:</Text>
-              <Text style={styles.detailValue}>{servicioInfo.local_id || 'No asignado'}</Text>
-            </View>
-          </View>
-        )}
-
         {formularioInfo && (
           <View style={styles.detailCard}>
             <Text style={styles.detailTitle}>📝 Formulario Asignado</Text>
