@@ -424,19 +424,19 @@ export class PDFService {
       
       <table class="data-table">
         <tr>
-          <td class="label">Reference Number:</td>
+          <td class="label">N° DE ORDEN:</td>
           <td>${order.numero || order.id?.substring(0, 12) || 'N/A'}</td>
-          <td class="label">Form Name:</td>
+          <td class="label">NOMBRE INFORME:</td>
           <td>INFORME LIMPIEZA DE DUCTOS</td>
         </tr>
         <tr>
-          <td class="label">Submitter Name:</td>
+          <td class="label">ENCARGADO:</td>
           <td>${order.tecnico_asignado || 'No asignado'}</td>
-          <td class="label">Date Sent on Device:</td>
+          <td class="label">FECHA:</td>
           <td>${formatDate(order.created_at)}</td>
         </tr>
         <tr>
-          <td class="label">Location:</td>
+          <td class="label">LOCALIZACIÓN:</td>
           <td colspan="3">${service.local?.direccion || 'Dirección no disponible'}</td>
         </tr>
       </table>
