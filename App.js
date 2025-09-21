@@ -56,8 +56,8 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     'informe_ansul_r102': [
       { key: 'Sistema_Supresion', title: 'Observaciones Fotográficas', icon: '�' },
       { key: 'Cartuchos_Gas', title: 'Recambio de fusibles térmicos', icon: '⚡' },
-      { key: 'Canerias_Distribucion', title: 'Cañerías de Distribución', icon: '🔧' },
-      { key: 'Cilindro_Agente', title: 'Cilindro de Agente', icon: '🛡️' },
+      { key: 'Canerias_Distribucion', title: 'Prueba de ruptura de fusible de prueba', icon: '🔧' },
+      { key: 'Cilindro_Agente', title: 'Simulación de disparo manual', icon: '🛡️' },
       { key: 'Boquillas_Sistema', title: 'Boquillas del Sistema', icon: '💧' },
       { key: 'Panel_Control', title: 'Panel de Control', icon: '🎛️' },
       { key: 'Pruebas_Sistema', title: 'Pruebas del Sistema', icon: '🔍' },
@@ -428,6 +428,33 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
               numberOfLines={3}
               value={observacionesPorComponente[componenteKey] || ''}
               onChangeText={(text) => handleObservacionChange(componenteKey, text)}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
+        
+        {/* Campo de observaciones para Simulación de disparo manual después de la sección DESPUÉS */}
+        {componenteKey === 'Cilindro_Agente' && seccionData.key === 'DESPUES' && (
+          <View style={styles.observacionesContainer}>
+            <Text style={styles.observacionesLabel}>ESTADO Y OBSERVACIONES DE ACCIONAMIENTO MANUAL:</Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese estado y observaciones del accionamiento manual..."
+              multiline
+              numberOfLines={3}
+              value={observacionesPorComponente[componenteKey] || ''}
+              onChangeText={(text) => handleObservacionChange(componenteKey, text)}
+              textAlignVertical="top"
+            />
+            
+            <Text style={[styles.observacionesLabel, { marginTop: 15 }]}>ESTADO DEL TESTIGO DE ESTACION MANUAL:</Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese estado del testigo de estación manual..."
+              multiline
+              numberOfLines={3}
+              value={observacionesPorComponente[`${componenteKey}_testigo`] || ''}
+              onChangeText={(text) => handleObservacionChange(`${componenteKey}_testigo`, text)}
               textAlignVertical="top"
             />
           </View>
