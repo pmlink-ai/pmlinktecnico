@@ -58,9 +58,11 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
       { key: 'Cartuchos_Gas', title: 'Recambio de fusibles térmicos', icon: '⚡' },
       { key: 'Canerias_Distribucion', title: 'Prueba de ruptura de fusible de prueba', icon: '🔧' },
       { key: 'Cilindro_Agente', title: 'Simulación de disparo manual', icon: '🛡️' },
-      { key: 'Boquillas_Sistema', title: 'Boquillas del Sistema', icon: '💧' },
-      { key: 'Panel_Control', title: 'Panel de Control', icon: '🎛️' },
-      { key: 'Pruebas_Sistema', title: 'Pruebas del Sistema', icon: '🔍' },
+      { key: 'Boquillas_Sistema', title: 'Valvula de Gas', icon: '�' },
+      { key: 'Panel_Control', title: 'Alimentación electrica /Si aplicara', icon: '🎛️' },
+      { key: 'Pruebas_Sistema', title: 'Panel de alarma /Si aplicara', icon: '🔍' },
+      { key: 'Prueba_Neumatica', title: 'Prueba neumatica a cañerias de distribución', icon: '🔧' },
+      { key: 'Tipo_Cartucho', title: 'Tipo de cartucho expulsor, cantidad y su peso', icon: '📦' },
       { key: 'Recibo_Conforme', title: 'Recibo Conforme', icon: '✅' }
     ],
     'informe_mantenimiento_motor': [
