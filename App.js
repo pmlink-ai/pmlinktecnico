@@ -130,11 +130,19 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
       // Inicializar estructura
       componentesActuales.forEach(componente => {
-        organizedImages[componente.key] = {
-          ANTES: [],
-          PROCESO: [],
-          DESPUES: []
-        };
+        if (componente.key === 'Boquillas_Sistema' || componente.key === 'Panel_Control' || componente.key === 'Pruebas_Sistema') {
+          // Componentes especiales con sección FOTO
+          organizedImages[componente.key] = {
+            FOTO: []
+          };
+        } else {
+          // Componentes normales con secciones estándar
+          organizedImages[componente.key] = {
+            ANTES: [],
+            PROCESO: [],
+            DESPUES: []
+          };
+        }
       });
 
       // Organizar fotos existentes
@@ -155,6 +163,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
       });
 
       setImagesByComponenteAndSeccion(organizedImages);
+      console.log('📸 Imágenes organizadas:', organizedImages);
       
       // Expandir automáticamente componentes que tienen fotos
       const newExpandedState = {};
@@ -344,10 +353,14 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
   const uploadImage = async (asset, componente, seccion) => {
     try {
+      console.log('🔥 Subiendo imagen:', { componente, seccion, asset: asset.uri });
+      
       // Generar nombre único
       const fileExtension = asset.uri.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
       const filePath = `public/${orderId}/${informeTabla}/${componente}/${seccion}/${fileName}`;
+      
+      console.log('📁 Ruta de archivo:', filePath);
 
       // Crear FormData
       const formData = new FormData();
@@ -393,6 +406,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
         return;
       }
 
+      console.log('✅ Imagen guardada exitosamente en BD:', { componente, seccion, etiqueta });
       Alert.alert('Éxito', `Imagen agregada: ${componenteTitle} - ${seccion}`);
       await loadImages(); // Recargar lista
       await loadObservacionesSecciones(); // Recargar observaciones
@@ -527,18 +541,245 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
             </Text>
             <TextInput
               style={styles.observacionesInput}
-              placeholder={`Ingrese observaciones para ${seccionData.title}...`}
+              placeholder={
+                componenteKey === 'Cilindro_Agente' 
+                  ? `Ingrese información solicitada...`
+                  : `Ingrese observaciones para ${seccionData.title}...`
+              }
               multiline
-              numberOfLines={2}
-              value={observacionesSecciones[`${componenteKey}_${seccionData.key}`] || ''}
+              numberOfLines={componenteKey === 'Cilindro_Agente' ? 6 : 2}
+              value={
+                componenteKey === 'Cilindro_Agente' 
+                  ? (observacionesSecciones[`${componenteKey}_${seccionData.key}`] || `ESTADO Y OBSERVACIONES DE\nACCIONAMIENTO MANUAL:\n\nESTADO DEL TESTIGO DE ESTACION\nMANUAL:`)
+                  : (observacionesSecciones[`${componenteKey}_${seccionData.key}`] || '')
+              }
               onChangeText={(text) => handleObservacionSeccionChange(componenteKey, seccionData.key, text)}
               textAlignVertical="top"
               selectTextOnFocus={false}
               autoCorrect={false}
-              autoCapitalize="sentences"
+              autoCapitalize={componenteKey === 'Cilindro_Agente' ? "characters" : "sentences"}
             />
           </View>
         )}
+      </View>
+    );
+  };
+
+  // Renderizado especial para Alimentación electrica
+  const renderAlimentacionElectricaComponent = (componenteKey) => {
+    const images = imagesByComponenteAndSeccion[componenteKey]?.['FOTO'] || [];
+    const uploadingKey = `${componenteKey}_FOTO`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentContent}>
+        {/* Título descriptivo */}
+        <View style={styles.observacionesContainer}>
+          <Text style={[styles.observacionesLabel, { textAlign: 'center', fontSize: 16, fontWeight: 'bold' }]}>
+            SWITCH DE CORTE PARA SUMINISTRO{'\n'}ELECTRICO
+          </Text>
+        </View>
+        
+        {/* Sección de foto única */}
+        <View style={styles.componentSection}>
+          <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA</Text>
+            {images.length > 0 && (
+              <Text style={styles.sectionCount}>({images.length})</Text>
+            )}
+          </View>
+          
+          {images.length > 0 && (
+            <FlatList
+              data={images}
+              renderItem={renderImage}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.sectionImagesList}
+            />
+          )}
+          
+          <TouchableOpacity 
+            style={[styles.addSectionPhotoButton, { borderColor: '#45B7D1' }]}
+            onPress={() => pickImage(componenteKey, 'FOTO')}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#45B7D1" />
+            ) : (
+              <>
+                <Text style={[styles.addPhotoIcon, { color: '#45B7D1' }]}>📷</Text>
+                <Text style={[styles.addSectionPhotoText, { color: '#45B7D1' }]}>
+                  Subir Fotografía
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          {/* Campo de estado */}
+          <View style={styles.observacionesContainer}>
+            <Text style={styles.observacionesLabel}>ESTADO:</Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese estado..."
+              multiline
+              numberOfLines={2}
+              value={observacionesSecciones[`${componenteKey}_FOTO`] || ''}
+              onChangeText={(text) => handleObservacionSeccionChange(componenteKey, 'FOTO', text)}
+              textAlignVertical="top"
+              selectTextOnFocus={false}
+              autoCorrect={false}
+              autoCapitalize="characters"
+            />
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Renderizado especial para Panel de alarma
+  const renderPanelAlarmaComponent = (componenteKey) => {
+    const images = imagesByComponenteAndSeccion[componenteKey]?.['FOTO'] || [];
+    const uploadingKey = `${componenteKey}_FOTO`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentContent}>
+        {/* Título descriptivo principal */}
+        <View style={styles.observacionesContainer}>
+          <Text style={[styles.observacionesLabel, { textAlign: 'center', fontSize: 16, fontWeight: 'bold' }]}>
+            SWITCH INSTALADO
+          </Text>
+        </View>
+        
+        {/* Título descriptivo secundario */}
+        <View style={styles.observacionesContainer}>
+          <Text style={[styles.observacionesLabel, { textAlign: 'center', fontSize: 16, fontWeight: 'bold' }]}>
+            RESPALDO
+          </Text>
+        </View>
+        
+        {/* Sección de foto única */}
+        <View style={styles.componentSection}>
+          <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA</Text>
+            {images.length > 0 && (
+              <Text style={styles.sectionCount}>({images.length})</Text>
+            )}
+          </View>
+          
+          {images.length > 0 && (
+            <FlatList
+              data={images}
+              renderItem={renderImage}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.sectionImagesList}
+            />
+          )}
+          
+          <TouchableOpacity 
+            style={[styles.addSectionPhotoButton, { borderColor: '#45B7D1' }]}
+            onPress={() => pickImage(componenteKey, 'FOTO')}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#45B7D1" />
+            ) : (
+              <>
+                <Text style={[styles.addPhotoIcon, { color: '#45B7D1' }]}>📷</Text>
+                <Text style={[styles.addSectionPhotoText, { color: '#45B7D1' }]}>
+                  Subir Fotografía
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          {/* Campo de estado y observaciones */}
+          <View style={styles.observacionesContainer}>
+            <Text style={styles.observacionesLabel}>ESTADO Y OBSERVACIONES:</Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese estado y observaciones..."
+              multiline
+              numberOfLines={3}
+              value={observacionesSecciones[`${componenteKey}_FOTO`] || ''}
+              onChangeText={(text) => handleObservacionSeccionChange(componenteKey, 'FOTO', text)}
+              textAlignVertical="top"
+              selectTextOnFocus={false}
+              autoCorrect={false}
+              autoCapitalize="characters"
+            />
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Renderizado especial para Valvula de Gas
+  const renderValvulaGasComponent = (componenteKey) => {
+    const images = imagesByComponenteAndSeccion[componenteKey]?.['FOTO'] || [];
+    const uploadingKey = `${componenteKey}_FOTO`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentContent}>
+        {/* Sección de foto única */}
+        <View style={styles.componentSection}>
+          <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA</Text>
+            {images.length > 0 && (
+              <Text style={styles.sectionCount}>({images.length})</Text>
+            )}
+          </View>
+          
+          {images.length > 0 && (
+            <FlatList
+              data={images}
+              renderItem={renderImage}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.sectionImagesList}
+            />
+          )}
+          
+          <TouchableOpacity 
+            style={[styles.addSectionPhotoButton, { borderColor: '#45B7D1' }]}
+            onPress={() => pickImage(componenteKey, 'FOTO')}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#45B7D1" />
+            ) : (
+              <>
+                <Text style={[styles.addPhotoIcon, { color: '#45B7D1' }]}>�</Text>
+                <Text style={[styles.addSectionPhotoText, { color: '#45B7D1' }]}>
+                  Tomar Fotografía
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          {/* Campo de observaciones personalizado */}
+          <View style={styles.observacionesContainer}>
+            <Text style={styles.observacionesLabel}>MEDIDA DE TOMA DE VALVULA:</Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese medida de toma de válvula..."
+              multiline
+              numberOfLines={2}
+              value={observacionesSecciones[`${componenteKey}_FOTO`] || ''}
+              onChangeText={(text) => handleObservacionSeccionChange(componenteKey, 'FOTO', text)}
+              textAlignVertical="top"
+              selectTextOnFocus={false}
+              autoCorrect={false}
+              autoCapitalize="characters"
+            />
+          </View>
+        </View>
       </View>
     );
   };
@@ -653,9 +894,87 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
   const renderComponent = (componenteData) => {
     const isExpanded = expandedComponents[componenteData.key];
-    const totalImages = secciones.reduce((total, seccion) => {
-      return total + (imagesByComponenteAndSeccion[componenteData.key]?.[seccion.key]?.length || 0);
-    }, 0);
+    
+    // Calcular total de imágenes según el tipo de componente
+    let totalImages;
+    if (componenteData.key === 'Boquillas_Sistema' || componenteData.key === 'Panel_Control' || componenteData.key === 'Pruebas_Sistema') {
+      // Para Valvula de Gas, Alimentación electrica y Panel de alarma, contar solo fotos
+      totalImages = imagesByComponenteAndSeccion[componenteData.key]?.['FOTO']?.length || 0;
+    } else {
+      // Para otros componentes, contar todas las secciones
+      totalImages = secciones.reduce((total, seccion) => {
+        return total + (imagesByComponenteAndSeccion[componenteData.key]?.[seccion.key]?.length || 0);
+      }, 0);
+    }
+
+    // Renderizado especial para "Valvula de Gas"
+    if (componenteData.key === 'Boquillas_Sistema') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <TouchableOpacity 
+            style={styles.componentHeader}
+            onPress={() => toggleComponent(componenteData.key)}
+          >
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+          </TouchableOpacity>
+          
+          {isExpanded && renderValvulaGasComponent(componenteData.key)}
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Alimentación electrica"
+    if (componenteData.key === 'Panel_Control') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <TouchableOpacity 
+            style={styles.componentHeader}
+            onPress={() => toggleComponent(componenteData.key)}
+          >
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+          </TouchableOpacity>
+          
+          {isExpanded && renderAlimentacionElectricaComponent(componenteData.key)}
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Panel de alarma"
+    if (componenteData.key === 'Pruebas_Sistema') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <TouchableOpacity 
+            style={styles.componentHeader}
+            onPress={() => toggleComponent(componenteData.key)}
+          >
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+          </TouchableOpacity>
+          
+          {isExpanded && renderPanelAlarmaComponent(componenteData.key)}
+        </View>
+      );
+    }
 
     // Renderizado especial para "Recibo Conforme" - solo una opción de foto
     if (componenteData.key === 'Recibo_Conforme') {
