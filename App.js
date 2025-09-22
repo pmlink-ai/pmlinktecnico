@@ -82,10 +82,11 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
   const [loading, setLoading] = useState(true);
   const [expandedComponents, setExpandedComponents] = useState({});
   const [observacionesPorComponente, setObservacionesPorComponente] = useState({});
+  const [observacionesSecciones, setObservacionesSecciones] = useState({});
+  const [observacionesTimeouts, setObservacionesTimeouts] = useState({});
 
   const secciones = [
     { key: 'ANTES', title: 'ANTES', color: '#FF6B6B' },
-    { key: 'PROCESO', title: 'PROCESO', color: '#4ECDC4' },
     { key: 'DESPUES', title: 'DESPUÉS', color: '#45B7D1' }
   ];
 
@@ -97,6 +98,14 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
   useEffect(() => {
     loadImages();
+    loadObservacionesSecciones();
+    
+    // Cleanup function para limpiar timeouts al desmontar
+    return () => {
+      Object.values(observacionesTimeouts).forEach(timeoutId => {
+        if (timeoutId) clearTimeout(timeoutId);
+      });
+    };
   }, []);
 
   const loadImages = async () => {
@@ -163,6 +172,95 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadObservacionesSecciones = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('observaciones_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', orderId)
+        .eq('informe_tabla', informeTabla);
+
+      if (error) {
+        console.error('Error cargando observaciones:', error);
+        return;
+      }
+
+      // Organizar observaciones por componente y sección
+      const observacionesOrganizadas = {};
+      (data || []).forEach(obs => {
+        const key = `${obs.componente}_${obs.seccion}`;
+        observacionesOrganizadas[key] = obs.observaciones;
+      });
+
+      setObservacionesSecciones(observacionesOrganizadas);
+    } catch (error) {
+      console.error('Error cargando observaciones:', error);
+    }
+  };
+
+  const saveObservacionSeccion = async (componenteKey, seccion, texto) => {
+    try {
+      const { error } = await supabase
+        .from('observaciones_fotografias')
+        .upsert({
+          orden_trabajo_id: orderId,
+          informe_tabla: informeTabla,
+          componente: componenteKey,
+          seccion: seccion,
+          observaciones: texto
+        }, {
+          onConflict: 'orden_trabajo_id,informe_tabla,componente,seccion'
+        });
+
+      if (error) {
+        console.error('Error guardando observación:', error);
+        Alert.alert('Error', 'No se pudo guardar la observación');
+        return;
+      }
+
+      // Actualizar estado local
+      setObservacionesSecciones(prev => ({
+        ...prev,
+        [`${componenteKey}_${seccion}`]: texto
+      }));
+    } catch (error) {
+      console.error('Error:', error);
+      Alert.alert('Error', 'Error inesperado al guardar observación');
+    }
+  };
+
+  const handleObservacionSeccionChange = (componenteKey, seccion, texto) => {
+    const key = `${componenteKey}_${seccion}`;
+    
+    // Actualizar estado local inmediatamente
+    setObservacionesSecciones(prev => ({
+      ...prev,
+      [key]: texto
+    }));
+
+    // Limpiar timeout anterior si existe
+    if (observacionesTimeouts[key]) {
+      clearTimeout(observacionesTimeouts[key]);
+    }
+
+    // Crear nuevo timeout para guardar después de 1 segundo
+    const timeoutId = setTimeout(() => {
+      saveObservacionSeccion(componenteKey, seccion, texto);
+      // Limpiar el timeout del estado
+      setObservacionesTimeouts(prev => {
+        const newTimeouts = { ...prev };
+        delete newTimeouts[key];
+        return newTimeouts;
+      });
+    }, 1000);
+
+    // Guardar el timeout en el estado
+    setObservacionesTimeouts(prev => ({
+      ...prev,
+      [key]: timeoutId
+    }));
   };
 
   const pickImage = async (componente, seccion) => {
@@ -297,6 +395,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
       Alert.alert('Éxito', `Imagen agregada: ${componenteTitle} - ${seccion}`);
       await loadImages(); // Recargar lista
+      await loadObservacionesSecciones(); // Recargar observaciones
       
       // Restaurar posición del scroll después de cargar las imágenes
       if (onScrollRestore) {
@@ -341,6 +440,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
               Alert.alert('Éxito', 'Imagen eliminada correctamente');
               await loadImages();
+              await loadObservacionesSecciones();
               
               // Restaurar posición del scroll después de cargar las imágenes
               if (onScrollRestore) {
@@ -419,45 +519,23 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
           )}
         </TouchableOpacity>
         
-        {/* Campo de observaciones para Recambio de fusibles térmicos después de la sección DESPUÉS */}
-        {componenteKey === 'Cartuchos_Gas' && seccionData.key === 'DESPUES' && (
+        {/* Campo de observaciones por sección - solo para DESPUÉS */}
+        {seccionData.key === 'DESPUES' && componenteKey !== 'Canerias_Distribucion' && (
           <View style={styles.observacionesContainer}>
-            <Text style={styles.observacionesLabel}>Observaciones:</Text>
+            <Text style={styles.observacionesLabel}>
+              {componenteKey === 'Cartuchos_Gas' ? 'OBSERVACIONES:' : `Observaciones ${seccionData.title}:`}
+            </Text>
             <TextInput
               style={styles.observacionesInput}
-              placeholder="Ingrese observaciones sobre el recambio de fusibles térmicos..."
+              placeholder={`Ingrese observaciones para ${seccionData.title}...`}
               multiline
-              numberOfLines={3}
-              value={observacionesPorComponente[componenteKey] || ''}
-              onChangeText={(text) => handleObservacionChange(componenteKey, text)}
+              numberOfLines={2}
+              value={observacionesSecciones[`${componenteKey}_${seccionData.key}`] || ''}
+              onChangeText={(text) => handleObservacionSeccionChange(componenteKey, seccionData.key, text)}
               textAlignVertical="top"
-            />
-          </View>
-        )}
-        
-        {/* Campo de observaciones para Simulación de disparo manual después de la sección DESPUÉS */}
-        {componenteKey === 'Cilindro_Agente' && seccionData.key === 'DESPUES' && (
-          <View style={styles.observacionesContainer}>
-            <Text style={styles.observacionesLabel}>ESTADO Y OBSERVACIONES DE ACCIONAMIENTO MANUAL:</Text>
-            <TextInput
-              style={styles.observacionesInput}
-              placeholder="Ingrese estado y observaciones del accionamiento manual..."
-              multiline
-              numberOfLines={3}
-              value={observacionesPorComponente[componenteKey] || ''}
-              onChangeText={(text) => handleObservacionChange(componenteKey, text)}
-              textAlignVertical="top"
-            />
-            
-            <Text style={[styles.observacionesLabel, { marginTop: 15 }]}>ESTADO DEL TESTIGO DE ESTACION MANUAL:</Text>
-            <TextInput
-              style={styles.observacionesInput}
-              placeholder="Ingrese estado del testigo de estación manual..."
-              multiline
-              numberOfLines={3}
-              value={observacionesPorComponente[`${componenteKey}_testigo`] || ''}
-              onChangeText={(text) => handleObservacionChange(`${componenteKey}_testigo`, text)}
-              textAlignVertical="top"
+              selectTextOnFocus={false}
+              autoCorrect={false}
+              autoCapitalize="sentences"
             />
           </View>
         )}
@@ -526,6 +604,53 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     );
   };
 
+  const renderObservacionesFotograficasSection = (componenteKey) => {
+    // Para Observaciones Fotográficas, solo usamos la sección 'ANTES' como sección única
+    const seccionUnica = 'ANTES';
+    const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionUnica] || [];
+    const uploadingKey = `${componenteKey}_${seccionUnica}`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentSection}>
+        <View style={[styles.sectionHeader, { backgroundColor: '#007AFF' }]}>
+          <Text style={styles.sectionTitle}>FOTOGRAFÍAS DE OBSERVACIONES</Text>
+          {images.length > 0 && (
+            <Text style={styles.sectionCount}>({images.length})</Text>
+          )}
+        </View>
+        
+        {images.length > 0 && (
+          <FlatList
+            data={images}
+            renderItem={renderImage}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sectionImagesList}
+          />
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.addSectionPhotoButton, { borderColor: '#007AFF' }]}
+          onPress={() => pickImage(componenteKey, seccionUnica)}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color="#007AFF" />
+          ) : (
+            <>
+              <Text style={[styles.addPhotoIcon, { color: '#007AFF' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: '#007AFF' }]}>
+                Añadir Fotografía de Observación
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderComponent = (componenteData) => {
     const isExpanded = expandedComponents[componenteData.key];
     const totalImages = secciones.reduce((total, seccion) => {
@@ -553,6 +678,60 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
           {isExpanded && (
             <View style={styles.componentContent}>
               {renderReciboConformeSection(componenteData.key)}
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Observaciones Fotográficas" - solo una opción de foto
+    if (componenteData.key === 'Sistema_Supresion') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <TouchableOpacity 
+            style={styles.componentHeader}
+            onPress={() => toggleComponent(componenteData.key)}
+          >
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+          </TouchableOpacity>
+          
+          {isExpanded && (
+            <View style={styles.componentContent}>
+              {renderObservacionesFotograficasSection(componenteData.key)}
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Observaciones Fotográficas" - solo una opción de foto
+    if (componenteData.key === 'Sistema_Supresion') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <TouchableOpacity 
+            style={styles.componentHeader}
+            onPress={() => toggleComponent(componenteData.key)}
+          >
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+          </TouchableOpacity>
+          
+          {isExpanded && (
+            <View style={styles.componentContent}>
+              {renderObservacionesFotograficasSection(componenteData.key)}
             </View>
           )}
         </View>
