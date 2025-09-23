@@ -413,7 +413,8 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
       // Crear etiqueta descriptiva
       const componenteTitle = getComponentesActuales().find(c => c.key === componente)?.title || componente;
-      const etiqueta = `${seccion} - ${componenteTitle}`;
+      const cleanedSeccion = cleanSectionName(seccion, componente);
+      const etiqueta = cleanedSeccion ? `${cleanedSeccion} - ${componenteTitle}` : componenteTitle;
 
       // Guardar referencia en base de datos
       const { error: dbError } = await supabase
@@ -434,7 +435,12 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       }
 
       console.log('✅ Imagen guardada exitosamente en BD:', { componente, seccion, etiqueta });
-      Alert.alert('Éxito', `Imagen agregada: ${componenteTitle} - ${seccion}`);
+      
+      // Popup de éxito sin "ANTES" para Observaciones Fotográficas
+      const successMessage = cleanedSeccion ? 
+        `Imagen agregada: ${componenteTitle} - ${cleanedSeccion}` : 
+        `Imagen agregada: ${componenteTitle}`;
+      Alert.alert('Éxito', successMessage);
       await loadImages(); // Recargar lista
       await loadObservacionesSecciones(); // Recargar observaciones
       
@@ -507,17 +513,17 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   // Función helper para obtener texto del botón según el límite
   const getAddPhotoButtonText = (componenteKey, seccionKey, seccionTitle) => {
     if (informeTabla !== 'informe_limpieza_ductos') {
-      return `Añadir Foto ${seccionTitle}`;
+      return `AÑADIR FOTO ${seccionTitle.toUpperCase()}`;
     }
     
     const currentImages = imagesByComponenteAndSeccion[componenteKey]?.[seccionKey] || [];
     const remaining = 4 - currentImages.length;
     
     if (remaining === 0) {
-      return 'Límite alcanzado (4/4)';
+      return 'LÍMITE ALCANZADO (4/4)';
     }
     
-    return `Añadir Foto (${currentImages.length}/4)`;
+    return `AÑADIR FOTO (${currentImages.length}/4)`;
   };
 
   const getImageUrl = (storagePath) => {
@@ -917,7 +923,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     return (
       <View style={styles.componentSection}>
         <View style={[styles.sectionHeader, { backgroundColor: '#FF6B6B' }]}>
-          <Text style={styles.sectionTitle}>Observaciones</Text>
+          <Text style={styles.sectionTitle}>OBSERVACIONES</Text>
           {images.length > 0 && (
             <Text style={styles.sectionCount}>({images.length})</Text>
           )}
@@ -970,7 +976,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     return (
       <View style={styles.componentSection}>
         <View style={[styles.sectionHeader, { backgroundColor: '#007AFF' }]}>
-          <Text style={styles.sectionTitle}>Observaciones</Text>
+          <Text style={styles.sectionTitle}>OBSERVACIONES</Text>
           {images.length > 0 && (
             <Text style={styles.sectionCount}>({images.length})</Text>
           )}
@@ -1013,6 +1019,20 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     );
   };
 
+  // Función helper para formatear títulos de componentes en mayúsculas
+  const formatComponentTitle = (title) => {
+    return title.toUpperCase();
+  };
+
+  // Función helper para limpiar nombres de sección (eliminar "ANTES" para Observaciones Fotográficas)
+  const cleanSectionName = (seccion, componenteKey) => {
+    // Si es Observaciones Fotográficas y la sección es "ANTES", no mostrar la sección
+    if ((componenteKey === 'Observaciones_Fotograficas' || componenteKey === 'Sistema_Supresion') && seccion === 'ANTES') {
+      return '';
+    }
+    return seccion;
+  };
+
   const renderComponent = (componenteData) => {
     const isExpanded = expandedComponents[componenteData.key];
     
@@ -1041,7 +1061,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           >
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
               {totalImages > 0 && (
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
@@ -1064,7 +1084,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           >
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
               {totalImages > 0 && (
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
@@ -1087,7 +1107,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           >
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
               {totalImages > 0 && (
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
@@ -1110,7 +1130,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           >
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
               {totalImages > 0 && (
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
@@ -1137,7 +1157,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           >
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
               {totalImages > 0 && (
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
@@ -1217,7 +1237,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         >
           <View style={styles.componentHeaderLeft}>
             <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-            <Text style={styles.componentTitle}>{componenteData.title}</Text>
+            <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
             {totalImages > 0 && (
               <Text style={styles.componentCount}>({totalImages} fotos)</Text>
             )}
@@ -1257,7 +1277,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                     {currentPhotoPage + 1} de {componentes.length}
                   </Text>
                   <Text style={styles.componentPageTitle}>
-                    {componenteActual.title}
+                    {componenteActual.title.toUpperCase()}
                   </Text>
                 </View>
                 
@@ -1271,7 +1291,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                       style={styles.photoNavButton}
                       onPress={() => setCurrentPhotoPage(currentPhotoPage - 1)}
                     >
-                      <Text style={styles.photoNavButtonText}>⬅ Anterior</Text>
+                      <Text style={styles.photoNavButtonText}>⬅ ANTERIOR</Text>
                     </TouchableOpacity>
                   )}
                   
@@ -1280,7 +1300,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                       style={[styles.photoNavButton, styles.photoNavButtonNext]}
                       onPress={() => setCurrentPhotoPage(currentPhotoPage + 1)}
                     >
-                      <Text style={styles.photoNavButtonText}>Siguiente ➡</Text>
+                      <Text style={styles.photoNavButtonText}>SIGUIENTE ➡</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -2590,7 +2610,7 @@ const FormularioDinamico = ({ order, onClose }) => {
               style={styles.backButton}
               onPress={() => setCurrentView('datos')}
             >
-              <Text style={styles.backButtonText}>⬅ Datos</Text>
+              <Text style={styles.backButtonText}>⬅ DATOS</Text>
             </TouchableOpacity>
 
             {/* COMPONENTE IMAGE UPLOADER CON PAGINACIÓN */}
