@@ -1,13 +1,48 @@
 #!/usr/bin/env powershell
-# Script para reiniciar Expo con configuración predefinida
+# Script para reiniciar Expo con limpieza automática de puerto
 
-Write-Host "🔄 Reiniciando Expo en puerto 8085..." -ForegroundColor Cyan
+Write-Host "🔄 Limpiando puerto 8085 y reiniciando Expo..." -ForegroundColor Cyan
 
-# Detener cualquier proceso de Expo que esté corriendo
-Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*expo*" } | Stop-Process -Force
+# Función para matar procesos en el puerto 8085
+function Kill-Port {
+    param($Port)
+    Write-Host "🧹 Limpiando puerto $Port..." -ForegroundColor Yellow
+    
+    # Buscar procesos usando el puerto
+    $processes = netstat -ano | findstr (":${Port}")
+    if ($processes) {
+        Write-Host "Procesos encontrados en puerto ${Port}:" -ForegroundColor Red
+        Write-Host $processes
+        
+        # Extraer PIDs y matarlos
+        $processes | ForEach-Object {
+            $pid = ($_ -split '\s+')[-1]
+            if ($pid -match '^\d+$') {
+                try {
+                    Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+                    Write-Host "✅ Proceso $pid terminado" -ForegroundColor Green
+                } catch {
+                    Write-Host "⚠️ No se pudo terminar proceso $pid" -ForegroundColor Yellow
+                }
+            }
+        }
+    } else {
+        Write-Host "✅ Puerto ${Port} está libre" -ForegroundColor Green
+    }
+}
 
-# Esperar un momento para que se libere el puerto
-Start-Sleep -Seconds 2
+# Detener procesos de node/expo
+Write-Host "🛑 Deteniendo procesos de Node/Expo..." -ForegroundColor Yellow
+Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -Name "expo" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
-# Iniciar Expo con cache limpio en puerto específico
+# Limpiar puerto específico
+Kill-Port 8085
+
+# Esperar para que se liberen los recursos
+Write-Host "⏳ Esperando liberación de recursos..." -ForegroundColor Cyan
+Start-Sleep -Seconds 3
+
+# Iniciar Expo con cache limpio
+Write-Host "🚀 Iniciando Expo en puerto 8085..." -ForegroundColor Green
 npx expo start --port 8085 --clear

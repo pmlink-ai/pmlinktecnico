@@ -1806,6 +1806,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   const [tableName, setTableName] = useState('');
   const [existingRecord, setExistingRecord] = useState(null);
   const [currentScrollY, setCurrentScrollY] = useState(0);
+  const [currentView, setCurrentView] = useState('datos'); // 'datos' o 'fotografias'
   
   // Referencia simple para el scroll
   const scrollRef = useRef(null);
@@ -2411,54 +2412,78 @@ const FormularioDinamico = ({ order, onClose }) => {
         }}
         scrollEventThrottle={100}
       >
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>📋 Información del Formulario</Text>
-          
-          {/* Mostrar ID del registro si existe */}
-          {existingRecord && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>ID del Registro:</Text>
-              <Text style={styles.infoValue}>{existingRecord.id}</Text>
-            </View>
-          )}
-          
-          {/* Mostrar ID de la orden */}
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ID de la Orden:</Text>
-            <Text style={styles.infoValue}>{order.id}</Text>
-          </View>
-          
-          {/* Mostrar técnicos asignados en lugar de la tabla del formulario */}
-          <TecnicosAsignados orderId={order.id} />
-          
-          {console.log('🎨 Renderizando campos:', campos.length)}
-          {campos.length === 0 ? (
-            <Text style={styles.noCamposText}>
-              No se encontraron campos para mostrar. 
-              Revisando estructura de la tabla...
-            </Text>
-          ) : (
-            <>
-              {/* Campos especiales al inicio */}
-              {renderSpecialFields()}
+        {currentView === 'datos' ? (
+          // VISTA DE DATOS TÉCNICOS
+          <>
+            <View style={styles.formSection}>
+              <Text style={styles.sectionTitle}>📋 Información del Formulario</Text>
               
-              {/* Separador visual */}
-              <View style={styles.separator}>
-                <Text style={styles.separatorText}>📊 Datos Técnicos</Text>
+              {/* Mostrar ID del registro si existe */}
+              {existingRecord && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>ID del Registro:</Text>
+                  <Text style={styles.infoValue}>{existingRecord.id}</Text>
+                </View>
+              )}
+              
+              {/* Mostrar ID de la orden */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>ID de la Orden:</Text>
+                <Text style={styles.infoValue}>{order.id}</Text>
               </View>
               
-              {/* Campos dinámicos de la tabla */}
-              {campos.map(renderField)}
-            </>
-          )}
-        </View>
+              {/* Mostrar técnicos asignados en lugar de la tabla del formulario */}
+              <TecnicosAsignados orderId={order.id} />
+              
+              {console.log('🎨 Renderizando campos:', campos.length)}
+              {campos.length === 0 ? (
+                <Text style={styles.noCamposText}>
+                  No se encontraron campos para mostrar. 
+                  Revisando estructura de la tabla...
+                </Text>
+              ) : (
+                <>
+                  {/* Campos especiales al inicio */}
+                  {renderSpecialFields()}
+                  
+                  {/* Separador visual */}
+                  <View style={styles.separator}>
+                    <Text style={styles.separatorText}>📊 Datos Técnicos</Text>
+                  </View>
+                  
+                  {/* Campos dinámicos de la tabla */}
+                  {campos.map(renderField)}
+                </>
+              )}
+            </View>
 
-        {/* COMPONENTE IMAGE UPLOADER */}
-        <ImageUploader 
-          orderId={order.id} 
-          informeTabla={tableName}
-          onScrollRestore={restoreScroll}
-        />
+            {/* BOTÓN SIGUIENTE PARA IR A FOTOGRAFÍAS */}
+            <TouchableOpacity 
+              style={styles.nextButton}
+              onPress={() => setCurrentView('fotografias')}
+            >
+              <Text style={styles.nextButtonText}>📸 Siguiente: Fotografías</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          // VISTA DE FOTOGRAFÍAS
+          <>
+            {/* BOTÓN VOLVER A DATOS TÉCNICOS */}
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => setCurrentView('datos')}
+            >
+              <Text style={styles.backButtonText}>📊 Volver: Datos Técnicos</Text>
+            </TouchableOpacity>
+
+            {/* COMPONENTE IMAGE UPLOADER */}
+            <ImageUploader 
+              orderId={order.id} 
+              informeTabla={tableName}
+              onScrollRestore={restoreScroll}
+            />
+          </>
+        )}
 
         <TouchableOpacity 
           style={styles.saveButton}
@@ -3077,6 +3102,36 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Estilos para botones de navegación
+  nextButton: {
+    backgroundColor: '#007BFF',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    marginHorizontal: 15,
+  },
+  nextButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButton: {
+    backgroundColor: '#6C757D',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    marginHorizontal: 15,
+  },
+  backButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',

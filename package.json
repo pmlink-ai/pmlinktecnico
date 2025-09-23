@@ -5,6 +5,7 @@
   "scripts": {
     "start": "expo start --port 8085",
     "start-clear": "expo start --port 8085 --clear",
+    "restart": "powershell -ExecutionPolicy Bypass -File ./restart.ps1",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
@@ -19,8 +20,11 @@
     "@react-navigation/stack": "^7.4.8",
     "@supabase/supabase-js": "^2.51.0",
     "babel-preset-expo": "^54.0.1",
-    "expo": "^54.0.7",
+    "expo": "^54.0.10",
     "expo-image-picker": "~17.0.8",
+    "expo-mail-composer": "~15.0.7",
+    "expo-print": "~15.0.7",
+    "expo-sharing": "~14.0.7",
     "expo-status-bar": "~3.0.8",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -34,10 +38,7 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-web": "^0.21.0",
-    "expo-print": "~15.0.7",
-    "expo-sharing": "~14.0.7",
-    "expo-mail-composer": "~15.0.7"
+    "react-native-web": "^0.21.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
