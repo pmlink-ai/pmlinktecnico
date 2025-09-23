@@ -16,13 +16,13 @@ function Kill-Port {
         
         # Extraer PIDs y matarlos
         $processes | ForEach-Object {
-            $pid = ($_ -split '\s+')[-1]
-            if ($pid -match '^\d+$') {
+            $processId = ($_ -split '\s+')[-1]
+            if ($processId -match '^\d+$') {
                 try {
-                    Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-                    Write-Host "✅ Proceso $pid terminado" -ForegroundColor Green
+                    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                    Write-Host "✅ Proceso $processId terminado" -ForegroundColor Green
                 } catch {
-                    Write-Host "⚠️ No se pudo terminar proceso $pid" -ForegroundColor Yellow
+                    Write-Host "⚠️ No se pudo terminar proceso $processId" -ForegroundColor Yellow
                 }
             }
         }

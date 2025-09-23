@@ -856,7 +856,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     return (
       <View style={styles.componentSection}>
         <View style={[styles.sectionHeader, { backgroundColor: '#FF6B6B' }]}>
-          <Text style={styles.sectionTitle}>FOTOGRAFÍAS DE OBSERVACIONES</Text>
+          <Text style={styles.sectionTitle}>Observaciones</Text>
           {images.length > 0 && (
             <Text style={styles.sectionCount}>({images.length})</Text>
           )}
@@ -903,7 +903,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     return (
       <View style={styles.componentSection}>
         <View style={[styles.sectionHeader, { backgroundColor: '#007AFF' }]}>
-          <Text style={styles.sectionTitle}>FOTOGRAFÍAS DE OBSERVACIONES</Text>
+          <Text style={styles.sectionTitle}>Observaciones</Text>
           {images.length > 0 && (
             <Text style={styles.sectionCount}>({images.length})</Text>
           )}
@@ -1163,17 +1163,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
   return (
     <View style={styles.imageUploaderContainer}>
-      <Text style={styles.imageUploaderTitle}>📸 Fotografías del Informe</Text>
+      <Text style={styles.minimalistTitle}>� Fotografías</Text>
       
       {loading ? (
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
         <View style={styles.sectionsContainer}>
           {getComponentesActuales().map(renderComponent)}
-          
-          <Text style={styles.imageHelperText}>
-            Mantén presionada una imagen para eliminarla
-          </Text>
         </View>
       )}
     </View>
@@ -2462,7 +2458,7 @@ const FormularioDinamico = ({ order, onClose }) => {
               style={styles.nextButton}
               onPress={() => setCurrentView('fotografias')}
             >
-              <Text style={styles.nextButtonText}>📸 Siguiente: Fotografías</Text>
+              <Text style={styles.nextButtonText}>� Fotografías ➜</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -2473,7 +2469,7 @@ const FormularioDinamico = ({ order, onClose }) => {
               style={styles.backButton}
               onPress={() => setCurrentView('datos')}
             >
-              <Text style={styles.backButtonText}>📊 Volver: Datos Técnicos</Text>
+              <Text style={styles.backButtonText}>⬅ Datos</Text>
             </TouchableOpacity>
 
             {/* COMPONENTE IMAGE UPLOADER */}
@@ -3233,6 +3229,13 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     marginBottom: 15,
   },
+  minimalistTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
   imagesList: {
     marginBottom: 15,
   },
@@ -3297,17 +3300,16 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   sectionHeader: {
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 15,
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 10,
     alignItems: 'center',
   },
   sectionTitle: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontSize: 13,
+    fontWeight: '600',
   },
   sectionImagesList: {
     marginBottom: 15,
@@ -3323,8 +3325,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   addSectionPhotoText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '500',
   },
   
   // Estilos para observaciones por componente
@@ -3369,10 +3371,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#E3F2FD',
+    padding: 12,
+    backgroundColor: '#F5F7FA',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#E8EDF4',
   },
   componentHeaderLeft: {
     flexDirection: 'row',
@@ -3380,13 +3382,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   componentIcon: {
-    fontSize: 18,
-    marginRight: 8,
+    fontSize: 16,
+    marginRight: 6,
   },
   componentTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1976D2',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
     flex: 1,
   },
   componentCount: {
@@ -3406,7 +3408,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   componentContent: {
-    padding: 15,
+    padding: 10,
   },
   componentSection: {
     marginBottom: 15,
