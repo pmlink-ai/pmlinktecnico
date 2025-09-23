@@ -46,6 +46,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
   // Configuración de componentes por servicio
   const componentesPorServicio = {
     'informe_limpieza_ductos': [
+      { key: 'Observaciones_Fotograficas', title: 'Observaciones Fotográficas', icon: '📸' },
       { key: 'Campana_1', title: 'Campana 1', icon: '🏭' },
       { key: 'Campana_2', title: 'Campana 2', icon: '🏭' },
       { key: 'Ductos_y_Registros', title: 'Ductos y Registros', icon: '🔧' },
@@ -845,6 +846,53 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     );
   };
 
+  const renderObservacionesFotograficasSimpleSection = (componenteKey) => {
+    // Para Observaciones Fotográficas en informe_limpieza_ductos, solo usamos la sección 'ANTES' como sección única
+    const seccionUnica = 'ANTES';
+    const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionUnica] || [];
+    const uploadingKey = `${componenteKey}_${seccionUnica}`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentSection}>
+        <View style={[styles.sectionHeader, { backgroundColor: '#FF6B6B' }]}>
+          <Text style={styles.sectionTitle}>FOTOGRAFÍAS DE OBSERVACIONES</Text>
+          {images.length > 0 && (
+            <Text style={styles.sectionCount}>({images.length})</Text>
+          )}
+        </View>
+        
+        {images.length > 0 && (
+          <FlatList
+            data={images}
+            renderItem={renderImage}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sectionImagesList}
+          />
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.addSectionPhotoButton, { borderColor: '#FF6B6B' }]}
+          onPress={() => pickImage(componenteKey, seccionUnica)}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color="#FF6B6B" />
+          ) : (
+            <>
+              <Text style={[styles.addPhotoIcon, { color: '#FF6B6B' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: '#FF6B6B' }]}>
+                Añadir Fotografía de Observación
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderObservacionesFotograficasSection = (componenteKey) => {
     // Para Observaciones Fotográficas, solo usamos la sección 'ANTES' como sección única
     const seccionUnica = 'ANTES';
@@ -900,6 +948,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     if (componenteData.key === 'Boquillas_Sistema' || componenteData.key === 'Panel_Control' || componenteData.key === 'Pruebas_Sistema') {
       // Para Valvula de Gas, Alimentación electrica y Panel de alarma, contar solo fotos
       totalImages = imagesByComponenteAndSeccion[componenteData.key]?.['FOTO']?.length || 0;
+    } else if (componenteData.key === 'Observaciones_Fotograficas' || componenteData.key === 'Recibo_Conforme' || componenteData.key === 'Sistema_Supresion') {
+      // Para Observaciones Fotográficas, Recibo Conforme y Sistema Supresion, contar fotos en sección ANTES
+      totalImages = imagesByComponenteAndSeccion[componenteData.key]?.['ANTES']?.length || 0;
     } else {
       // Para otros componentes, contar todas las secciones
       totalImages = secciones.reduce((total, seccion) => {
@@ -972,6 +1023,33 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
           </TouchableOpacity>
           
           {isExpanded && renderPanelAlarmaComponent(componenteData.key)}
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Observaciones Fotográficas" en informe_limpieza_ductos
+    if (componenteData.key === 'Observaciones_Fotograficas' && informeTabla === 'informe_limpieza_ductos') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <TouchableOpacity 
+            style={styles.componentHeader}
+            onPress={() => toggleComponent(componenteData.key)}
+          >
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+          </TouchableOpacity>
+          
+          {isExpanded && (
+            <View style={styles.componentContent}>
+              {renderObservacionesFotograficasSimpleSection(componenteData.key)}
+            </View>
+          )}
         </View>
       );
     }
