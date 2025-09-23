@@ -42,7 +42,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const Stack = createStackNavigator();
 
 // ================== COMPONENTE IMAGE UPLOADER ==================
-const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
+const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPage, setCurrentPhotoPage }) => {
   // Configuración de componentes por servicio
   const componentesPorServicio = {
     'informe_limpieza_ductos': [
@@ -300,6 +300,19 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
   const openCamera = async (componente, seccion) => {
     try {
+      // Verificar límite de fotos para informe_limpieza_ductos
+      if (informeTabla === 'informe_limpieza_ductos') {
+        const currentImages = imagesByComponenteAndSeccion[componente]?.[seccion] || [];
+        if (currentImages.length >= 4) {
+          Alert.alert(
+            'Límite alcanzado', 
+            'Máximo 4 fotografías por sección en Informe Limpieza Ductos',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permisos', 'Se necesitan permisos para usar la cámara');
@@ -330,6 +343,19 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
 
   const openGallery = async (componente, seccion) => {
     try {
+      // Verificar límite de fotos para informe_limpieza_ductos
+      if (informeTabla === 'informe_limpieza_ductos') {
+        const currentImages = imagesByComponenteAndSeccion[componente]?.[seccion] || [];
+        if (currentImages.length >= 4) {
+          Alert.alert(
+            'Límite alcanzado', 
+            'Máximo 4 fotografías por sección en Informe Limpieza Ductos',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+
       // Configurar estado de carga
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: true }));
 
@@ -471,6 +497,29 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
     );
   };
 
+  // Función helper para verificar límite de fotos
+  const canAddMorePhotos = (componenteKey, seccionKey) => {
+    if (informeTabla !== 'informe_limpieza_ductos') return true;
+    const currentImages = imagesByComponenteAndSeccion[componenteKey]?.[seccionKey] || [];
+    return currentImages.length < 4;
+  };
+
+  // Función helper para obtener texto del botón según el límite
+  const getAddPhotoButtonText = (componenteKey, seccionKey, seccionTitle) => {
+    if (informeTabla !== 'informe_limpieza_ductos') {
+      return `Añadir Foto ${seccionTitle}`;
+    }
+    
+    const currentImages = imagesByComponenteAndSeccion[componenteKey]?.[seccionKey] || [];
+    const remaining = 4 - currentImages.length;
+    
+    if (remaining === 0) {
+      return 'Límite alcanzado (4/4)';
+    }
+    
+    return `Añadir Foto (${currentImages.length}/4)`;
+  };
+
   const getImageUrl = (storagePath) => {
     const { data } = supabase.storage
       .from('fotos_informes')
@@ -518,17 +567,29 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
         )}
         
         <TouchableOpacity 
-          style={[styles.addSectionPhotoButton, { borderColor: seccionData.color }]}
+          style={[
+            styles.addSectionPhotoButton, 
+            { 
+              borderColor: canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc',
+              opacity: canAddMorePhotos(componenteKey, seccionData.key) ? 1 : 0.5
+            }
+          ]}
           onPress={() => pickImage(componenteKey, seccionData.key)}
-          disabled={isUploading}
+          disabled={isUploading || !canAddMorePhotos(componenteKey, seccionData.key)}
         >
           {isUploading ? (
             <ActivityIndicator size="small" color={seccionData.color} />
           ) : (
             <>
-              <Text style={[styles.addPhotoIcon, { color: seccionData.color }]}>📷</Text>
-              <Text style={[styles.addSectionPhotoText, { color: seccionData.color }]}>
-                Añadir Foto {seccionData.title}
+              <Text style={[
+                styles.addPhotoIcon, 
+                { color: canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc' }
+              ]}>📷</Text>
+              <Text style={[
+                styles.addSectionPhotoText, 
+                { color: canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc' }
+              ]}>
+                {getAddPhotoButtonText(componenteKey, seccionData.key, seccionData.title)}
               </Text>
             </>
           )}
@@ -874,17 +935,23 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
         )}
         
         <TouchableOpacity 
-          style={[styles.addSectionPhotoButton, { borderColor: '#FF6B6B' }]}
+          style={[
+            styles.addSectionPhotoButton, 
+            { 
+              borderColor: canAddMorePhotos(componenteKey, seccionUnica) ? '#FF6B6B' : '#ccc',
+              opacity: canAddMorePhotos(componenteKey, seccionUnica) ? 1 : 0.5
+            }
+          ]}
           onPress={() => pickImage(componenteKey, seccionUnica)}
-          disabled={isUploading}
+          disabled={isUploading || !canAddMorePhotos(componenteKey, seccionUnica)}
         >
           {isUploading ? (
             <ActivityIndicator size="small" color="#FF6B6B" />
           ) : (
             <>
-              <Text style={[styles.addPhotoIcon, { color: '#FF6B6B' }]}>📷</Text>
-              <Text style={[styles.addSectionPhotoText, { color: '#FF6B6B' }]}>
-                Añadir Fotografía de Observación
+              <Text style={[styles.addPhotoIcon, { color: canAddMorePhotos(componenteKey, seccionUnica) ? '#FF6B6B' : '#ccc' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: canAddMorePhotos(componenteKey, seccionUnica) ? '#FF6B6B' : '#ccc' }]}>
+                {getAddPhotoButtonText(componenteKey, seccionUnica, 'Observaciones')}
               </Text>
             </>
           )}
@@ -921,17 +988,23 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
         )}
         
         <TouchableOpacity 
-          style={[styles.addSectionPhotoButton, { borderColor: '#007AFF' }]}
+          style={[
+            styles.addSectionPhotoButton, 
+            { 
+              borderColor: canAddMorePhotos(componenteKey, seccionUnica) ? '#007AFF' : '#ccc',
+              opacity: canAddMorePhotos(componenteKey, seccionUnica) ? 1 : 0.5
+            }
+          ]}
           onPress={() => pickImage(componenteKey, seccionUnica)}
-          disabled={isUploading}
+          disabled={isUploading || !canAddMorePhotos(componenteKey, seccionUnica)}
         >
           {isUploading ? (
             <ActivityIndicator size="small" color="#007AFF" />
           ) : (
             <>
-              <Text style={[styles.addPhotoIcon, { color: '#007AFF' }]}>📷</Text>
-              <Text style={[styles.addSectionPhotoText, { color: '#007AFF' }]}>
-                Añadir Fotografía de Observación
+              <Text style={[styles.addPhotoIcon, { color: canAddMorePhotos(componenteKey, seccionUnica) ? '#007AFF' : '#ccc' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: canAddMorePhotos(componenteKey, seccionUnica) ? '#007AFF' : '#ccc' }]}>
+                {getAddPhotoButtonText(componenteKey, seccionUnica, 'Observaciones')}
               </Text>
             </>
           )}
@@ -1169,7 +1242,51 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore }) => {
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
         <View style={styles.sectionsContainer}>
-          {getComponentesActuales().map(renderComponent)}
+          {/* MOSTRAR SOLO EL COMPONENTE ACTUAL */}
+          {(() => {
+            const componentes = getComponentesActuales();
+            const componenteActual = componentes[currentPhotoPage];
+            
+            if (!componenteActual) return null;
+            
+            return (
+              <View>
+                {/* INDICADOR DE PÁGINA */}
+                <View style={styles.pageIndicator}>
+                  <Text style={styles.pageText}>
+                    {currentPhotoPage + 1} de {componentes.length}
+                  </Text>
+                  <Text style={styles.componentPageTitle}>
+                    {componenteActual.title}
+                  </Text>
+                </View>
+                
+                {/* COMPONENTE ACTUAL */}
+                {renderComponent(componenteActual)}
+                
+                {/* BOTONES DE NAVEGACIÓN */}
+                <View style={styles.photoNavigationContainer}>
+                  {currentPhotoPage > 0 && (
+                    <TouchableOpacity 
+                      style={styles.photoNavButton}
+                      onPress={() => setCurrentPhotoPage(currentPhotoPage - 1)}
+                    >
+                      <Text style={styles.photoNavButtonText}>⬅ Anterior</Text>
+                    </TouchableOpacity>
+                  )}
+                  
+                  {currentPhotoPage < componentes.length - 1 && (
+                    <TouchableOpacity 
+                      style={[styles.photoNavButton, styles.photoNavButtonNext]}
+                      onPress={() => setCurrentPhotoPage(currentPhotoPage + 1)}
+                    >
+                      <Text style={styles.photoNavButtonText}>Siguiente ➡</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          })()}
         </View>
       )}
     </View>
@@ -1803,6 +1920,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   const [existingRecord, setExistingRecord] = useState(null);
   const [currentScrollY, setCurrentScrollY] = useState(0);
   const [currentView, setCurrentView] = useState('datos'); // 'datos' o 'fotografias'
+  const [currentPhotoPage, setCurrentPhotoPage] = useState(0); // Índice de la página actual de fotografías
   
   // Referencia simple para el scroll
   const scrollRef = useRef(null);
@@ -2456,7 +2574,10 @@ const FormularioDinamico = ({ order, onClose }) => {
             {/* BOTÓN SIGUIENTE PARA IR A FOTOGRAFÍAS */}
             <TouchableOpacity 
               style={styles.nextButton}
-              onPress={() => setCurrentView('fotografias')}
+              onPress={() => {
+                setCurrentView('fotografias');
+                setCurrentPhotoPage(0); // Resetear a la primera página
+              }}
             >
               <Text style={styles.nextButtonText}>� Fotografías ➜</Text>
             </TouchableOpacity>
@@ -2472,11 +2593,13 @@ const FormularioDinamico = ({ order, onClose }) => {
               <Text style={styles.backButtonText}>⬅ Datos</Text>
             </TouchableOpacity>
 
-            {/* COMPONENTE IMAGE UPLOADER */}
+            {/* COMPONENTE IMAGE UPLOADER CON PAGINACIÓN */}
             <ImageUploader 
               orderId={order.id} 
               informeTabla={tableName}
               onScrollRestore={restoreScroll}
+              currentPhotoPage={currentPhotoPage}
+              setCurrentPhotoPage={setCurrentPhotoPage}
             />
           </>
         )}
@@ -3467,6 +3590,50 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
     textAlign: 'center',
+  },
+  
+  // Estilos para paginación de fotografías
+  pageIndicator: {
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E6ED',
+  },
+  pageText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  componentPageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 4,
+  },
+  photoNavigationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingHorizontal: 10,
+  },
+  photoNavButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  photoNavButtonNext: {
+    backgroundColor: '#28A745',
+  },
+  photoNavButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
