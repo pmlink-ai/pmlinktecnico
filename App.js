@@ -165,16 +165,6 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
       setImagesByComponenteAndSeccion(organizedImages);
       console.log('📸 Imágenes organizadas:', organizedImages);
-      
-      // Expandir automáticamente componentes que tienen fotos
-      const newExpandedState = {};
-      Object.keys(organizedImages).forEach(componenteKey => {
-        const hasImages = secciones.some(seccion => 
-          organizedImages[componenteKey][seccion.key]?.length > 0
-        );
-        newExpandedState[componenteKey] = hasImages;
-      });
-      setExpandedComponents(newExpandedState);
 
     } catch (error) {
       console.error('Error:', error);
@@ -554,13 +544,6 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
     return (
       <View key={seccionData.key} style={styles.componentSection}>
-        <View style={[styles.sectionHeader, { backgroundColor: seccionData.color }]}>
-          <Text style={styles.sectionTitle}>{seccionData.title}</Text>
-          {images.length > 0 && (
-            <Text style={styles.sectionCount}>({images.length})</Text>
-          )}
-        </View>
-        
         {images.length > 0 && (
           <FlatList
             data={images}
@@ -852,13 +835,6 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     );
   };
 
-  const toggleComponent = (componenteKey) => {
-    setExpandedComponents(prev => ({
-      ...prev,
-      [componenteKey]: !prev[componenteKey]
-    }));
-  };
-
   const handleObservacionChange = (componenteKey, text) => {
     setObservacionesPorComponente(prev => ({
       ...prev,
@@ -922,13 +898,6 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
     return (
       <View style={styles.componentSection}>
-        <View style={[styles.sectionHeader, { backgroundColor: '#FF6B6B' }]}>
-          <Text style={styles.sectionTitle}>OBSERVACIONES</Text>
-          {images.length > 0 && (
-            <Text style={styles.sectionCount}>({images.length})</Text>
-          )}
-        </View>
-        
         {images.length > 0 && (
           <FlatList
             data={images}
@@ -975,13 +944,6 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
     return (
       <View style={styles.componentSection}>
-        <View style={[styles.sectionHeader, { backgroundColor: '#007AFF' }]}>
-          <Text style={styles.sectionTitle}>OBSERVACIONES</Text>
-          {images.length > 0 && (
-            <Text style={styles.sectionCount}>({images.length})</Text>
-          )}
-        </View>
-        
         {images.length > 0 && (
           <FlatList
             data={images}
@@ -1034,7 +996,6 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   };
 
   const renderComponent = (componenteData) => {
-    const isExpanded = expandedComponents[componenteData.key];
     
     // Calcular total de imágenes según el tipo de componente
     let totalImages;
@@ -1055,10 +1016,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     if (componenteData.key === 'Boquillas_Sistema') {
       return (
         <View key={componenteData.key} style={styles.componentContainer}>
-          <TouchableOpacity 
-            style={styles.componentHeader}
-            onPress={() => toggleComponent(componenteData.key)}
-          >
+          <View style={styles.componentHeader}>
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
               <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
@@ -1066,10 +1024,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
             </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
+          </View>
           
-          {isExpanded && renderValvulaGasComponent(componenteData.key)}
+          {renderValvulaGasComponent(componenteData.key)}
         </View>
       );
     }
@@ -1078,10 +1035,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     if (componenteData.key === 'Panel_Control') {
       return (
         <View key={componenteData.key} style={styles.componentContainer}>
-          <TouchableOpacity 
-            style={styles.componentHeader}
-            onPress={() => toggleComponent(componenteData.key)}
-          >
+          <View style={styles.componentHeader}>
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
               <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
@@ -1089,10 +1043,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
             </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
+          </View>
           
-          {isExpanded && renderAlimentacionElectricaComponent(componenteData.key)}
+          {renderAlimentacionElectricaComponent(componenteData.key)}
         </View>
       );
     }
@@ -1101,10 +1054,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     if (componenteData.key === 'Pruebas_Sistema') {
       return (
         <View key={componenteData.key} style={styles.componentContainer}>
-          <TouchableOpacity 
-            style={styles.componentHeader}
-            onPress={() => toggleComponent(componenteData.key)}
-          >
+          <View style={styles.componentHeader}>
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
               <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
@@ -1112,49 +1062,19 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
             </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
+          </View>
           
-          {isExpanded && renderPanelAlarmaComponent(componenteData.key)}
+          {renderPanelAlarmaComponent(componenteData.key)}
         </View>
       );
     }
 
-    // Renderizado especial para "Observaciones Fotográficas" en informe_limpieza_ductos
-    if (componenteData.key === 'Observaciones_Fotograficas' && informeTabla === 'informe_limpieza_ductos') {
-      return (
-        <View key={componenteData.key} style={styles.componentContainer}>
-          <TouchableOpacity 
-            style={styles.componentHeader}
-            onPress={() => toggleComponent(componenteData.key)}
-          >
-            <View style={styles.componentHeaderLeft}>
-              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
-              {totalImages > 0 && (
-                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
-              )}
-            </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
-          
-          {isExpanded && (
-            <View style={styles.componentContent}>
-              {renderObservacionesFotograficasSimpleSection(componenteData.key)}
-            </View>
-          )}
-        </View>
-      );
-    }
 
     // Renderizado especial para "Recibo Conforme" - solo una opción de foto
     if (componenteData.key === 'Recibo_Conforme') {
       return (
         <View key={componenteData.key} style={styles.componentContainer}>
-          <TouchableOpacity 
-            style={styles.componentHeader}
-            onPress={() => toggleComponent(componenteData.key)}
-          >
+          <View style={styles.componentHeader}>
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
               <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
@@ -1162,26 +1082,20 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
             </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
+          </View>
           
-          {isExpanded && (
-            <View style={styles.componentContent}>
-              {renderReciboConformeSection(componenteData.key)}
-            </View>
-          )}
+          <View style={styles.componentContent}>
+            {renderReciboConformeSection(componenteData.key)}
+          </View>
         </View>
       );
     }
 
-    // Renderizado especial para "Observaciones Fotográficas" - solo una opción de foto
+    // Renderizado especial para "Sistema Supresion" - solo una opción de foto
     if (componenteData.key === 'Sistema_Supresion') {
       return (
         <View key={componenteData.key} style={styles.componentContainer}>
-          <TouchableOpacity 
-            style={styles.componentHeader}
-            onPress={() => toggleComponent(componenteData.key)}
-          >
+          <View style={styles.componentHeader}>
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
               <Text style={styles.componentTitle}>{componenteData.title}</Text>
@@ -1189,41 +1103,35 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
             </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
+          </View>
           
-          {isExpanded && (
-            <View style={styles.componentContent}>
-              {renderObservacionesFotograficasSection(componenteData.key)}
-            </View>
-          )}
+          <View style={styles.componentContent}>
+            {renderObservacionesFotograficasSection(componenteData.key)}
+          </View>
         </View>
       );
     }
 
-    // Renderizado especial para "Observaciones Fotográficas" - solo una opción de foto
-    if (componenteData.key === 'Sistema_Supresion') {
+    // Renderizado especial para "Observaciones Fotográficas" en cualquier informe
+    if (componenteData.key === 'Observaciones_Fotograficas') {
       return (
         <View key={componenteData.key} style={styles.componentContainer}>
-          <TouchableOpacity 
-            style={styles.componentHeader}
-            onPress={() => toggleComponent(componenteData.key)}
-          >
+          <View style={styles.componentHeader}>
             <View style={styles.componentHeaderLeft}>
               <Text style={styles.componentIcon}>{componenteData.icon}</Text>
-              <Text style={styles.componentTitle}>{componenteData.title}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
               {totalImages > 0 && (
                 <Text style={styles.componentCount}>({totalImages} fotos)</Text>
               )}
             </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
+          </View>
           
-          {isExpanded && (
-            <View style={styles.componentContent}>
-              {renderObservacionesFotograficasSection(componenteData.key)}
-            </View>
-          )}
+          <View style={styles.componentContent}>
+            {informeTabla === 'informe_limpieza_ductos' ? 
+              renderObservacionesFotograficasSimpleSection(componenteData.key) :
+              renderObservacionesFotograficasSection(componenteData.key)
+            }
+          </View>
         </View>
       );
     }
@@ -1231,10 +1139,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     // Renderizado normal para otros componentes
     return (
       <View key={componenteData.key} style={styles.componentContainer}>
-        <TouchableOpacity 
-          style={styles.componentHeader}
-          onPress={() => toggleComponent(componenteData.key)}
-        >
+        <View style={styles.componentHeader}>
           <View style={styles.componentHeaderLeft}>
             <Text style={styles.componentIcon}>{componenteData.icon}</Text>
             <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
@@ -1242,14 +1147,11 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               <Text style={styles.componentCount}>({totalImages} fotos)</Text>
             )}
           </View>
-          <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-        </TouchableOpacity>
+        </View>
         
-        {isExpanded && (
-          <View style={styles.componentContent}>
-            {secciones.map(seccion => renderSeccionInComponent(seccion, componenteData.key))}
-          </View>
-        )}
+        <View style={styles.componentContent}>
+          {secciones.map(seccion => renderSeccionInComponent(seccion, componenteData.key))}
+        </View>
       </View>
     );
   };
