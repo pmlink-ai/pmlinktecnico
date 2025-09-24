@@ -88,6 +88,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
   const secciones = [
     { key: 'ANTES', title: 'ANTES', color: '#FF6B6B' },
+    { key: 'PROCESO', title: 'PROCESO', color: '#FFA500' },
     { key: 'DESPUES', title: 'DESPUÉS', color: '#45B7D1' }
   ];
 
@@ -513,7 +514,17 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       return 'LÍMITE ALCANZADO (4/4)';
     }
     
-    return `AÑADIR FOTO (${currentImages.length}/4)`;
+    // Para informe_limpieza_ductos, mostrar texto específico según la sección
+    if (seccionKey === 'ANTES') {
+      return `AÑADIR FOTO ANTES (${currentImages.length}/4)`;
+    } else if (seccionKey === 'PROCESO') {
+      return `AÑADIR FOTO PROCESO (${currentImages.length}/4)`;
+    } else if (seccionKey === 'DESPUES') {
+      return `AÑADIR FOTO DESPUES (${currentImages.length}/4)`;
+    }
+    
+    // Fallback para otras secciones
+    return `AÑADIR FOTO ${seccionTitle.toUpperCase()} (${currentImages.length}/4)`;
   };
 
   const getImageUrl = (storagePath) => {
@@ -585,7 +596,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         </TouchableOpacity>
         
         {/* Campo de observaciones por sección - solo para DESPUÉS */}
-        {seccionData.key === 'DESPUES' && componenteKey !== 'Canerias_Distribucion' && (
+        {seccionData.key === 'DESPUES' && componenteKey !== 'Canerias_Distribucion' && componenteKey !== 'Campana_1' && componenteKey !== 'Campana_2' && (
           <View style={styles.observacionesContainer}>
             <Text style={styles.observacionesLabel}>
               {componenteKey === 'Cartuchos_Gas' ? 'OBSERVACIONES:' : `Observaciones ${seccionData.title}:`}
