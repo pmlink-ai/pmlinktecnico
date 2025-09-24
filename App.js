@@ -427,11 +427,11 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
       console.log('✅ Imagen guardada exitosamente en BD:', { componente, seccion, etiqueta });
       
-      // Popup de éxito sin "ANTES" para Observaciones Fotográficas
-      const successMessage = cleanedSeccion ? 
-        `Imagen agregada: ${componenteTitle} - ${cleanedSeccion}` : 
-        `Imagen agregada: ${componenteTitle}`;
-      Alert.alert('Éxito', successMessage);
+      // Popup de éxito eliminado - no mostrar mensaje
+      // const successMessage = cleanedSeccion ? 
+      //   `Imagen agregada: ${componenteTitle} - ${cleanedSeccion}` : 
+      //   `Imagen agregada: ${componenteTitle}`;
+      // Alert.alert('Éxito', successMessage);
       await loadImages(); // Recargar lista
       await loadObservacionesSecciones(); // Recargar observaciones
       
