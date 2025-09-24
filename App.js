@@ -476,7 +476,8 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 return;
               }
 
-              Alert.alert('Éxito', 'Imagen eliminada correctamente');
+              // Popup de éxito eliminado - imagen se elimina silenciosamente
+              // Alert.alert('Éxito', 'Imagen eliminada correctamente');
               await loadImages();
               await loadObservacionesSecciones();
               
@@ -596,7 +597,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         </TouchableOpacity>
         
         {/* Campo de observaciones por sección - solo para DESPUÉS */}
-        {seccionData.key === 'DESPUES' && componenteKey !== 'Canerias_Distribucion' && componenteKey !== 'Campana_1' && componenteKey !== 'Campana_2' && (
+        {seccionData.key === 'DESPUES' && componenteKey !== 'Canerias_Distribucion' && componenteKey !== 'Campana_1' && componenteKey !== 'Campana_2' && componenteKey !== 'Ductos_y_Registros' && componenteKey !== 'Motores_y_Cubierta' && (
           <View style={styles.observacionesContainer}>
             <Text style={styles.observacionesLabel}>
               {componenteKey === 'Cartuchos_Gas' ? 'OBSERVACIONES:' : `Observaciones ${seccionData.title}:`}
@@ -900,6 +901,62 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     );
   };
 
+  const renderPanoramicaSection = (componenteKey) => {
+    // Para Panorámica y/o Sector, solo usamos la sección 'ANTES' como sección única para fotos
+    const seccionUnica = 'ANTES';
+    const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionUnica] || [];
+    const uploadingKey = `${componenteKey}_${seccionUnica}`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentSection}>
+        {images.length > 0 && (
+          <FlatList
+            data={images}
+            renderItem={renderImage}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sectionImagesList}
+          />
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.addSectionPhotoButton, { borderColor: '#007AFF' }]}
+          onPress={() => pickImage(componenteKey, seccionUnica)}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color="#007AFF" />
+          ) : (
+            <>
+              <Text style={[styles.addPhotoIcon, { color: '#007AFF' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: '#007AFF' }]}>
+                AÑADIR FOTOGRAFÍA PANORÁMICA
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {/* Campo de observaciones para tratamiento de limpieza - se guarda en sección DESPUÉS */}
+        <View style={styles.observacionesContainer}>
+          <Text style={styles.observacionesLabel}>
+            ¿REQUIERE DE TRATAMIENTO DE LIMPIEZA DE CUBIERTA?
+          </Text>
+          <TextInput
+            style={styles.observacionesInput}
+            placeholder="Ingrese su respuesta..."
+            multiline
+            numberOfLines={3}
+            value={observacionesSecciones[`${componenteKey}_DESPUES`] || ''}
+            onChangeText={(text) => handleObservacionSeccionChange(componenteKey, 'DESPUES', text)}
+            textAlignVertical="top"
+          />
+        </View>
+      </View>
+    );
+  };
+
   const renderObservacionesFotograficasSimpleSection = (componenteKey) => {
     // Para Observaciones Fotográficas en informe_limpieza_ductos, solo usamos la sección 'ANTES' como sección única
     const seccionUnica = 'ANTES';
@@ -1097,6 +1154,27 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           
           <View style={styles.componentContent}>
             {renderReciboConformeSection(componenteData.key)}
+          </View>
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Panoramica y/o Sector" - solo una opción de foto
+    if (componenteData.key === 'Panoramica_y_Sector') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <View style={styles.componentHeader}>
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+          </View>
+          
+          <View style={styles.componentContent}>
+            {renderPanoramicaSection(componenteData.key)}
           </View>
         </View>
       );
