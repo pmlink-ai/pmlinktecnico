@@ -2125,6 +2125,20 @@ const FormularioDinamico = ({ order, onClose }) => {
         }
       });
       
+      // Agregar campos especiales que no están en la estructura de la tabla
+      const specialFields = [
+        { key: 'encargado', defaultValue: '' },
+        { key: 'asist_personal', defaultValue: '' },
+        { key: 'horas_trabajo', defaultValue: '' }
+      ];
+      
+      specialFields.forEach(field => {
+        if (!initialData.hasOwnProperty(field.key)) {
+          initialData[field.key] = field.defaultValue;
+          console.log(`🔧 Campo especial agregado: ${field.key} = "${field.defaultValue}"`);
+        }
+      });
+      
       console.log('💾 FormData inicial básico:', initialData);
 
       // Buscar datos existentes DESPUÉS de configurar tableName
@@ -2287,31 +2301,65 @@ const FormularioDinamico = ({ order, onClose }) => {
         return;
       }
 
-      // Validar campos requeridos
-      const missingFields = campos
-        .filter(campo => isRequired(campo.column_name) && !formData[campo.column_name])
-        .map(campo => formatFieldName(campo.column_name));
+      // Validar campos requeridos (de la tabla + campos especiales)
+      const requiredFields = ['orden_trabajo_id', 'encargado', 'asist_personal'];
+      const missingFields = requiredFields.filter(fieldName => 
+        !formData[fieldName] || formData[fieldName].trim() === ''
+      ).map(fieldName => formatFieldName(fieldName));
 
       if (missingFields.length > 0) {
         Alert.alert('Campos Requeridos', `Por favor completa: ${missingFields.join(', ')}`);
         return;
       }
 
+      // Preparar datos para guardar, transformando campos numéricos vacíos a null
+      const dataToSave = { ...formData };
+      
+      // Identificar y procesar campos numéricos según los tipos de la tabla
+      campos.forEach(campo => {
+        const fieldName = campo.column_name;
+        const isNumericType = ['integer', 'bigint', 'numeric', 'real', 'double precision'].includes(campo.data_type);
+        
+        if (isNumericType && dataToSave[fieldName] === '') {
+          dataToSave[fieldName] = null; // Convertir string vacío a null para campos numéricos
+          console.log(`🔢 Campo numérico ${fieldName} convertido de "" a null`);
+        } else if (isNumericType && dataToSave[fieldName] && !isNaN(dataToSave[fieldName])) {
+          // Convertir a número si es un string numérico válido
+          dataToSave[fieldName] = Number(dataToSave[fieldName]);
+          console.log(`🔢 Campo numérico ${fieldName} convertido a número:`, dataToSave[fieldName]);
+        }
+      });
+
+      // Procesar campos especiales numéricos que no están en la estructura de tabla
+      const specialNumericFields = ['horas_trabajo', 'cantidad_de_motores'];
+      specialNumericFields.forEach(fieldName => {
+        if (dataToSave.hasOwnProperty(fieldName)) {
+          if (dataToSave[fieldName] === '') {
+            dataToSave[fieldName] = null;
+            console.log(`🔢 Campo numérico especial ${fieldName} convertido de "" a null`);
+          } else if (dataToSave[fieldName] && !isNaN(dataToSave[fieldName])) {
+            dataToSave[fieldName] = Number(dataToSave[fieldName]);
+            console.log(`🔢 Campo numérico especial ${fieldName} convertido a número:`, dataToSave[fieldName]);
+          }
+        }
+      });
+
       console.log('💾 Guardando en tabla:', tableName);
-      console.log('📝 Datos a guardar:', formData);
+      console.log('📝 Datos originales:', formData);
+      console.log('📝 Datos a guardar (procesados):', dataToSave);
 
       let result;
       if (existingRecord) {
         // Actualizar registro existente
         result = await supabase
           .from(tableName)
-          .update(formData)
+          .update(dataToSave)
           .eq('id', existingRecord.id);
       } else {
         // Crear nuevo registro
         result = await supabase
           .from(tableName)
-          .insert([formData])
+          .insert([dataToSave])
           .select();
       }
 

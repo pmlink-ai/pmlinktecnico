@@ -614,7 +614,7 @@ export class PDFService {
       { 
         key: 'Panoramica_y_Sector', 
         title: 'Panorámica y/o Sector',
-        sections: ['ANTES', 'PROCESO', 'DESPUES']
+        sections: ['ANTES'] // Solo sección ANTES para Panorámica y/o Sector
       },
       { 
         key: 'Recibo_Conforme', 
