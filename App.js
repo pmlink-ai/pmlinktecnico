@@ -2243,7 +2243,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       'ductos_estado': 'DUCTOS',
       'damper_estado': 'DAMPER',
       'drenajes_estado': 'DRENAJES',
-      'registros_local_estado': 'REGISTROS LOCAL',
+      'registros_local_estado': 'REGISTROS DENTRO DEL LOCAL',
       'registros_techumbre_estado': 'REGISTROS TECHUMBRE',
       'rejillas_en_el_motor': 'REJILLAS EN EL MOTOR',
       'cantidad_de_motores': 'CANTIDAD DE MOTORES',
