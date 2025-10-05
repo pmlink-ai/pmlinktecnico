@@ -2252,12 +2252,12 @@ const FormularioDinamico = ({ order, onClose }) => {
       'rodamientos': 'RODAMIENTOS',
       
       // Campos de ANSUL R102
-      'inspeccion_visual_montaje': 'INSPECCIÓN VISUAL DEL MONTAJE',
-      'estado_cartuchos_gas': 'ESTADO DE CARTUCHOS DE GAS',
-      'estado_canerias_distribucion': 'ESTADO DE CAÑERÍAS DE DISTRIBUCIÓN',
-      'estado_montaje_conductos': 'ESTADO DEL MONTAJE DE CONDUCTOS',
-      'prueba_fuga_caneria': 'PRUEBA DE FUGA EN CAÑERÍAS',
-      'prueba_soplado_canerias': 'PRUEBA DE SOPLADO DE CAÑERÍAS',
+      'inspeccion_visual_montaje': 'INSPECCIÓN VISUAL DEL CORRECTO MONTAJE DEL SISTEMA',
+      'estado_cartuchos_gas': 'ESTADO DE CARTUCHOS DE GAS EXPULSOR',
+      'estado_canerias_distribucion': 'ESTADO DE CAÑERÍAS DE DISTRIBUCIÓN DE AGENTE ANSULEX',
+      'estado_montaje_conductos': 'ESTADO DE MONTAJE DE CONDUCTOS / SIN FILTRACIONES NI OBSTRUCCIONES',
+      'prueba_fuga_caneria': 'REALIZAR PRUEBA DE FUGA EN CAÑERIA DE DISTRIBUCION DE AGENTE',
+      'prueba_soplado_canerias': 'REALIZAR PRUEBA DE SOPLADO EN CAÑERIAS',
       'revision_agente': 'REVISIÓN DEL AGENTE',
       'estado_cilindro_agente': 'ESTADO DEL CILINDRO DE AGENTE',
       'estado_disco_ruptura': 'ESTADO DEL DISCO DE RUPTURA',
