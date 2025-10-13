@@ -106,7 +106,27 @@ export class PDFService {
         console.error('❌ Error obteniendo fotografías:', photosError);
       }
 
-      // 5. Obtener técnicos asignados
+      // 5. Obtener observaciones por sección
+      console.log('📝 DEBUG: Consultando observaciones para orden:', orderId, 'tabla:', tableName);
+      
+      const { data: observaciones, error: observacionesError } = await supabase
+        .from('observaciones_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', orderId)
+        .eq('informe_tabla', tableName);
+
+      let observacionesOrganizadas = {};
+      if (observaciones && !observacionesError) {
+        observaciones.forEach(obs => {
+          const key = `${obs.componente}_${obs.seccion}`;
+          observacionesOrganizadas[key] = obs.observaciones;
+        });
+        console.log('📝 DEBUG: Observaciones organizadas:', Object.keys(observacionesOrganizadas));
+      } else {
+        console.error('❌ Error obteniendo observaciones:', observacionesError);
+      }
+
+      // 6. Obtener técnicos asignados
       console.log('👥 DEBUG: Consultando técnicos asignados para orden:', orderId);
       
       const { data: asignaciones, error: asignacionesError } = await supabase
@@ -142,6 +162,7 @@ export class PDFService {
         formData: formData || {},
         service: serviceData || {},
         photos: organizedPhotos,
+        observaciones: observacionesOrganizadas,
         tecnicos: tecnicos,
         tableName: tableName,
         generatedAt: new Date().toISOString()
@@ -215,7 +236,7 @@ export class PDFService {
 
   // Generar HTML del PDF
   static generatePDFHTML(data) {
-    const { order, formData, service, photos, tecnicos, tableName } = data;
+    const { order, formData, service, photos, observaciones, tecnicos, tableName } = data;
     
     // Determinar el título basado en el tipo de informe
     const getInformeTitle = (tableName) => {
@@ -233,7 +254,7 @@ export class PDFService {
 
     // Generar contenido específico según el tipo de informe
     if (tableName === 'informe_ansul_r102') {
-      return this.generateAnsulR102PDF(order, formData, service, photos, tecnicos, informeTitle);
+      return this.generateAnsulR102PDF(order, formData, service, photos, observaciones, tecnicos, informeTitle);
     } else {
       return this.generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle);
     }
@@ -263,7 +284,7 @@ export class PDFService {
   }
 
   // Generar PDF específico para ANSUL R-102
-  static generateAnsulR102PDF(order, formData, service, photos, tecnicos, informeTitle) {
+  static generateAnsulR102PDF(order, formData, service, photos, observaciones, tecnicos, informeTitle) {
     return `
       <!DOCTYPE html>
       <html>
@@ -279,7 +300,7 @@ export class PDFService {
           ${this.generateTecnicosSection(tecnicos)}
           ${this.generateServiceDataSection(order, service, formData)}
           ${this.generateAnsulDiagnosticTable(formData)}
-          ${this.generateAnsulPhotosSection(photos)}
+          ${this.generateAnsulPhotosSection(photos, observaciones)}
         </body>
       </html>
     `;
@@ -424,6 +445,14 @@ export class PDFService {
         color: #333;
       }
       
+      .electric-switch-estado {
+        font-weight: bold;
+        font-size: 10px;
+        margin: 5px 0;
+        color: #333;
+        text-align: left;
+      }
+      
       .photos-grid {
         display: flex;
         flex-wrap: wrap;
@@ -465,6 +494,28 @@ export class PDFService {
       .observations-title {
         font-weight: bold;
         margin-bottom: 5px;
+      }
+      
+      .section-observations {
+        background-color: #f0f8ff;
+        padding: 8px;
+        margin: 8px 0;
+        border-left: 3px solid #2196F3;
+        border-radius: 3px;
+      }
+      
+      .section-observations-title {
+        font-weight: bold;
+        font-size: 9px;
+        color: #2196F3;
+        margin-bottom: 4px;
+      }
+      
+      .section-observations-text {
+        font-size: 9px;
+        line-height: 1.3;
+        color: #333;
+        white-space: pre-line;
       }
       
       .page-break {
@@ -814,35 +865,60 @@ export class PDFService {
   }
 
   // Generar sección de fotografías específica para ANSUL R-102
-  static generateAnsulPhotosSection(photos) {
+  static generateAnsulPhotosSection(photos, observaciones = {}) {
     let photosHTML = '';
     
-    // Configuración de componentes específicos para ANSUL R-102
+    // Configuración de componentes específicos para ANSUL R-102 en orden correcto
     const ansulComponents = [
       { 
-        key: 'Cilindro_Agente', 
-        title: 'Cilindro Agente',
+        key: 'Sistema_Supresion', 
+        title: 'OBSERVACIONES FOTOGRÁFICAS',
+        sections: ['ANTES'] // Solo sección ANTES para las observaciones fotográficas
+      },
+      { 
+        key: 'Cartuchos_Gas', 
+        title: 'RECAMBIO DE FUSIBLES TÉRMICOS',
         sections: ['ANTES', 'DESPUES'] // Solo ANTES y DESPUES, no PROCESO
       },
       { 
         key: 'Canerias_Distribucion', 
-        title: 'Cañerías Distribución',
+        title: 'PRUEBA DE RUPTURA DE FUSIBLE DE PRUEBA',
         sections: ['ANTES', 'DESPUES'] // Solo ANTES y DESPUES, no PROCESO
       },
       { 
-        key: 'Cartuchos_Gas', 
-        title: 'Cartuchos Gas',
+        key: 'Cilindro_Agente', 
+        title: 'SIMULACIÓN DE DISPARO MANUAL',
         sections: ['ANTES', 'DESPUES'] // Solo ANTES y DESPUES, no PROCESO
+      },
+      { 
+        key: 'Boquillas_Sistema', 
+        title: 'VÁLVULA DE GAS',
+        sections: ['FOTO'] // Sección especial FOTO para Boquillas_Sistema
+      },
+      { 
+        key: 'Alimentacion_Electrica', 
+        title: 'ALIMENTACIÓN ELÉCTRICA / SI APLICARA',
+        sections: ['ANTES'] // Solo una sección para evitar duplicados
+      },
+      { 
+        key: 'Panel_Alarma', 
+        title: 'PANEL DE ALARMA / SI APLICARA',
+        sections: ['ANTES', 'DESPUES'] // Componente para panel de alarma
       },
       { 
         key: 'Prueba_Neumatica', 
-        title: 'Prueba Neumática',
+        title: 'PRUEBA NEUMÁTICA A CAÑERÍAS DE DISTRIBUCIÓN',
         sections: ['PROCESO'] // Solo PROCESO (que se muestra como RESPALDO)
       },
       { 
         key: 'Tipo_Cartucho', 
-        title: 'Tipo Cartucho',
+        title: 'TIPO DE CARTUCHO EXPULSOR, CANTIDAD Y SU PESO',
         sections: ['PROCESO'] // Solo PROCESO (que se muestra como RESPALDO)
+      },
+      { 
+        key: 'Recibo_Conforme', 
+        title: 'RECIBO CONFORME',
+        sections: ['ANTES'] // Solo sección ANTES para Recibo Conforme
       }
     ];
 
@@ -868,12 +944,30 @@ export class PDFService {
           displaySectionName = 'RESPALDO';
         }
         
+        // Para Alimentacion_Electrica, mostrar solo una vez el contenido completo
+        if (componentKey === 'Alimentacion_Electrica') {
+          // Solo procesar la primera sección (ANTES) para evitar duplicados
+          if (sectionKey === 'ANTES') {
+            displaySectionName = 'SWITCH DE CORTE PARA SUMINISTRO ELÉCTRICO';
+          } else {
+            // Saltar las demás secciones para este componente
+            return;
+          }
+        }
+        
         console.log(`🔍 DEBUG ANSUL PDF ${componentKey}: Sección ${sectionKey} -> ${displaySectionName}, fotos: ${sectionPhotos.length}`);
         
         photosHTML += `
           <div class="photo-section">
             <div class="photo-section-title">${displaySectionName}</div>
         `;
+        
+        // Para Alimentacion_Electrica, agregar "ESTADO" debajo del título
+        if (componentKey === 'Alimentacion_Electrica' && sectionKey === 'ANTES') {
+          photosHTML += `
+            <div class="electric-switch-estado">ESTADO</div>
+          `;
+        }
         
         if (sectionPhotos.length > 0) {
           photosHTML += `
@@ -888,6 +982,17 @@ export class PDFService {
         } else {
           photosHTML += `
             <div class="no-photos-message">No hay fotografías disponibles</div>
+          `;
+        }
+        
+        // Mostrar observaciones de la sección si existen
+        const observacionKey = `${componentKey}_${sectionKey}`;
+        if (observaciones[observacionKey]) {
+          photosHTML += `
+            <div class="section-observations">
+              <div class="section-observations-title">Observaciones:</div>
+              <div class="section-observations-text">${observaciones[observacionKey]}</div>
+            </div>
           `;
         }
         
