@@ -504,6 +504,16 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
   // Función helper para obtener texto del botón según el límite
   const getAddPhotoButtonText = (componenteKey, seccionKey, seccionTitle) => {
+    // Para el componente Prueba_Neumatica en ANSUL R102, cambiar PROCESO por RESPALDO
+    if (componenteKey === 'Prueba_Neumatica' && informeTabla === 'informe_ansul_r102' && seccionKey === 'PROCESO') {
+      return 'AÑADIR FOTO RESPALDO';
+    }
+    
+    // Para el componente Tipo_Cartucho en ANSUL R102, cambiar PROCESO por RESPALDO
+    if (componenteKey === 'Tipo_Cartucho' && informeTabla === 'informe_ansul_r102' && seccionKey === 'PROCESO') {
+      return 'AÑADIR FOTO RESPALDO';
+    }
+    
     if (informeTabla !== 'informe_limpieza_ductos') {
       return `AÑADIR FOTO ${seccionTitle.toUpperCase()}`;
     }
@@ -621,6 +631,48 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               selectTextOnFocus={false}
               autoCorrect={false}
               autoCapitalize={componenteKey === 'Cilindro_Agente' ? "characters" : "sentences"}
+            />
+          </View>
+        )}
+
+        {/* Campo de observaciones para Prueba_Neumatica - sección PROCESO */}
+        {componenteKey === 'Prueba_Neumatica' && seccionData.key === 'PROCESO' && informeTabla === 'informe_ansul_r102' && (
+          <View style={styles.observacionesContainer}>
+            <Text style={styles.observacionesLabel}>
+              ESTADO Y OBSERVACIONES:
+            </Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese estado y observaciones de la prueba neumática..."
+              multiline
+              numberOfLines={4}
+              value={observacionesSecciones[`${componenteKey}_${seccionData.key}`] || ''}
+              onChangeText={(text) => handleObservacionSeccionChange(componenteKey, seccionData.key, text)}
+              textAlignVertical="top"
+              selectTextOnFocus={false}
+              autoCorrect={false}
+              autoCapitalize="sentences"
+            />
+          </View>
+        )}
+
+        {/* Campo de observaciones para Tipo_Cartucho - sección PROCESO */}
+        {componenteKey === 'Tipo_Cartucho' && seccionData.key === 'PROCESO' && informeTabla === 'informe_ansul_r102' && (
+          <View style={styles.observacionesContainer}>
+            <Text style={styles.observacionesLabel}>
+              ESTADO Y OBSERVACIONES:
+            </Text>
+            <TextInput
+              style={styles.observacionesInput}
+              placeholder="Ingrese tipo, cantidad, peso y observaciones del cartucho expulsor..."
+              multiline
+              numberOfLines={4}
+              value={observacionesSecciones[`${componenteKey}_${seccionData.key}`] || ''}
+              onChangeText={(text) => handleObservacionSeccionChange(componenteKey, seccionData.key, text)}
+              textAlignVertical="top"
+              selectTextOnFocus={false}
+              autoCorrect={false}
+              autoCapitalize="sentences"
             />
           </View>
         )}
@@ -1239,7 +1291,32 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         </View>
         
         <View style={styles.componentContent}>
-          {secciones.map(seccion => renderSeccionInComponent(seccion, componenteData.key))}
+          {secciones
+            .filter(seccion => {
+              // Para el componente Cartuchos_Gas en ANSUL R102, excluir la sección PROCESO
+              if (componenteData.key === 'Cartuchos_Gas' && informeTabla === 'informe_ansul_r102' && seccion.key === 'PROCESO') {
+                return false;
+              }
+              // Para el componente Canerias_Distribucion en ANSUL R102, excluir la sección PROCESO
+              if (componenteData.key === 'Canerias_Distribucion' && informeTabla === 'informe_ansul_r102' && seccion.key === 'PROCESO') {
+                return false;
+              }
+              // Para el componente Cilindro_Agente en ANSUL R102, excluir la sección PROCESO
+              if (componenteData.key === 'Cilindro_Agente' && informeTabla === 'informe_ansul_r102' && seccion.key === 'PROCESO') {
+                return false;
+              }
+              // Para el componente Prueba_Neumatica en ANSUL R102, solo mostrar la sección PROCESO
+              if (componenteData.key === 'Prueba_Neumatica' && informeTabla === 'informe_ansul_r102') {
+                return seccion.key === 'PROCESO';
+              }
+              // Para el componente Tipo_Cartucho en ANSUL R102, solo mostrar la sección PROCESO
+              if (componenteData.key === 'Tipo_Cartucho' && informeTabla === 'informe_ansul_r102') {
+                return seccion.key === 'PROCESO';
+              }
+              return true;
+            })
+            .map(seccion => renderSeccionInComponent(seccion, componenteData.key))
+          }
         </View>
       </View>
     );
@@ -2416,13 +2493,26 @@ const FormularioDinamico = ({ order, onClose }) => {
 
       console.log('📄 Generando PDF para orden:', order.id);
       
+      // Generar nombre de archivo basado en el tipo de formulario
+      let fileName;
+      if (tableName === 'informe_ansul_r102') {
+        fileName = `FORMULARIO_INFORME_ANSUL_R102_${order.id?.substring(0, 8)}`;
+      } else if (tableName === 'informe_limpieza_ductos') {
+        fileName = `FORMULARIO_INFORME_LIMPIEZA_DUCTOS_${order.id?.substring(0, 8)}`;
+      } else {
+        // Para otros formularios, usar el nombre de la tabla formateado
+        fileName = `FORMULARIO_${tableName.replace(/_/g, '_').toUpperCase()}_${order.id?.substring(0, 8)}`;
+      }
+      
+      console.log('📄 Nombre de archivo a generar:', fileName);
+      
       await PDFService.generateAndSharePDF(
         order.id, 
         tableName, 
-        `Informe_${order.id?.substring(0, 8)}`
+        fileName
       );
       
-      Alert.alert('Éxito', 'PDF generado y listo para compartir');
+      Alert.alert('Éxito', `PDF generado: ${fileName}.pdf`);
       
     } catch (error) {
       console.error('❌ Error generando PDF:', error);
