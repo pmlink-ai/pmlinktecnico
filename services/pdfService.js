@@ -1,5 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
 
 // ==================== SERVICIO DE GENERACIÓN DE PDF ====================
@@ -142,6 +143,7 @@ export class PDFService {
         service: serviceData || {},
         photos: organizedPhotos,
         tecnicos: tecnicos,
+        tableName: tableName,
         generatedAt: new Date().toISOString()
       };
 
@@ -213,7 +215,21 @@ export class PDFService {
 
   // Generar HTML del PDF
   static generatePDFHTML(data) {
-    const { order, formData, service, photos, tecnicos } = data;
+    const { order, formData, service, photos, tecnicos, tableName } = data;
+    
+    // Determinar el título basado en el tipo de informe
+    const getInformeTitle = (tableName) => {
+      switch (tableName) {
+        case 'informe_ansul_r102':
+          return 'INFORME DE MANTEIMIENTO SEMESTRAL ANSUL R-102';
+        case 'informe_limpieza_ductos':
+          return 'INFORME LIMPIEZA DE DUCTOS';
+        default:
+          return 'INFORME LIMPIEZA DE DUCTOS';
+      }
+    };
+    
+    const informeTitle = getInformeTitle(tableName);
     
     return `
       <!DOCTYPE html>
@@ -226,7 +242,7 @@ export class PDFService {
           </style>
         </head>
         <body>
-          ${this.generateHeaderSection(order, service)}
+          ${this.generateHeaderSection(order, service, informeTitle)}
           ${this.generateTecnicosSection(tecnicos)}
           ${this.generateServiceDataSection(order, service, formData)}
           ${this.generateDiagnosticTable(formData)}
@@ -427,7 +443,7 @@ export class PDFService {
   }
 
   // Generar sección del encabezado
-  static generateHeaderSection(order, service) {
+  static generateHeaderSection(order, service, informeTitle = 'INFORME LIMPIEZA DE DUCTOS') {
     const formatDate = (dateString) => {
       return new Date(dateString).toLocaleDateString('es-CL', {
         year: 'numeric',
@@ -445,7 +461,7 @@ export class PDFService {
           <div style="font-size: 8px; color: #666;">EXPERTOS EN DUCTOS</div>
         </div>
         <div class="title-section">
-          <h1 class="main-title">INFORME LIMPIEZA DE DUCTOS</h1>
+          <h1 class="main-title">${informeTitle}</h1>
         </div>
         <div class="reference-section">
           <div class="reference-number">${order.id?.substring(0, 12) || 'N/A'}</div>
@@ -457,7 +473,7 @@ export class PDFService {
           <td class="label">N° DE ORDEN:</td>
           <td>${order.numero || order.id?.substring(0, 12) || 'N/A'}</td>
           <td class="label">NOMBRE INFORME:</td>
-          <td>INFORME LIMPIEZA DE DUCTOS</td>
+          <td>${informeTitle}</td>
         </tr>
         <tr>
           <td class="label">ENCARGADO:</td>
@@ -715,9 +731,10 @@ export class PDFService {
   }
 
   // Función principal para generar y compartir PDF
-  static async generateAndSharePDF(orderId, tableName, orderTitle = 'Informe') {
+  static async generateAndSharePDF(orderId, tableName, customFileName = 'Informe') {
     try {
       console.log('🔄 Iniciando generación de PDF...');
+      console.log('📄 Nombre de archivo solicitado:', customFileName);
       
       // 1. Obtener datos completos
       const data = await this.getCompleteOrderData(orderId, tableName);
@@ -725,7 +742,9 @@ export class PDFService {
       // 2. Generar HTML
       const htmlContent = this.generatePDFHTML(data);
       
-      // 3. Generar PDF
+      // 3. Generar PDF con nombre personalizado
+      const finalFileName = `${customFileName}.pdf`;
+      
       const { uri } = await Print.printToFileAsync({
         html: htmlContent,
         width: 612,
@@ -739,18 +758,21 @@ export class PDFService {
       });
 
       console.log('✅ PDF generado en:', uri);
+      console.log('📄 Nombre final del archivo:', finalFileName);
 
       // 4. Compartir PDF
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Compartir ${orderTitle}`,
+          dialogTitle: `Compartir ${finalFileName}`,
+          UTI: 'com.adobe.pdf'
         });
+        console.log('✅ PDF compartido exitosamente como:', finalFileName);
       } else {
         throw new Error('Compartir archivos no está disponible en este dispositivo');
       }
 
-      return { success: true, uri };
+      return { success: true, uri, fileName: finalFileName };
 
     } catch (error) {
       console.error('❌ Error generando PDF:', error);
