@@ -635,11 +635,19 @@ export class PDFService {
   // Generar tabla de diagnóstico específica para ANSUL R-102
   static generateAnsulDiagnosticTable(formData) {
     const ansulComponents = [
-      { label: 'Cilindro Agente', field: 'cilindro_agente_estado' },
-      { label: 'Cañerías Distribución', field: 'canerias_distribucion_estado' },
-      { label: 'Cartuchos Gas', field: 'cartuchos_gas_estado' },
-      { label: 'Prueba Neumática', field: 'prueba_neumatica_estado' },
-      { label: 'Tipo Cartucho', field: 'tipo_cartucho_estado' }
+      { label: 'INSPECCIÓN VISUAL DEL CORRECTO MONTAJE DEL SISTEMA', field: 'inspeccion_visual_montaje' },
+      { label: 'ESTADO DE CARTUCHOS DE GAS EXPULSOR', field: 'estado_cartuchos_gas' },
+      { label: 'ESTADO DE CAÑERÍAS DE DISTRIBUCIÓN DE AGENTE ANSULEX', field: 'estado_canerias_distribucion' },
+      { label: 'ESTADO DE MONTAJE DE CONDUCTOS / SIN FILTRACIONES NI OBSTRUCCIONES', field: 'estado_montaje_conductos' },
+      { label: 'REALIZAR PRUEBA DE FUGA EN CAÑERIA DE DISTRIBUCION DE AGENTE', field: 'prueba_fuga_caneria' },
+      { label: 'REALIZAR PRUEBA DE SOPLADO EN CAÑERIAS', field: 'prueba_soplado_canerias' },
+      { label: 'REVISION DEL ESTADO Y CANTIDAD DEL AGENTE', field: 'revision_agente' },
+      { label: 'ESTADO DEL DISCO DE RUPTURA', field: 'estado_disco_ruptura' },
+      { label: 'CANTIDAD Y ESTADO DE BOQUILLAS', field: 'cantidad_estado_boquillas' },
+      { label: 'TIPOS DE TAPONES DE BOQUILLAS / METALICAS O GOMA', field: 'tipo_tapones_boquillas' },
+      { label: 'ESTADO DE PIOLA DE ACERO INOX DE LA LINEA DE DETECCIÓN', field: 'estado_piola_acero' },
+      { label: 'CORROBORAR QUE AUTOMAN DE GAS SE ACTIVO LUEGO DE LA PRUEBA DE DETONACION', field: 'verificacion_automan_gas' },
+      { label: 'SEÑAL DE ALARMA SE ACTIVO AL DETONAR', field: 'verificacion_senal_alarma' }
     ];
 
     let tableRows = ansulComponents.map(item => {
@@ -659,7 +667,14 @@ export class PDFService {
           ${tableRows}
         </table>
         
-        ${formData.observaciones ? `
+        ${formData.observaciones_generales ? `
+          <div class="observations">
+            <div class="observations-title">Observaciones Generales</div>
+            <div>${formData.observaciones_generales}</div>
+          </div>
+        ` : ''}
+        
+        ${formData.observaciones && !formData.observaciones_generales ? `
           <div class="observations">
             <div class="observations-title">Observaciones</div>
             <div>${formData.observaciones}</div>
