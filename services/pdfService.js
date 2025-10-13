@@ -230,7 +230,17 @@ export class PDFService {
     };
     
     const informeTitle = getInformeTitle(tableName);
-    
+
+    // Generar contenido específico según el tipo de informe
+    if (tableName === 'informe_ansul_r102') {
+      return this.generateAnsulR102PDF(order, formData, service, photos, tecnicos, informeTitle);
+    } else {
+      return this.generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle);
+    }
+  }
+
+  // Generar PDF específico para Limpieza de Ductos
+  static generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle) {
     return `
       <!DOCTYPE html>
       <html>
@@ -252,7 +262,28 @@ export class PDFService {
     `;
   }
 
-  // Estilos CSS para el PDF
+  // Generar PDF específico para ANSUL R-102
+  static generateAnsulR102PDF(order, formData, service, photos, tecnicos, informeTitle) {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Informe ANSUL R-102</title>
+          <style>
+            ${this.getPDFStyles()}
+          </style>
+        </head>
+        <body>
+          ${this.generateHeaderSection(order, service, informeTitle)}
+          ${this.generateTecnicosSection(tecnicos)}
+          ${this.generateServiceDataSection(order, service, formData)}
+          ${this.generateAnsulDiagnosticTable(formData)}
+          ${this.generateAnsulPhotosSection(photos)}
+        </body>
+      </html>
+    `;
+  }  // Estilos CSS para el PDF
   static getPDFStyles() {
     return `
       @page {
@@ -601,6 +632,43 @@ export class PDFService {
     `;
   }
 
+  // Generar tabla de diagnóstico específica para ANSUL R-102
+  static generateAnsulDiagnosticTable(formData) {
+    const ansulComponents = [
+      { label: 'Cilindro Agente', field: 'cilindro_agente_estado' },
+      { label: 'Cañerías Distribución', field: 'canerias_distribucion_estado' },
+      { label: 'Cartuchos Gas', field: 'cartuchos_gas_estado' },
+      { label: 'Prueba Neumática', field: 'prueba_neumatica_estado' },
+      { label: 'Tipo Cartucho', field: 'tipo_cartucho_estado' }
+    ];
+
+    let tableRows = ansulComponents.map(item => {
+      const value = formData[item.field] || 'NO ESPECIFICADO';
+      return `
+        <tr>
+          <td>${item.label}</td>
+          <td>${value}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div class="section">
+        <div class="section-title">Tabla de Diagnóstico ANSUL R-102</div>
+        <table class="diagnostic-table">
+          ${tableRows}
+        </table>
+        
+        ${formData.observaciones ? `
+          <div class="observations">
+            <div class="observations-title">Observaciones</div>
+            <div>${formData.observaciones}</div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
   // Generar sección de fotografías
   static generatePhotosSection(photos) {
     let photosHTML = '';
@@ -723,6 +791,93 @@ export class PDFService {
           photosHTML += '</div>';
         });
       }
+
+      photosHTML += '</div>';
+    });
+
+    return photosHTML;
+  }
+
+  // Generar sección de fotografías específica para ANSUL R-102
+  static generateAnsulPhotosSection(photos) {
+    let photosHTML = '';
+    
+    // Configuración de componentes específicos para ANSUL R-102
+    const ansulComponents = [
+      { 
+        key: 'Cilindro_Agente', 
+        title: 'Cilindro Agente',
+        sections: ['ANTES', 'DESPUES'] // Solo ANTES y DESPUES, no PROCESO
+      },
+      { 
+        key: 'Canerias_Distribucion', 
+        title: 'Cañerías Distribución',
+        sections: ['ANTES', 'DESPUES'] // Solo ANTES y DESPUES, no PROCESO
+      },
+      { 
+        key: 'Cartuchos_Gas', 
+        title: 'Cartuchos Gas',
+        sections: ['ANTES', 'DESPUES'] // Solo ANTES y DESPUES, no PROCESO
+      },
+      { 
+        key: 'Prueba_Neumatica', 
+        title: 'Prueba Neumática',
+        sections: ['PROCESO'] // Solo PROCESO (que se muestra como RESPALDO)
+      },
+      { 
+        key: 'Tipo_Cartucho', 
+        title: 'Tipo Cartucho',
+        sections: ['PROCESO'] // Solo PROCESO (que se muestra como RESPALDO)
+      }
+    ];
+
+    // Iterar por cada componente ANSUL
+    ansulComponents.forEach(component => {
+      const { key: componentKey, title: componentTitle, sections: componentSections } = component;
+      
+      console.log(`🔍 DEBUG ANSUL PDF: Generando sección ${componentTitle}`);
+      
+      // Siempre mostrar el componente, incluso si no tiene fotografías
+      photosHTML += `
+        <div class="component-section">
+          <div class="section-title" style="background-color: #2196F3; color: white; padding: 8px; font-weight: bold; font-size: 11px; margin: 15px 0 10px 0; text-transform: uppercase;">${componentTitle}</div>
+      `;
+
+      // Mostrar las secciones definidas para cada componente
+      componentSections.forEach(sectionKey => {
+        const sectionPhotos = photos[componentKey]?.[sectionKey] || [];
+        
+        // Para Prueba_Neumatica y Tipo_Cartucho, cambiar PROCESO por RESPALDO en la visualización
+        let displaySectionName = sectionKey;
+        if ((componentKey === 'Prueba_Neumatica' || componentKey === 'Tipo_Cartucho') && sectionKey === 'PROCESO') {
+          displaySectionName = 'RESPALDO';
+        }
+        
+        console.log(`🔍 DEBUG ANSUL PDF ${componentKey}: Sección ${sectionKey} -> ${displaySectionName}, fotos: ${sectionPhotos.length}`);
+        
+        photosHTML += `
+          <div class="photo-section">
+            <div class="photo-section-title">${displaySectionName}</div>
+        `;
+        
+        if (sectionPhotos.length > 0) {
+          photosHTML += `
+            <div class="photos-grid">
+              ${sectionPhotos.map(photo => `
+                <div class="photo-item">
+                  <img src="${photo.imageUrl}" class="photo-img" alt="${displaySectionName}" />
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          photosHTML += `
+            <div class="no-photos-message">No hay fotografías disponibles</div>
+          `;
+        }
+        
+        photosHTML += '</div>';
+      });
 
       photosHTML += '</div>';
     });
