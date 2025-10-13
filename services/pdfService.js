@@ -453,6 +453,14 @@ export class PDFService {
         text-align: left;
       }
       
+      .estado-value {
+        font-size: 10px;
+        margin: 5px 0;
+        color: #666;
+        text-align: left;
+        padding-left: 10px;
+      }
+      
       .photos-grid {
         display: flex;
         flex-wrap: wrap;
@@ -898,12 +906,12 @@ export class PDFService {
       { 
         key: 'Alimentacion_Electrica', 
         title: 'ALIMENTACIÓN ELÉCTRICA / SI APLICARA',
-        sections: ['ANTES'] // Solo una sección para evitar duplicados
+        sections: ['ESTADO'] // Sección especial para mostrar solo estado
       },
       { 
         key: 'Panel_Alarma', 
         title: 'PANEL DE ALARMA / SI APLICARA',
-        sections: ['ANTES', 'DESPUES'] // Componente para panel de alarma
+        sections: ['SWITCH_INSTALADO'] // Sección especial para panel con foto y observaciones
       },
       { 
         key: 'Prueba_Neumatica', 
@@ -944,30 +952,83 @@ export class PDFService {
           displaySectionName = 'RESPALDO';
         }
         
-        // Para Alimentacion_Electrica, mostrar solo una vez el contenido completo
-        if (componentKey === 'Alimentacion_Electrica') {
-          // Solo procesar la primera sección (ANTES) para evitar duplicados
-          if (sectionKey === 'ANTES') {
-            displaySectionName = 'SWITCH DE CORTE PARA SUMINISTRO ELÉCTRICO';
-          } else {
-            // Saltar las demás secciones para este componente
-            return;
-          }
+        // Manejo especial para cada componente según las imágenes
+        if (componentKey === 'Alimentacion_Electrica' && sectionKey === 'ESTADO') {
+          displaySectionName = 'SWITCH DE CORTE PARA SUMINISTRO ELÉCTRICO';
+        }
+        
+        if (componentKey === 'Panel_Alarma' && sectionKey === 'SWITCH_INSTALADO') {
+          displaySectionName = 'SWITCH INSTALADO';
         }
         
         console.log(`🔍 DEBUG ANSUL PDF ${componentKey}: Sección ${sectionKey} -> ${displaySectionName}, fotos: ${sectionPhotos.length}`);
         
+        // Manejo especial para Recibo_Conforme
+        if (componentKey === 'Recibo_Conforme' && sectionKey === 'ANTES') {
+          displaySectionName = 'RECIBO CONFORME';
+        }
+        
+        // Manejo especial para Alimentacion_Electrica - solo mostrar estado
+        if (componentKey === 'Alimentacion_Electrica' && sectionKey === 'ESTADO') {
+          photosHTML += `
+            <div class="photo-section">
+              <div class="photo-section-title">${displaySectionName}</div>
+              <div class="electric-switch-estado">ESTADO</div>
+              <div class="estado-value">No aplica</div>
+            </div>
+          `;
+          return; // No procesar fotos para este componente
+        }
+        
+        // Manejo especial para Panel_Alarma - agregar ESTADO Y OBSERVACIONES después de las fotos
+        if (componentKey === 'Panel_Alarma' && sectionKey === 'SWITCH_INSTALADO') {
+          photosHTML += `
+            <div class="photo-section">
+              <div class="photo-section-title">${displaySectionName}</div>
+          `;
+          
+          if (sectionPhotos.length > 0) {
+            photosHTML += `
+              <div class="photos-grid">
+                ${sectionPhotos.map(photo => `
+                  <div class="photo-item">
+                    <img src="${photo.imageUrl}" class="photo-img" alt="${displaySectionName}" />
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          } else {
+            photosHTML += `
+              <div class="no-photos-message">No hay fotografías disponibles</div>
+            `;
+          }
+          
+          // Agregar ESTADO Y OBSERVACIONES
+          photosHTML += `
+            <div class="electric-switch-estado">ESTADO Y OBSERVACIONES</div>
+          `;
+          
+          // Mostrar observaciones si existen
+          const observacionKey = `${componentKey}_${sectionKey}`;
+          if (observaciones[observacionKey]) {
+            photosHTML += `
+              <div class="estado-value">${observaciones[observacionKey]}</div>
+            `;
+          } else {
+            photosHTML += `
+              <div class="estado-value">Switch en buenas condiciones sin instalación completa.</div>
+            `;
+          }
+          
+          photosHTML += '</div>';
+          return; // Ya procesamos todo para este componente
+        }
+        
+        // Manejo normal para otros componentes
         photosHTML += `
           <div class="photo-section">
             <div class="photo-section-title">${displaySectionName}</div>
         `;
-        
-        // Para Alimentacion_Electrica, agregar "ESTADO" debajo del título
-        if (componentKey === 'Alimentacion_Electrica' && sectionKey === 'ANTES') {
-          photosHTML += `
-            <div class="electric-switch-estado">ESTADO</div>
-          `;
-        }
         
         if (sectionPhotos.length > 0) {
           photosHTML += `
@@ -987,7 +1048,18 @@ export class PDFService {
         
         // Mostrar observaciones de la sección si existen
         const observacionKey = `${componentKey}_${sectionKey}`;
-        if (observaciones[observacionKey]) {
+        
+        // Para componentes ANSUL específicos, mostrar observaciones con formato especial
+        if (componentKey === 'Cartuchos_Gas' && sectionKey === 'DESPUES') {
+          photosHTML += `
+            <div class="electric-switch-estado">OBSERVACIONES</div>
+          `;
+          if (observaciones[observacionKey]) {
+            photosHTML += `
+              <div class="estado-value">${observaciones[observacionKey]}</div>
+            `;
+          }
+        } else if (observaciones[observacionKey]) {
           photosHTML += `
             <div class="section-observations">
               <div class="section-observations-title">Observaciones:</div>
