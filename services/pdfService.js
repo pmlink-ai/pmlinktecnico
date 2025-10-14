@@ -6,6 +6,36 @@ import { supabase } from '../lib/supabase';
 // ==================== SERVICIO DE GENERACIÓN DE PDF ====================
 export class PDFService {
   
+  // Mapeo de componentes a nombres de carpetas de storage
+  static getStorageFolderName(componenteKey, informeTabla) {
+    const mappings = {
+      'informe_ansul_r102': {
+        'Sistema_Supresion': 'OBSERVACIONES_FOTOGRAFICAS',
+        'Cartuchos_Gas': 'RECAMBIO_FUSIBLES_TERMICOS',
+        'Canerias_Distribucion': 'PRUEBA_RUPTURA_FUSIBLE',
+        'Cilindro_Agente': 'SIMULACION_DISPARO_MANUAL',
+        'Boquillas_Sistema': 'VALVULA_GAS',
+        'Panel_Control': 'ALIMENTACION_ELECTRICA',
+        'Pruebas_Sistema': 'PANEL_ALARMA',
+        'Prueba_Neumatica': 'PRUEBA_NEUMATICA_CANERIAS',
+        'Tipo_Cartucho': 'TIPO_CARTUCHO_EXPULSOR',
+        'Recibo_Conforme': 'RECIBO_CONFORME'
+      },
+      'informe_limpieza_ductos': {
+        'Observaciones_Fotograficas': 'OBSERVACIONES_FOTOGRAFICAS',
+        'Campana_1': 'CAMPANA_1',
+        'Campana_2': 'CAMPANA_2',
+        'Campana_3': 'CAMPANA_3',
+        'Extractor_Principal': 'EXTRACTOR_PRINCIPAL',
+        'Ductos_Alimentacion': 'DUCTOS_ALIMENTACION',
+        'Ductos_Salida': 'DUCTOS_SALIDA',
+        'Recibo_Conforme': 'RECIBO_CONFORME'
+      }
+    };
+    
+    return mappings[informeTabla]?.[componenteKey] || componenteKey;
+  }
+
   // Generar URL pública de imagen desde Supabase Storage
   static getImageUrl(storagePath) {
     if (!storagePath) return '';
@@ -334,6 +364,16 @@ export class PDFService {
       
       .logo-section {
         flex: 1;
+        display: flex;
+        align-items: center;
+      }
+      
+      .header-logo {
+        max-width: 150px;
+        max-height: 80px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
       }
       
       .title-section {
@@ -461,6 +501,27 @@ export class PDFService {
         padding-left: 10px;
       }
       
+      .ansul-logo-placeholder {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        min-height: 120px;
+        background-color: #f9f9f9;
+        border: 1px dashed #ccc;
+        padding-right: 20px;
+        flex: 1;
+        max-width: 100%;
+        width: 100%;
+      }
+      
+      .ansul-logo {
+        max-width: 200px;
+        max-height: 80px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+      }
+      
       .photos-grid {
         display: flex;
         flex-wrap: wrap;
@@ -547,8 +608,7 @@ export class PDFService {
     return `
       <div class="header">
         <div class="logo-section">
-          <div style="font-weight: bold; font-size: 24px;">PMDUC</div>
-          <div style="font-size: 8px; color: #666;">EXPERTOS EN DUCTOS</div>
+          <img src="https://mwtdoidrjuahsejfctlm.supabase.co/storage/v1/object/public/fotos_informes/logos/pmduc-logo.png" class="header-logo" alt="PMDUC Expertos en Ductos" />
         </div>
         <div class="title-section">
           <h1 class="main-title">${informeTitle}</h1>
@@ -980,17 +1040,26 @@ export class PDFService {
           return; // No procesar fotos para este componente
         }
         
-        // Manejo especial para Panel_Alarma - agregar ESTADO Y OBSERVACIONES después de las fotos
+        // Manejo especial para Panel_Alarma - buscar fotos en diferentes secciones posibles
         if (componentKey === 'Panel_Alarma' && sectionKey === 'SWITCH_INSTALADO') {
+          // Buscar fotos en secciones comunes: FOTO, ANTES, DESPUES
+          const fotosSections = ['FOTO', 'ANTES', 'DESPUES'];
+          let fotosEncontradas = [];
+          
+          fotosSections.forEach(seccion => {
+            const fotosSeccion = photos[componentKey]?.[seccion] || [];
+            fotosEncontradas = [...fotosEncontradas, ...fotosSeccion];
+          });
+          
           photosHTML += `
             <div class="photo-section">
               <div class="photo-section-title">${displaySectionName}</div>
           `;
           
-          if (sectionPhotos.length > 0) {
+          if (fotosEncontradas.length > 0) {
             photosHTML += `
               <div class="photos-grid">
-                ${sectionPhotos.map(photo => `
+                ${fotosEncontradas.map(photo => `
                   <div class="photo-item">
                     <img src="${photo.imageUrl}" class="photo-img" alt="${displaySectionName}" />
                   </div>
@@ -998,8 +1067,13 @@ export class PDFService {
               </div>
             `;
           } else {
+            // Mostrar logo ANSUL alineado a la derecha
             photosHTML += `
-              <div class="no-photos-message">No hay fotografías disponibles</div>
+              <div class="photos-grid">
+                <div class="photo-item ansul-logo-placeholder">
+                  <img src="https://mwtdoidrjuahsejfctlm.supabase.co/storage/v1/object/public/fotos_informes/logos/ansul-logo.png" class="ansul-logo" alt="ANSUL Authorized Distributor" />
+                </div>
+              </div>
             `;
           }
           
@@ -1008,11 +1082,18 @@ export class PDFService {
             <div class="electric-switch-estado">ESTADO Y OBSERVACIONES</div>
           `;
           
-          // Mostrar observaciones si existen
-          const observacionKey = `${componentKey}_${sectionKey}`;
-          if (observaciones[observacionKey]) {
+          // Buscar observaciones en las secciones posibles
+          let observacionesTexto = null;
+          fotosSections.forEach(seccion => {
+            const observacionKey = `${componentKey}_${seccion}`;
+            if (observaciones[observacionKey] && !observacionesTexto) {
+              observacionesTexto = observaciones[observacionKey];
+            }
+          });
+          
+          if (observacionesTexto) {
             photosHTML += `
-              <div class="estado-value">${observaciones[observacionKey]}</div>
+              <div class="estado-value">${observacionesTexto}</div>
             `;
           } else {
             photosHTML += `
@@ -1041,9 +1122,20 @@ export class PDFService {
             </div>
           `;
         } else {
-          photosHTML += `
-            <div class="no-photos-message">No hay fotografías disponibles</div>
-          `;
+          // Para OBSERVACIONES FOTOGRÁFICAS (Sistema_Supresion), no mostrar logo si no hay fotos
+          if (componentKey === 'Sistema_Supresion') {
+            // No mostrar nada cuando no hay fotos en Observaciones Fotográficas
+            photosHTML += `<div class="no-photos-message">No hay fotografías disponibles</div>`;
+          } else {
+            // Mostrar logo ANSUL cuando no hay fotos para otros componentes de ANSUL R-102
+            photosHTML += `
+              <div class="photos-grid">
+                <div class="photo-item ansul-logo-placeholder">
+                  <img src="https://mwtdoidrjuahsejfctlm.supabase.co/storage/v1/object/public/fotos_informes/logos/ansul-logo.png" class="ansul-logo" alt="ANSUL Authorized Distributor" />
+                </div>
+              </div>
+            `;
+          }
         }
         
         // Mostrar observaciones de la sección si existen

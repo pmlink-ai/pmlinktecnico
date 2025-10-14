@@ -41,6 +41,36 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 const Stack = createStackNavigator();
 
+// ================== MAPEO DE CARPETAS DE STORAGE ==================
+const getStorageFolderName = (componenteKey, informeTabla) => {
+  const mappings = {
+    'informe_ansul_r102': {
+      'Sistema_Supresion': 'OBSERVACIONES_FOTOGRAFICAS',
+      'Cartuchos_Gas': 'RECAMBIO_FUSIBLES_TERMICOS',
+      'Canerias_Distribucion': 'PRUEBA_RUPTURA_FUSIBLE',
+      'Cilindro_Agente': 'SIMULACION_DISPARO_MANUAL',
+      'Boquillas_Sistema': 'VALVULA_GAS',
+      'Panel_Control': 'ALIMENTACION_ELECTRICA',
+      'Pruebas_Sistema': 'PANEL_ALARMA',
+      'Prueba_Neumatica': 'PRUEBA_NEUMATICA_CANERIAS',
+      'Tipo_Cartucho': 'TIPO_CARTUCHO_EXPULSOR',
+      'Recibo_Conforme': 'RECIBO_CONFORME'
+    },
+    'informe_limpieza_ductos': {
+      'Observaciones_Fotograficas': 'OBSERVACIONES_FOTOGRAFICAS',
+      'Campana_1': 'CAMPANA_1',
+      'Campana_2': 'CAMPANA_2',
+      'Campana_3': 'CAMPANA_3',
+      'Extractor_Principal': 'EXTRACTOR_PRINCIPAL',
+      'Ductos_Alimentacion': 'DUCTOS_ALIMENTACION',
+      'Ductos_Salida': 'DUCTOS_SALIDA',
+      'Recibo_Conforme': 'RECIBO_CONFORME'
+    }
+  };
+  
+  return mappings[informeTabla]?.[componenteKey] || componenteKey;
+};
+
 // ================== COMPONENTE IMAGE UPLOADER ==================
 const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPage, setCurrentPhotoPage }) => {
   // Configuración de componentes por servicio
@@ -373,12 +403,16 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     try {
       console.log('🔥 Subiendo imagen:', { componente, seccion, asset: asset.uri });
       
+      // Obtener el nombre correcto de la carpeta usando el mapeo
+      const folderName = getStorageFolderName(componente, informeTabla);
+      
       // Generar nombre único
       const fileExtension = asset.uri.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-      const filePath = `public/${orderId}/${informeTabla}/${componente}/${seccion}/${fileName}`;
+      const filePath = `public/${orderId}/${informeTabla}/${folderName}/${seccion}/${fileName}`;
       
-      console.log('📁 Ruta de archivo:', filePath);
+      console.log('📁 Ruta de archivo (con mapeo):', filePath);
+      console.log('📁 Carpeta mapeada:', `${componente} → ${folderName}`);
 
       // Crear FormData
       const formData = new FormData();
@@ -2505,6 +2539,45 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
       
       console.log('📄 Nombre de archivo a generar:', fileName);
+      
+      // Validación específica para ANSUL R-102: verificar que OBSERVACIONES GENERALES y FOTOGRÁFICAS estén llenos
+      if (tableName === 'informe_ansul_r102') {
+        console.log('🔍 Validando campos obligatorios para ANSUL R-102...');
+        
+        // Verificar observaciones generales del formulario
+        const observacionesGenerales = formData.observaciones_generales;
+        console.log('📝 Observaciones Generales:', observacionesGenerales ? 'Tiene contenido' : 'Vacío');
+        
+        // Consultar observaciones fotográficas de la base de datos
+        const { data: observacionesFoto, error: errorObs } = await supabase
+          .from('observaciones_fotografias')
+          .select('observaciones')
+          .eq('orden_trabajo_id', order.id)
+          .eq('informe_tabla', tableName)
+          .eq('componente', 'Sistema_Supresion')
+          .eq('seccion', 'ANTES')
+          .single();
+        
+        if (errorObs && errorObs.code !== 'PGRST116') {
+          console.error('❌ Error consultando observaciones fotográficas:', errorObs);
+        }
+        
+        const observacionesFotograficas = observacionesFoto?.observaciones;
+        console.log('📸 Observaciones Fotográficas:', observacionesFotograficas ? 'Tiene contenido' : 'Vacío');
+        
+        // Verificar si ambos campos están vacíos
+        const observacionesGeneralesVacias = !observacionesGenerales || observacionesGenerales.trim() === '';
+        const observacionesFotograficasVacias = !observacionesFotograficas || observacionesFotograficas.trim() === '';
+        
+        if (observacionesGeneralesVacias && observacionesFotograficasVacias) {
+          Alert.alert(
+            'Campos Obligatorios',
+            'Campo Observaciones Generales y Observaciones Fotograficas estan vacias, no se puede generar el PDF',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
       
       await PDFService.generateAndSharePDF(
         order.id, 
