@@ -14,8 +14,10 @@ import {
   ActivityIndicator,
   Image,
   FlatList,
-  Dimensions
+  Dimensions,
+  Platform
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -2036,6 +2038,7 @@ const TecnicosAsignados = ({ orderId }) => {
 const FormularioDinamico = ({ order, onClose }) => {
   const [campos, setCampos] = useState([]);
   const [formData, setFormData] = useState({});
+  const [showDatePicker, setShowDatePicker] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tableName, setTableName] = useState('');
@@ -2043,6 +2046,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   const [currentScrollY, setCurrentScrollY] = useState(0);
   const [currentView, setCurrentView] = useState('datos'); // 'datos' o 'fotografias'
   const [currentPhotoPage, setCurrentPhotoPage] = useState(0); // Índice de la página actual de fotografías
+  const [selectedDate, setSelectedDate] = useState(new Date());
   
   // Referencia simple para el scroll
   const scrollRef = useRef(null);
@@ -2238,6 +2242,9 @@ const FormularioDinamico = ({ order, onClose }) => {
       
       // Agregar campos especiales que no están en la estructura de la tabla
       const specialFields = [
+        { key: 'cliente', defaultValue: '' },
+        { key: 'fecha_inicio', defaultValue: '' },
+        { key: 'nombre_local', defaultValue: '' },
         { key: 'encargado', defaultValue: '' },
         { key: 'asist_personal', defaultValue: '' },
         { key: 'horas_trabajo', defaultValue: '' }
@@ -2540,39 +2547,44 @@ const FormularioDinamico = ({ order, onClose }) => {
       
       console.log('📄 Nombre de archivo a generar:', fileName);
       
-      // Validación específica para ANSUL R-102: verificar que OBSERVACIONES GENERALES y FOTOGRÁFICAS estén llenos
+      // Validación específica para ANSUL R-102: verificar campos obligatorios
       if (tableName === 'informe_ansul_r102') {
         console.log('🔍 Validando campos obligatorios para ANSUL R-102...');
         
-        // Verificar observaciones generales del formulario
+        // Validar campos de Datos del Servicio
+        const camposObligatorios = [
+          { campo: 'cliente', nombre: 'CLIENTE' },
+          { campo: 'fecha_inicio', nombre: 'FECHA-INICIO' },
+          { campo: 'nombre_local', nombre: 'NOMBRE DE LOCAL' },
+          { campo: 'encargado', nombre: 'ENCARGADO' },
+          { campo: 'asist_personal', nombre: 'ASISTENCIA DE PERSONAL' },
+          { campo: 'horas_trabajo', nombre: 'HORAS DE TRABAJO' }
+        ];
+        
+        // Verificar cada campo obligatorio del formulario
+        for (const { campo, nombre } of camposObligatorios) {
+          const valor = formData[campo];
+          if (!valor || (typeof valor === 'string' && valor.trim() === '') || 
+              (typeof valor === 'number' && (isNaN(valor) || valor <= 0))) {
+            Alert.alert(
+              'Campo Obligatorio',
+              `Debe ingresar información en el Campo ${nombre} para generar el pdf`,
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+        }
+        
+
+        
+        // Verificar observaciones generales del formulario (obligatorio)
         const observacionesGenerales = formData.observaciones_generales;
         console.log('📝 Observaciones Generales:', observacionesGenerales ? 'Tiene contenido' : 'Vacío');
         
-        // Consultar observaciones fotográficas de la base de datos
-        const { data: observacionesFoto, error: errorObs } = await supabase
-          .from('observaciones_fotografias')
-          .select('observaciones')
-          .eq('orden_trabajo_id', order.id)
-          .eq('informe_tabla', tableName)
-          .eq('componente', 'Sistema_Supresion')
-          .eq('seccion', 'ANTES')
-          .single();
-        
-        if (errorObs && errorObs.code !== 'PGRST116') {
-          console.error('❌ Error consultando observaciones fotográficas:', errorObs);
-        }
-        
-        const observacionesFotograficas = observacionesFoto?.observaciones;
-        console.log('📸 Observaciones Fotográficas:', observacionesFotograficas ? 'Tiene contenido' : 'Vacío');
-        
-        // Verificar si ambos campos están vacíos
-        const observacionesGeneralesVacias = !observacionesGenerales || observacionesGenerales.trim() === '';
-        const observacionesFotograficasVacias = !observacionesFotograficas || observacionesFotograficas.trim() === '';
-        
-        if (observacionesGeneralesVacias && observacionesFotograficasVacias) {
+        if (!observacionesGenerales || observacionesGenerales.trim() === '') {
           Alert.alert(
-            'Campos Obligatorios',
-            'Campo Observaciones Generales y Observaciones Fotograficas estan vacias, no se puede generar el PDF',
+            'Campo Obligatorio',
+            'Debe ingresar información en el Campo OBSERVACIONES GENERALES para generar el pdf',
             [{ text: 'OK' }]
           );
           return;
@@ -2597,7 +2609,26 @@ const FormularioDinamico = ({ order, onClose }) => {
 
   // Función para renderizar los campos especiales al inicio del formulario
   const renderSpecialFields = () => {
+    console.log('🔧 Renderizando campos especiales...');
     const specialFields = [
+      {
+        key: 'cliente',
+        label: 'CLIENTE',
+        required: true,
+        type: 'text'
+      },
+      {
+        key: 'fecha_inicio',
+        label: 'FECHA-INICIO',
+        required: true,
+        type: 'date'
+      },
+      {
+        key: 'nombre_local',
+        label: 'NOMBRE DE LOCAL',
+        required: true,
+        type: 'text'
+      },
       {
         key: 'encargado',
         label: 'ENCARGADO',
@@ -2620,6 +2651,103 @@ const FormularioDinamico = ({ order, onClose }) => {
 
     return specialFields.map((field) => {
       const fieldValue = formData[field.key] || '';
+      
+      if (field.type === 'date') {
+        console.log(`🗓️ Renderizando campo de fecha: ${field.key}, valor: ${fieldValue}`);
+        // Formatear la fecha para mostrar
+        const displayDate = fieldValue ? (() => {
+          try {
+            const date = new Date(fieldValue);
+            return date.toLocaleDateString('es-ES', {
+              day: '2-digit',
+              month: '2-digit', 
+              year: 'numeric'
+            });
+          } catch {
+            return 'Fecha inválida';
+          }
+        })() : null;
+
+        return (
+          <View key={field.key} style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>
+              {field.label} {field.required && '*'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.input, { justifyContent: 'center', paddingVertical: 15 }]}
+              onPress={() => {
+                console.log(`📅 Abriendo DatePicker para ${field.key}`);
+                setShowDatePicker({...showDatePicker, [field.key]: true});
+              }}
+            >
+              <Text style={displayDate ? { color: '#000' } : { color: '#999' }}>
+                {displayDate || 'Seleccionar fecha'}
+              </Text>
+            </TouchableOpacity>
+            
+            {/* DatePicker como Modal para Android o inline para iOS */}
+            {showDatePicker[field.key] && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={fieldValue ? new Date(fieldValue) : new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker({...showDatePicker, [field.key]: false});
+                  if (selectedDate && event.type !== 'dismissed') {
+                    const dateString = selectedDate.toISOString().split('T')[0];
+                    handleInputChange(field.key, dateString);
+                  }
+                }}
+              />
+            )}
+            
+            {/* Para iOS, usamos modal explícito */}
+            {Platform.OS === 'ios' && (
+              <Modal
+                transparent={true}
+                animationType="slide"
+                visible={showDatePicker[field.key] || false}
+                onRequestClose={() => setShowDatePicker({...showDatePicker, [field.key]: false})}
+              >
+                <View style={styles.modalOverlay}>
+                  <View style={styles.datePickerModal}>
+                    <View style={styles.datePickerHeader}>
+                      <TouchableOpacity
+                        onPress={() => setShowDatePicker({...showDatePicker, [field.key]: false})}
+                        style={styles.datePickerButton}
+                      >
+                        <Text style={styles.datePickerButtonText}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.datePickerTitle}>Seleccionar Fecha</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setShowDatePicker({...showDatePicker, [field.key]: false});
+                          const currentDate = selectedDate || (fieldValue ? new Date(fieldValue) : new Date());
+                          const dateString = currentDate.toISOString().split('T')[0];
+                          handleInputChange(field.key, dateString);
+                        }}
+                        style={styles.datePickerButton}
+                      >
+                        <Text style={styles.datePickerButtonText}>Confirmar</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={fieldValue ? new Date(fieldValue) : new Date()}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event, date) => {
+                        if (date) {
+                          setSelectedDate(date);
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
+              </Modal>
+            )}
+          </View>
+        );
+      }
       
       return (
         <View key={field.key} style={styles.fieldContainer}>
@@ -3855,6 +3983,48 @@ const styles = StyleSheet.create({
   photoNavButtonText: {
     color: 'white',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  // Estilos para el modal del DatePicker
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerModal: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  datePickerButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 5,
+  },
+  datePickerButtonText: {
+    fontSize: 16,
+    color: '#007AFF',
     fontWeight: '600',
   },
 });
