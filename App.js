@@ -2406,8 +2406,16 @@ const FormularioDinamico = ({ order, onClose }) => {
   };
 
   const isRequired = (fieldName) => {
-    const requiredFields = ['orden_trabajo_id', 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
-    return requiredFields.includes(fieldName);
+    // Campos que nunca son obligatorios
+    const nonRequiredFields = ['id', 'created_at', 'orden_trabajo_id'];
+    
+    // Si es un campo que nunca debe ser obligatorio, retornar false
+    if (nonRequiredFields.includes(fieldName)) {
+      return false;
+    }
+    
+    // Todos los demás campos son obligatorios en el formulario ANSUL
+    return true;
   };
 
   const handleSubmit = async () => {
@@ -2420,7 +2428,9 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       // Validar campos requeridos (de la tabla + campos especiales)
-      const requiredFields = ['orden_trabajo_id', 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
+      // Obtener todos los campos obligatorios dinámicamente
+      const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
+      const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
       const missingFields = requiredFields.filter(fieldName => 
         !formData[fieldName] || formData[fieldName].trim() === ''
       ).map(fieldName => formatFieldName(fieldName));
@@ -2551,43 +2561,30 @@ const FormularioDinamico = ({ order, onClose }) => {
       if (tableName === 'informe_ansul_r102') {
         console.log('🔍 Validando campos obligatorios para ANSUL R-102...');
         
-        // Validar campos de Datos del Servicio
-        const camposObligatorios = [
-          { campo: 'cliente', nombre: 'CLIENTE' },
-          { campo: 'fecha_inicio', nombre: 'FECHA-INICIO' },
-          { campo: 'nombre_local', nombre: 'NOMBRE DE LOCAL' },
-          { campo: 'encargado', nombre: 'ENCARGADO' },
-          { campo: 'asist_personal', nombre: 'ASISTENCIA DE PERSONAL' },
-          { campo: 'horas_trabajo', nombre: 'HORAS DE TRABAJO' }
-        ];
+        // Obtener todos los campos obligatorios dinámicamente
+        const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
+        const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
         
-        // Verificar cada campo obligatorio del formulario
-        for (const { campo, nombre } of camposObligatorios) {
-          const valor = formData[campo];
-          if (!valor || (typeof valor === 'string' && valor.trim() === '') || 
-              (typeof valor === 'number' && (isNaN(valor) || valor <= 0))) {
+        console.log('📋 Campos obligatorios a validar:', requiredFields);
+        
+        // Verificar cada campo obligatorio
+        for (const fieldName of requiredFields) {
+          const valor = formData[fieldName];
+          const isEmpty = !valor || 
+                         (typeof valor === 'string' && valor.trim() === '') || 
+                         (typeof valor === 'number' && (isNaN(valor) || valor <= 0));
+          
+          if (isEmpty) {
+            // Formatear el nombre del campo para mostrar
+            const fieldLabel = fieldName.toUpperCase().replace(/_/g, ' ');
+            
             Alert.alert(
               'Campo Obligatorio',
-              `Debe ingresar información en el Campo ${nombre} para generar el pdf`,
+              `Debe ingresar información en el Campo ${fieldLabel} para generar el PDF`,
               [{ text: 'OK' }]
             );
             return;
           }
-        }
-        
-
-        
-        // Verificar observaciones generales del formulario (obligatorio)
-        const observacionesGenerales = formData.observaciones_generales;
-        console.log('📝 Observaciones Generales:', observacionesGenerales ? 'Tiene contenido' : 'Vacío');
-        
-        if (!observacionesGenerales || observacionesGenerales.trim() === '') {
-          Alert.alert(
-            'Campo Obligatorio',
-            'Debe ingresar información en el Campo OBSERVACIONES GENERALES para generar el pdf',
-            [{ text: 'OK' }]
-          );
-          return;
         }
       }
       
