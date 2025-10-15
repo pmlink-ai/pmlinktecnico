@@ -74,7 +74,7 @@ const getStorageFolderName = (componenteKey, informeTabla) => {
 };
 
 // ================== COMPONENTE IMAGE UPLOADER ==================
-const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPage, setCurrentPhotoPage }) => {
+const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPage, setCurrentPhotoPage, handleGeneratePDF, generatingPDF, existingRecord }) => {
   // Configuración de componentes por servicio
   const componentesPorServicio = {
     'informe_limpieza_ductos': [
@@ -1408,6 +1408,26 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {/* BOTÓN GENERAR PDF - Solo en la última página (Recibo Conforme) */}
+                {currentPhotoPage === componentes.length - 1 && existingRecord && (
+                  <View style={styles.actionButtonsContainer}>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.pdfButton]}
+                      onPress={handleGeneratePDF}
+                      disabled={generatingPDF}
+                    >
+                      {generatingPDF ? (
+                        <ActivityIndicator color="white" size="small" />
+                      ) : (
+                        <>
+                          <Text style={styles.actionButtonIcon}>📄</Text>
+                          <Text style={styles.actionButtonText}>Generar PDF</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             );
           })()}
@@ -2922,11 +2942,23 @@ const FormularioDinamico = ({ order, onClose }) => {
 
             {/* BOTÓN SIGUIENTE PARA IR A FOTOGRAFÍAS */}
             <TouchableOpacity 
-              style={styles.nextButton}
+              style={[
+                styles.nextButton, 
+                !existingRecord && styles.nextButtonDisabled
+              ]}
               onPress={() => {
+                if (!existingRecord) {
+                  Alert.alert(
+                    'Actualizar Datos Primero',
+                    'Debe presionar "ACTUALIZAR DATOS" antes de acceder a las fotografías',
+                    [{ text: 'OK' }]
+                  );
+                  return;
+                }
                 setCurrentView('fotografias');
                 setCurrentPhotoPage(0); // Resetear a la primera página
               }}
+              disabled={!existingRecord}
             >
               <Text style={styles.nextButtonText}>� Fotografías ➜</Text>
             </TouchableOpacity>
@@ -2949,6 +2981,9 @@ const FormularioDinamico = ({ order, onClose }) => {
               onScrollRestore={restoreScroll}
               currentPhotoPage={currentPhotoPage}
               setCurrentPhotoPage={setCurrentPhotoPage}
+              handleGeneratePDF={handleGeneratePDF}
+              generatingPDF={generatingPDF}
+              existingRecord={existingRecord}
             />
           </>
         )}
@@ -2967,25 +3002,7 @@ const FormularioDinamico = ({ order, onClose }) => {
           )}
         </TouchableOpacity>
 
-        {/* BOTONES PARA PDF Y EMAIL */}
-        {existingRecord && (
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.pdfButton]}
-              onPress={handleGeneratePDF}
-              disabled={generatingPDF}
-            >
-              {generatingPDF ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <Text style={styles.actionButtonIcon}>📄</Text>
-                  <Text style={styles.actionButtonText}>Generar PDF</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+
 
         <View style={{ height: 50 }} />
       </ScrollView>
@@ -3589,6 +3606,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  nextButtonDisabled: {
+    backgroundColor: '#cccccc',
+    opacity: 0.6,
+  },
+  nextButtonTextDisabled: {
+    color: '#888888',
   },
   backButton: {
     backgroundColor: '#6C757D',
