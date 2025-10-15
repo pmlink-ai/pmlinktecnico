@@ -2406,7 +2406,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   };
 
   const isRequired = (fieldName) => {
-    const requiredFields = ['orden_trabajo_id', 'encargado', 'asist_personal'];
+    const requiredFields = ['orden_trabajo_id', 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
     return requiredFields.includes(fieldName);
   };
 
@@ -2420,7 +2420,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       // Validar campos requeridos (de la tabla + campos especiales)
-      const requiredFields = ['orden_trabajo_id', 'encargado', 'asist_personal'];
+      const requiredFields = ['orden_trabajo_id', 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
       const missingFields = requiredFields.filter(fieldName => 
         !formData[fieldName] || formData[fieldName].trim() === ''
       ).map(fieldName => formatFieldName(fieldName));
@@ -2618,16 +2618,16 @@ const FormularioDinamico = ({ order, onClose }) => {
         type: 'text'
       },
       {
-        key: 'fecha_inicio',
-        label: 'FECHA-INICIO',
-        required: true,
-        type: 'date'
-      },
-      {
         key: 'nombre_local',
         label: 'NOMBRE DE LOCAL',
         required: true,
         type: 'text'
+      },
+      {
+        key: 'fecha_inicio',
+        label: 'FECHA-INICIO',
+        required: true,
+        type: 'date'
       },
       {
         key: 'encargado',
@@ -2644,7 +2644,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       {
         key: 'horas_trabajo',
         label: 'HORAS DE TRABAJO', 
-        required: false,
+        required: true,
         type: 'numeric'
       }
     ];
@@ -2916,7 +2916,9 @@ const FormularioDinamico = ({ order, onClose }) => {
                   </View>
                   
                   {/* Campos dinámicos de la tabla */}
-                  {campos.map(renderField)}
+                  {campos.filter(campo => 
+                    !['cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'].includes(campo.column_name)
+                  ).map(renderField)}
                 </>
               )}
             </View>
