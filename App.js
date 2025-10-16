@@ -646,14 +646,22 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         {seccionData.key === 'DESPUES' && componenteKey !== 'Canerias_Distribucion' && componenteKey !== 'Campana_1' && componenteKey !== 'Campana_2' && componenteKey !== 'Ductos_y_Registros' && componenteKey !== 'Motores_y_Cubierta' && (
           <View style={styles.observacionesContainer}>
             <Text style={styles.observacionesLabel}>
-              {componenteKey === 'Cartuchos_Gas' ? 'OBSERVACIONES:' : `Observaciones ${seccionData.title}:`}
+              {componenteKey === 'Cartuchos_Gas' ? 'OBSERVACIONES: *' : `Observaciones ${seccionData.title}:`}
             </Text>
             <TextInput
-              style={styles.observacionesInput}
+              style={[
+                styles.observacionesInput,
+                componenteKey === 'Cartuchos_Gas' && (!observacionesSecciones[`${componenteKey}_${seccionData.key}`] || observacionesSecciones[`${componenteKey}_${seccionData.key}`].trim() === '') && {
+                  borderColor: '#FF6B6B',
+                  borderWidth: 2
+                }
+              ]}
               placeholder={
                 componenteKey === 'Cilindro_Agente' 
                   ? `Ingrese información solicitada...`
-                  : `Ingrese observaciones para ${seccionData.title}...`
+                  : componenteKey === 'Cartuchos_Gas'
+                    ? `Este campo es obligatorio...`
+                    : `Ingrese observaciones para ${seccionData.title}...`
               }
               multiline
               numberOfLines={componenteKey === 'Cilindro_Agente' ? 6 : 2}
@@ -668,6 +676,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               autoCorrect={false}
               autoCapitalize={componenteKey === 'Cilindro_Agente' ? "characters" : "sentences"}
             />
+            {componenteKey === 'Cartuchos_Gas' && (!observacionesSecciones[`${componenteKey}_${seccionData.key}`] || observacionesSecciones[`${componenteKey}_${seccionData.key}`].trim() === '') && (
+              <Text style={styles.requiredFieldText}>* Campo obligatorio</Text>
+            )}
           </View>
         )}
 
@@ -675,11 +686,17 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         {componenteKey === 'Prueba_Neumatica' && seccionData.key === 'PROCESO' && informeTabla === 'informe_ansul_r102' && (
           <View style={styles.observacionesContainer}>
             <Text style={styles.observacionesLabel}>
-              ESTADO Y OBSERVACIONES:
+              ESTADO Y OBSERVACIONES: *
             </Text>
             <TextInput
-              style={styles.observacionesInput}
-              placeholder="Ingrese estado y observaciones de la prueba neumática..."
+              style={[
+                styles.observacionesInput,
+                (!observacionesSecciones[`${componenteKey}_${seccionData.key}`] || observacionesSecciones[`${componenteKey}_${seccionData.key}`].trim() === '') && {
+                  borderColor: '#FF6B6B',
+                  borderWidth: 2
+                }
+              ]}
+              placeholder="Este campo es obligatorio..."
               multiline
               numberOfLines={4}
               value={observacionesSecciones[`${componenteKey}_${seccionData.key}`] || ''}
@@ -689,6 +706,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               autoCorrect={false}
               autoCapitalize="sentences"
             />
+            {(!observacionesSecciones[`${componenteKey}_${seccionData.key}`] || observacionesSecciones[`${componenteKey}_${seccionData.key}`].trim() === '') && (
+              <Text style={styles.requiredFieldText}>* Campo obligatorio</Text>
+            )}
           </View>
         )}
 
@@ -696,11 +716,17 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         {componenteKey === 'Tipo_Cartucho' && seccionData.key === 'PROCESO' && informeTabla === 'informe_ansul_r102' && (
           <View style={styles.observacionesContainer}>
             <Text style={styles.observacionesLabel}>
-              ESTADO Y OBSERVACIONES:
+              ESTADO Y OBSERVACIONES: *
             </Text>
             <TextInput
-              style={styles.observacionesInput}
-              placeholder="Ingrese tipo, cantidad, peso y observaciones del cartucho expulsor..."
+              style={[
+                styles.observacionesInput,
+                (!observacionesSecciones[`${componenteKey}_${seccionData.key}`] || observacionesSecciones[`${componenteKey}_${seccionData.key}`].trim() === '') && {
+                  borderColor: '#FF6B6B',
+                  borderWidth: 2
+                }
+              ]}
+              placeholder="Este campo es obligatorio..."
               multiline
               numberOfLines={4}
               value={observacionesSecciones[`${componenteKey}_${seccionData.key}`] || ''}
@@ -710,6 +736,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               autoCorrect={false}
               autoCapitalize="sentences"
             />
+            {(!observacionesSecciones[`${componenteKey}_${seccionData.key}`] || observacionesSecciones[`${componenteKey}_${seccionData.key}`].trim() === '') && (
+              <Text style={styles.requiredFieldText}>* Campo obligatorio</Text>
+            )}
           </View>
         )}
       </View>
@@ -734,7 +763,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         {/* Sección de foto única */}
         <View style={styles.componentSection}>
           <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
-            <Text style={styles.sectionTitle}>FOTOGRAFÍA</Text>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA *</Text>
             {images.length > 0 && (
               <Text style={styles.sectionCount}>({images.length})</Text>
             )}
@@ -752,7 +781,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           )}
           
           <TouchableOpacity 
-            style={[styles.addSectionPhotoButton, { borderColor: '#45B7D1' }]}
+            style={[
+              styles.addSectionPhotoButton, 
+              { 
+                borderColor: images.length === 0 ? '#FF6B6B' : '#45B7D1',
+                borderWidth: images.length === 0 ? 2 : 1
+              }
+            ]}
             onPress={() => pickImage(componenteKey, 'FOTO')}
             disabled={isUploading}
           >
@@ -760,20 +795,29 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               <ActivityIndicator size="small" color="#45B7D1" />
             ) : (
               <>
-                <Text style={[styles.addPhotoIcon, { color: '#45B7D1' }]}>📷</Text>
-                <Text style={[styles.addSectionPhotoText, { color: '#45B7D1' }]}>
-                  Subir Fotografía
+                <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>📷</Text>
+                <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>
+                  {images.length === 0 ? 'Fotografía Obligatoria' : 'Subir Fotografía'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
+          {images.length === 0 && (
+            <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+          )}
           
           {/* Campo de estado */}
           <View style={styles.observacionesContainer}>
-            <Text style={styles.observacionesLabel}>ESTADO:</Text>
+            <Text style={styles.observacionesLabel}>ESTADO: *</Text>
             <TextInput
-              style={styles.observacionesInput}
-              placeholder="Ingrese estado..."
+              style={[
+                styles.observacionesInput,
+                (!observacionesSecciones[`${componenteKey}_FOTO`] || observacionesSecciones[`${componenteKey}_FOTO`].trim() === '') && {
+                  borderColor: '#FF6B6B',
+                  borderWidth: 2
+                }
+              ]}
+              placeholder="Este campo es obligatorio..."
               multiline
               numberOfLines={2}
               value={observacionesSecciones[`${componenteKey}_FOTO`] || ''}
@@ -783,7 +827,130 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               autoCorrect={false}
               autoCapitalize="characters"
             />
+            {(!observacionesSecciones[`${componenteKey}_FOTO`] || observacionesSecciones[`${componenteKey}_FOTO`].trim() === '') && (
+              <Text style={styles.requiredFieldText}>* Campo obligatorio</Text>
+            )}
           </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Renderizado especial para Tipo de Cartucho
+  const renderTipoCartuchoComponent = (componenteKey) => {
+    const images = imagesByComponenteAndSeccion[componenteKey]?.['PROCESO'] || [];
+    const uploadingKey = `${componenteKey}_PROCESO`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentContent}>
+        {/* Sección de foto única */}
+        <View style={styles.componentSection}>
+          <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA *</Text>
+            {images.length > 0 && (
+              <Text style={styles.sectionCount}>({images.length})</Text>
+            )}
+          </View>
+          
+          {images.length > 0 && (
+            <FlatList
+              data={images}
+              renderItem={renderImage}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.sectionImagesList}
+            />
+          )}
+          
+          <TouchableOpacity 
+            style={[
+              styles.addSectionPhotoButton, 
+              {
+                borderColor: images.length === 0 ? '#FF6B6B' : '#45B7D1',
+                borderWidth: images.length === 0 ? 2 : 1
+              }
+            ]}
+            onPress={() => pickImage(componenteKey, 'PROCESO')}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#45B7D1" />
+            ) : (
+              <>
+                <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>📷</Text>
+                <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>
+                  {images.length === 0 ? 'Fotografía Obligatoria' : 'Subir Fotografía'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {images.length === 0 && (
+            <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+          )}
+          
+          {/* Campo de estado y observaciones - ya renderizado por separado */}
+        </View>
+      </View>
+    );
+  };
+
+  // Renderizado especial para Prueba Neumática
+  const renderPruebaNeumaticaComponent = (componenteKey) => {
+    const images = imagesByComponenteAndSeccion[componenteKey]?.['PROCESO'] || [];
+    const uploadingKey = `${componenteKey}_PROCESO`;
+    const isUploading = uploading[uploadingKey];
+
+    return (
+      <View style={styles.componentContent}>
+        {/* Sección de foto única */}
+        <View style={styles.componentSection}>
+          <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA *</Text>
+            {images.length > 0 && (
+              <Text style={styles.sectionCount}>({images.length})</Text>
+            )}
+          </View>
+          
+          {images.length > 0 && (
+            <FlatList
+              data={images}
+              renderItem={renderImage}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.sectionImagesList}
+            />
+          )}
+          
+          <TouchableOpacity 
+            style={[
+              styles.addSectionPhotoButton, 
+              {
+                borderColor: images.length === 0 ? '#FF6B6B' : '#45B7D1',
+                borderWidth: images.length === 0 ? 2 : 1
+              }
+            ]}
+            onPress={() => pickImage(componenteKey, 'PROCESO')}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#45B7D1" />
+            ) : (
+              <>
+                <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>📷</Text>
+                <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>
+                  {images.length === 0 ? 'Fotografía Obligatoria' : 'Subir Fotografía'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {images.length === 0 && (
+            <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+          )}
+          
+          {/* Campo de estado y observaciones - ya renderizado por separado */}
         </View>
       </View>
     );
@@ -814,7 +981,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         {/* Sección de foto única */}
         <View style={styles.componentSection}>
           <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
-            <Text style={styles.sectionTitle}>FOTOGRAFÍA</Text>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA *</Text>
             {images.length > 0 && (
               <Text style={styles.sectionCount}>({images.length})</Text>
             )}
@@ -832,7 +999,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           )}
           
           <TouchableOpacity 
-            style={[styles.addSectionPhotoButton, { borderColor: '#45B7D1' }]}
+            style={[
+              styles.addSectionPhotoButton, 
+              {
+                borderColor: images.length === 0 ? '#FF6B6B' : '#45B7D1',
+                borderWidth: images.length === 0 ? 2 : 1
+              }
+            ]}
             onPress={() => pickImage(componenteKey, 'FOTO')}
             disabled={isUploading}
           >
@@ -840,20 +1013,29 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               <ActivityIndicator size="small" color="#45B7D1" />
             ) : (
               <>
-                <Text style={[styles.addPhotoIcon, { color: '#45B7D1' }]}>📷</Text>
-                <Text style={[styles.addSectionPhotoText, { color: '#45B7D1' }]}>
-                  Subir Fotografía
+                <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>📷</Text>
+                <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>
+                  {images.length === 0 ? 'Fotografía Obligatoria' : 'Subir Fotografía'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
+          {images.length === 0 && (
+            <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+          )}
           
           {/* Campo de estado y observaciones */}
           <View style={styles.observacionesContainer}>
-            <Text style={styles.observacionesLabel}>ESTADO Y OBSERVACIONES:</Text>
+            <Text style={styles.observacionesLabel}>ESTADO Y OBSERVACIONES: *</Text>
             <TextInput
-              style={styles.observacionesInput}
-              placeholder="Ingrese estado y observaciones..."
+              style={[
+                styles.observacionesInput,
+                (!observacionesSecciones[`${componenteKey}_FOTO`] || observacionesSecciones[`${componenteKey}_FOTO`].trim() === '') && {
+                  borderColor: '#FF6B6B',
+                  borderWidth: 2
+                }
+              ]}
+              placeholder="Este campo es obligatorio..."
               multiline
               numberOfLines={3}
               value={observacionesSecciones[`${componenteKey}_FOTO`] || ''}
@@ -863,6 +1045,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               autoCorrect={false}
               autoCapitalize="characters"
             />
+            {(!observacionesSecciones[`${componenteKey}_FOTO`] || observacionesSecciones[`${componenteKey}_FOTO`].trim() === '') && (
+              <Text style={styles.requiredFieldText}>* Campo obligatorio</Text>
+            )}
           </View>
         </View>
       </View>
@@ -880,7 +1065,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         {/* Sección de foto única */}
         <View style={styles.componentSection}>
           <View style={[styles.sectionHeader, { backgroundColor: '#45B7D1' }]}>
-            <Text style={styles.sectionTitle}>FOTOGRAFÍA</Text>
+            <Text style={styles.sectionTitle}>FOTOGRAFÍA *</Text>
             {images.length > 0 && (
               <Text style={styles.sectionCount}>({images.length})</Text>
             )}
@@ -906,20 +1091,29 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               <ActivityIndicator size="small" color="#45B7D1" />
             ) : (
               <>
-                <Text style={[styles.addPhotoIcon, { color: '#45B7D1' }]}>�</Text>
-                <Text style={[styles.addSectionPhotoText, { color: '#45B7D1' }]}>
-                  Tomar Fotografía
+                <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>📷</Text>
+                <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>
+                  {images.length === 0 ? 'Fotografía Obligatoria' : 'Tomar Fotografía'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
+          {images.length === 0 && (
+            <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+          )}
           
           {/* Campo de observaciones personalizado */}
           <View style={styles.observacionesContainer}>
-            <Text style={styles.observacionesLabel}>MEDIDA DE TOMA DE VALVULA:</Text>
+            <Text style={styles.observacionesLabel}>MEDIDA DE TOMA DE VALVULA: *</Text>
             <TextInput
-              style={styles.observacionesInput}
-              placeholder="Ingrese medida de toma de válvula..."
+              style={[
+                styles.observacionesInput,
+                (!observacionesSecciones[`${componenteKey}_FOTO`] || observacionesSecciones[`${componenteKey}_FOTO`].trim() === '') && {
+                  borderColor: '#FF6B6B',
+                  borderWidth: 2
+                }
+              ]}
+              placeholder="Este campo es obligatorio..."
               multiline
               numberOfLines={2}
               value={observacionesSecciones[`${componenteKey}_FOTO`] || ''}
@@ -929,6 +1123,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               autoCorrect={false}
               autoCapitalize="characters"
             />
+            {(!observacionesSecciones[`${componenteKey}_FOTO`] || observacionesSecciones[`${componenteKey}_FOTO`].trim() === '') && (
+              <Text style={styles.requiredFieldText}>* Campo obligatorio</Text>
+            )}
           </View>
         </View>
       </View>
@@ -952,7 +1149,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     return (
       <View style={styles.componentSection}>
         <View style={[styles.sectionHeader, { backgroundColor: '#28A745' }]}>
-          <Text style={styles.sectionTitle}>FOTOGRAFÍA DE CONFORMIDAD</Text>
+          <Text style={styles.sectionTitle}>FOTOGRAFÍA DE CONFORMIDAD *</Text>
           {images.length > 0 && (
             <Text style={styles.sectionCount}>({images.length})</Text>
           )}
@@ -970,7 +1167,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         )}
         
         <TouchableOpacity 
-          style={[styles.addSectionPhotoButton, { borderColor: '#28A745' }]}
+          style={[
+            styles.addSectionPhotoButton, 
+            {
+              borderColor: images.length === 0 ? '#FF6B6B' : '#28A745',
+              borderWidth: images.length === 0 ? 2 : 1
+            }
+          ]}
           onPress={() => pickImage(componenteKey, seccionUnica)}
           disabled={isUploading}
         >
@@ -978,13 +1181,16 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
             <ActivityIndicator size="small" color="#28A745" />
           ) : (
             <>
-              <Text style={[styles.addPhotoIcon, { color: '#28A745' }]}>📷</Text>
-              <Text style={[styles.addSectionPhotoText, { color: '#28A745' }]}>
-                Tomar Fotografía de Conformidad
+              <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#28A745' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#28A745' }]}>
+                {images.length === 0 ? 'Fotografía Obligatoria' : 'Tomar Fotografía de Conformidad'}
               </Text>
             </>
           )}
         </TouchableOpacity>
+        {images.length === 0 && (
+          <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+        )}
       </View>
     );
   };
@@ -1202,6 +1408,44 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           </View>
           
           {renderAlimentacionElectricaComponent(componenteData.key)}
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Tipo de Cartucho Expulsor"
+    if (componenteData.key === 'Tipo_Cartucho') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <View style={styles.componentHeader}>
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+          </View>
+          
+          {renderTipoCartuchoComponent(componenteData.key)}
+        </View>
+      );
+    }
+
+    // Renderizado especial para "Prueba Neumática a Cañerías de Distribución"
+    if (componenteData.key === 'Prueba_Neumatica') {
+      return (
+        <View key={componenteData.key} style={styles.componentContainer}>
+          <View style={styles.componentHeader}>
+            <View style={styles.componentHeaderLeft}>
+              <Text style={styles.componentIcon}>{componenteData.icon}</Text>
+              <Text style={styles.componentTitle}>{formatComponentTitle(componenteData.title)}</Text>
+              {totalImages > 0 && (
+                <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+              )}
+            </View>
+          </View>
+          
+          {renderPruebaNeumaticaComponent(componenteData.key)}
         </View>
       );
     }
@@ -2072,6 +2316,414 @@ const FormularioDinamico = ({ order, onClose }) => {
   const scrollRef = useRef(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
+  // Validación específica para Cartuchos_Gas (Recambio de fusibles térmicos)
+  const isCartuchosGasCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN CARTUCHOS_GAS');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      
+      // Debug: Mostrar todas las fotos para esta orden
+      const { data: todasLasFotos } = await supabase
+        .from('informe_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', order.id);
+      console.log('📸 TODAS las fotos en la orden:', todasLasFotos);
+      
+      // Debug: Mostrar todas las observaciones para esta orden
+      const { data: todasLasObs } = await supabase
+        .from('observaciones_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', order.id);
+      console.log('📝 TODAS las observaciones en la orden:', todasLasObs);
+      
+      // Verificar que tenga al menos 1 foto ANTES
+      const { data: fotosAntes, error: errorAntes } = await supabase
+        .from('informe_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Cartuchos_Gas')
+        .eq('seccion', 'ANTES');
+
+      console.log('📷 Fotos ANTES encontradas:', fotosAntes?.length || 0, fotosAntes);
+      if (errorAntes) console.error('❌ Error buscando fotos ANTES:', errorAntes);
+
+      // Verificar que tenga al menos 1 foto DESPUES
+      const { data: fotosDespues, error: errorDespues } = await supabase
+        .from('informe_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Cartuchos_Gas')
+        .eq('seccion', 'DESPUES');
+
+      console.log('📷 Fotos DESPUÉS encontradas:', fotosDespues?.length || 0, fotosDespues);
+      if (errorDespues) console.error('❌ Error buscando fotos DESPUÉS:', errorDespues);
+
+      // Verificar que tenga observaciones en la sección DESPUES
+      const { data: observaciones, error: errorObs } = await supabase
+        .from('observaciones_fotografias')
+        .select('observaciones')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Cartuchos_Gas')
+        .eq('seccion', 'DESPUES');
+
+      console.log('📝 Observaciones encontradas:', observaciones, 'Error:', errorObs);
+
+      // Evaluar condiciones
+      const hasPhotosAntes = fotosAntes && fotosAntes.length > 0;
+      const hasPhotosDespues = fotosDespues && fotosDespues.length > 0;
+      const hasObservaciones = observaciones && observaciones.length > 0 && 
+                              observaciones[0]?.observaciones && 
+                              observaciones[0].observaciones.trim() !== '';
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotos ANTES:', hasPhotosAntes);
+      console.log('  - Fotos DESPUÉS:', hasPhotosDespues);
+      console.log('  - Observaciones:', hasObservaciones);
+      
+      const isComplete = hasPhotosAntes && hasPhotosDespues && hasObservaciones;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
+  // Validación específica para Boquillas_Sistema (Valvula de Gas)
+  const isBoquillasSistemaCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN BOQUILLAS_SISTEMA (VALVULA DE GAS)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      
+      // Verificar que tenga al menos 1 foto
+      const { data: fotos, error: errorFotos } = await supabase
+        .from('informe_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Boquillas_Sistema')
+        .eq('seccion', 'FOTO');
+
+      console.log('📷 Fotos encontradas:', fotos?.length || 0, fotos);
+      if (errorFotos) console.error('❌ Error buscando fotos:', errorFotos);
+
+      // Verificar que tenga observaciones
+      const { data: observaciones, error: errorObs } = await supabase
+        .from('observaciones_fotografias')
+        .select('observaciones')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Boquillas_Sistema')
+        .eq('seccion', 'FOTO');
+
+      console.log('📝 Observaciones encontradas:', observaciones, 'Error:', errorObs);
+
+      // Evaluar condiciones
+      const hasFotos = fotos && fotos.length > 0;
+      const hasObservaciones = observaciones && observaciones.length > 0 && 
+                              observaciones[0]?.observaciones && 
+                              observaciones[0].observaciones.trim() !== '';
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografías:', hasFotos);
+      console.log('  - Observaciones:', hasObservaciones);
+      
+      const isComplete = hasFotos && hasObservaciones;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
+  // Validación específica para Panel_Control (Alimentación Eléctrica)
+  const isPanelControlCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN PANEL_CONTROL (ALIMENTACIÓN ELÉCTRICA)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      
+      // Verificar que tenga al menos 1 foto
+      const { data: fotos, error: errorFotos } = await supabase
+        .from('informe_fotografias')
+        .select('*')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Panel_Control')
+        .eq('seccion', 'FOTO');
+
+      console.log('📷 Fotos encontradas:', fotos?.length || 0, fotos);
+      if (errorFotos) console.error('❌ Error buscando fotos:', errorFotos);
+
+      // Verificar que tenga estado (observaciones)
+      const { data: observaciones, error: errorObs } = await supabase
+        .from('observaciones_fotografias')
+        .select('observaciones')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Panel_Control')
+        .eq('seccion', 'FOTO');
+
+      console.log('📝 Estado encontrado:', observaciones, 'Error:', errorObs);
+
+      // Evaluar condiciones
+      const hasFotos = fotos && fotos.length > 0;
+      const hasEstado = observaciones && observaciones.length > 0 && 
+                       observaciones[0]?.observaciones && 
+                       observaciones[0].observaciones.trim() !== '';
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografías:', hasFotos);
+      console.log('  - Estado:', hasEstado);
+      
+      const isComplete = hasFotos && hasEstado;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
+  // Validación específica para Pruebas_Sistema (Panel de Alarma)
+  const isPruebasSistemaCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN PRUEBAS_SISTEMA (PANEL DE ALARMA)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      
+      // Verificar que tenga fotografía
+      const { data: fotografias, error: errorFoto } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Pruebas_Sistema')
+        .eq('seccion', 'FOTO');
+
+      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+      
+      // Verificar que tenga estado y observaciones
+      const { data: observaciones, error: errorObs } = await supabase
+        .from('observaciones_fotografias')
+        .select('observaciones')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Pruebas_Sistema')
+        .eq('seccion', 'FOTO');
+
+      console.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
+
+      // Evaluar condiciones
+      const hasFotografia = fotografias && fotografias.length > 0;
+      const hasEstadoObservaciones = observaciones && observaciones.length > 0 && 
+                                    observaciones[0]?.observaciones && 
+                                    observaciones[0].observaciones.trim() !== '';
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografía:', hasFotografia);
+      console.log('  - Estado y Observaciones:', hasEstadoObservaciones);
+      
+      const isComplete = hasFotografia && hasEstadoObservaciones;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
+  // Validación específica para Prueba_Neumatica (Prueba neumática a cañerías de distribución)
+  const isPruebaNeumaticaCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN PRUEBA_NEUMATICA (CAÑERÍAS DE DISTRIBUCIÓN)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      
+      // Verificar que tenga fotografía
+      const { data: fotografias, error: errorFoto } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Prueba_Neumatica')
+        .eq('seccion', 'PROCESO');
+
+      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+      
+      // Verificar que tenga estado y observaciones
+      const { data: observaciones, error: errorObs } = await supabase
+        .from('observaciones_fotografias')
+        .select('observaciones')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Prueba_Neumatica')
+        .eq('seccion', 'PROCESO');
+
+      console.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
+
+      // Evaluar condiciones
+      const hasFotografia = fotografias && fotografias.length > 0;
+      const hasEstadoObservaciones = observaciones && observaciones.length > 0 && 
+                                    observaciones[0]?.observaciones && 
+                                    observaciones[0].observaciones.trim() !== '';
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografía:', hasFotografia);
+      console.log('  - Estado y Observaciones:', hasEstadoObservaciones);
+      
+      const isComplete = hasFotografia && hasEstadoObservaciones;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
+  // Validación específica para Tipo_Cartucho (Tipo de cartucho expulsor, cantidad y su peso)
+  const isTipoCartuchoCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN TIPO_CARTUCHO (CARTUCHO EXPULSOR)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      
+      // Verificar que tenga fotografía
+      const { data: fotografias, error: errorFoto } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Tipo_Cartucho')
+        .eq('seccion', 'PROCESO');
+
+      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+      
+      // Verificar que tenga estado y observaciones
+      const { data: observaciones, error: errorObs } = await supabase
+        .from('observaciones_fotografias')
+        .select('observaciones')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Tipo_Cartucho')
+        .eq('seccion', 'PROCESO');
+
+      console.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
+
+      // Evaluar condiciones
+      const hasFotografia = fotografias && fotografias.length > 0;
+      const hasEstadoObservaciones = observaciones && observaciones.length > 0 && 
+                                    observaciones[0]?.observaciones && 
+                                    observaciones[0].observaciones.trim() !== '';
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografía:', hasFotografia);
+      console.log('  - Estado y Observaciones:', hasEstadoObservaciones);
+      
+      const isComplete = hasFotografia && hasEstadoObservaciones;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
+  // Validación específica para Recibo_Conforme (Recibo Conforme)
+  const isReciboConformeCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN RECIBO_CONFORME (FOTOGRAFÍA DE CONFORMIDAD)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      
+      // Verificar que tenga fotografía
+      const { data: fotografias, error: errorFoto } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Recibo_Conforme')
+        .eq('seccion', 'ANTES');
+
+      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+
+      // Evaluar condiciones
+      const hasFotografia = fotografias && fotografias.length > 0;
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografía de Conformidad:', hasFotografia);
+      
+      const isComplete = hasFotografia;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
   useEffect(() => {
     cargarEstructuraFormulario();
   }, []);
@@ -2458,6 +3110,197 @@ const FormularioDinamico = ({ order, onClose }) => {
       if (missingFields.length > 0) {
         Alert.alert('Campos Requeridos', `Por favor completa: ${missingFields.join(', ')}`);
         return;
+      }
+
+      // Validación específica para RECAMBIO DE FUSIBLES TÉRMICOS (solo para informe ANSUL)
+      if (tableName === 'informe_ansul_r102') {
+        console.log('🧪 Ejecutando validación Cartuchos_Gas...');
+        const cartuchosGasComplete = await isCartuchosGasCompleteForm();
+        console.log('🔍 Resultado validación:', cartuchosGasComplete);
+        
+        if (!cartuchosGasComplete) {
+          console.log('❌ Validación falló - mostrando alerta');
+          Alert.alert(
+            'RECAMBIO DE FUSIBLES TÉRMICOS Incompleto',
+            'Para actualizar los datos debes completar la sección "RECAMBIO DE FUSIBLES TÉRMICOS":\n\n• Al menos 1 foto ANTES\n• Al menos 1 foto DESPUÉS\n• Observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Cartuchos_Gas pasó - continuando con guardado');
+        }
+
+        // Validación específica para VALVULA DE GAS (solo para informe ANSUL)
+        console.log('🧪 Ejecutando validación Boquillas_Sistema...');
+        const boquillasSistemaComplete = await isBoquillasSistemaCompleteForm();
+        console.log('🔍 Resultado validación Boquillas_Sistema:', boquillasSistemaComplete);
+        
+        if (!boquillasSistemaComplete) {
+          console.log('❌ Validación Boquillas_Sistema falló - mostrando alerta');
+          Alert.alert(
+            'VALVULA DE GAS Incompleta',
+            'Para actualizar los datos debes completar la sección "VALVULA DE GAS":\n\n• Al menos 1 fotografía\n• Medida de toma de válvula (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Boquillas_Sistema - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Boquillas_Sistema pasó - continuando con guardado');
+        }
+
+        // Validación específica para ALIMENTACIÓN ELÉCTRICA (solo para informe ANSUL)
+        console.log('🧪 Ejecutando validación Panel_Control...');
+        const panelControlComplete = await isPanelControlCompleteForm();
+        console.log('🔍 Resultado validación Panel_Control:', panelControlComplete);
+        
+        if (!panelControlComplete) {
+          console.log('❌ Validación Panel_Control falló - mostrando alerta');
+          Alert.alert(
+            'ALIMENTACIÓN ELÉCTRICA Incompleta',
+            'Para actualizar los datos debes completar la sección "ALIMENTACIÓN ELÉCTRICA / SI APLICARA":\n\n• Al menos 1 fotografía\n• Estado (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Panel_Control - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Panel_Control pasó - continuando con guardado');
+        }
+
+        // Validación específica para PANEL DE ALARMA (solo para informe ANSUL)
+        console.log('🧪 Ejecutando validación Pruebas_Sistema...');
+        const pruebasSistemaComplete = await isPruebasSistemaCompleteForm();
+        console.log('🔍 Resultado validación Pruebas_Sistema:', pruebasSistemaComplete);
+        
+        if (!pruebasSistemaComplete) {
+          console.log('❌ Validación Pruebas_Sistema falló - mostrando alerta');
+          Alert.alert(
+            'PANEL DE ALARMA Incompleto',
+            'Para actualizar los datos debes completar la sección "PANEL DE ALARMA / SI APLICARA":\n\n• Fotografía (obligatoria)\n• Estado y observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Pruebas_Sistema - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Pruebas_Sistema pasó - continuando con guardado');
+        }
+
+        // Validación específica para PRUEBA NEUMÁTICA A CAÑERÍAS (solo para informe ANSUL)
+        console.log('🧪 Ejecutando validación Prueba_Neumatica...');
+        const pruebaNeumaticaComplete = await isPruebaNeumaticaCompleteForm();
+        console.log('🔍 Resultado validación Prueba_Neumatica:', pruebaNeumaticaComplete);
+        
+        if (!pruebaNeumaticaComplete) {
+          console.log('❌ Validación Prueba_Neumatica falló - mostrando alerta');
+          Alert.alert(
+            'PRUEBA NEUMÁTICA Incompleta',
+            'Para actualizar los datos debes completar la sección "PRUEBA NEUMÁTICA A CAÑERÍAS DE DISTRIBUCIÓN":\n\n• Fotografía (obligatoria)\n• Estado y observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Prueba_Neumatica - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Prueba_Neumatica pasó - continuando con guardado');
+        }
+
+        // Validación específica para TIPO DE CARTUCHO EXPULSOR (solo para informe ANSUL)
+        console.log('📦 Ejecutando validación Tipo_Cartucho...');
+        const tipoCartuchoComplete = await isTipoCartuchoCompleteForm();
+        console.log('🔍 Resultado validación Tipo_Cartucho:', tipoCartuchoComplete);
+        
+        if (!tipoCartuchoComplete) {
+          console.log('❌ Validación Tipo_Cartucho falló - mostrando alerta');
+          Alert.alert(
+            'TIPO DE CARTUCHO EXPULSOR Incompleto',
+            'Para actualizar los datos debes completar la sección "TIPO DE CARTUCHO EXPULSOR, CANTIDAD Y SU PESO":\n\n• Fotografía (obligatoria)\n• Estado y observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Tipo_Cartucho - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Tipo_Cartucho pasó - continuando con guardado');
+        }
+
+        // Validación específica para RECIBO CONFORME (solo para informe ANSUL)
+        console.log('✅ Ejecutando validación Recibo_Conforme...');
+        const reciboConformeComplete = await isReciboConformeCompleteForm();
+        console.log('🔍 Resultado validación Recibo_Conforme:', reciboConformeComplete);
+        
+        if (!reciboConformeComplete) {
+          console.log('❌ Validación Recibo_Conforme falló - mostrando alerta');
+          Alert.alert(
+            'RECIBO CONFORME Incompleto',
+            'Para actualizar los datos debes completar la sección "RECIBO CONFORME":\n\n• Fotografía de Conformidad (obligatoria)\n\nVe a la sección FOTOGRAFÍAS para completar este campo.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Recibo_Conforme - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Recibo_Conforme pasó - continuando con guardado');
+        }
       }
 
       // Preparar datos para guardar, transformando campos numéricos vacíos a null
@@ -4049,6 +4892,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#007AFF',
     fontWeight: '600',
+  },
+  requiredFieldText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginLeft: 5,
   },
 });
 
