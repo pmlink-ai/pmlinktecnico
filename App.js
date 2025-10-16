@@ -2731,13 +2731,31 @@ const FormularioDinamico = ({ order, onClose }) => {
     console.log('🔍 VALIDACIÓN CAMPANA_1 (TODAS LAS FOTOGRAFÍAS)');
     console.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', orderId);
+      console.log('📋 Orden ID:', order.id);
+      console.log('🔧 Tabla actual:', tableName);
+      
+      // Verificar si estamos en el formulario correcto
+      if (tableName !== 'informe_limpieza_ductos') {
+        console.log('⚠️ No es formulario de ductos, saltando validación');
+        return true;
+      }
+      
+      // Primero verificar todas las fotografías de Campana_1 disponibles
+      console.log('🔍 Verificando TODAS las fotografías de Campana_1...');
+      const { data: todasFotosCampana1, error: errorGeneral } = await supabase
+        .from('informe_fotografias')
+        .select('id, componente, seccion, url')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Campana_1');
+
+      console.log('📸 TODAS las fotografías Campana_1:', todasFotosCampana1);
+      console.log('❌ Error general:', errorGeneral);
       
       // Verificar fotografías ANTES
       const { data: fotosAntes, error: errorAntes } = await supabase
         .from('informe_fotografias')
         .select('id')
-        .eq('orden_trabajo_id', orderId)
+        .eq('orden_trabajo_id', order.id)
         .eq('componente', 'Campana_1')
         .eq('seccion', 'ANTES');
 
@@ -2747,7 +2765,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       const { data: fotosProceso, error: errorProceso } = await supabase
         .from('informe_fotografias')
         .select('id')
-        .eq('orden_trabajo_id', orderId)
+        .eq('orden_trabajo_id', order.id)
         .eq('componente', 'Campana_1')
         .eq('seccion', 'PROCESO');
 
@@ -2757,7 +2775,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       const { data: fotosDespues, error: errorDespues } = await supabase
         .from('informe_fotografias')
         .select('id')
-        .eq('orden_trabajo_id', orderId)
+        .eq('orden_trabajo_id', order.id)
         .eq('componente', 'Campana_1')
         .eq('seccion', 'DESPUES');
 
@@ -3463,7 +3481,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       console.log('📋 Columnas válidas en la tabla:', validColumns);
       
       // Campos que siempre pueden estar presentes
-      const alwaysAllowedFields = ['orden_trabajo_id', 'encargado', 'asist_personal', 'horas_trabajo', 'cantidad_de_motores'];
+      const alwaysAllowedFields = ['orden_trabajo_id', 'encargado', 'asist_personal', 'horas_trabajo', 'cantidad_de_motores', 'cliente', 'nombre_local', 'fecha_inicio'];
       
       // Crear lista de todos los campos permitidos para esta tabla
       const allowedFields = [...validColumns, ...alwaysAllowedFields];
