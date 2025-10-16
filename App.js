@@ -2724,6 +2724,72 @@ const FormularioDinamico = ({ order, onClose }) => {
     }
   };
 
+  // Validación específica para Campana_1 (Limpieza de ductos)
+  const isCampana1CompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN CAMPANA_1 (TODAS LAS FOTOGRAFÍAS)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', orderId);
+      
+      // Verificar fotografías ANTES
+      const { data: fotosAntes, error: errorAntes } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', orderId)
+        .eq('componente', 'Campana_1')
+        .eq('seccion', 'ANTES');
+
+      console.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
+      
+      // Verificar fotografías PROCESO
+      const { data: fotosProceso, error: errorProceso } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', orderId)
+        .eq('componente', 'Campana_1')
+        .eq('seccion', 'PROCESO');
+
+      console.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
+      
+      // Verificar fotografías DESPUÉS
+      const { data: fotosDespues, error: errorDespues } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', orderId)
+        .eq('componente', 'Campana_1')
+        .eq('seccion', 'DESPUES');
+
+      console.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
+
+      // Evaluar condiciones
+      const hasFotosAntes = fotosAntes && fotosAntes.length > 0;
+      const hasFotosProceso = fotosProceso && fotosProceso.length > 0;
+      const hasFotosDespues = fotosDespues && fotosDespues.length > 0;
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
+      console.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
+      console.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
+      
+      const isComplete = hasFotosAntes && hasFotosProceso && hasFotosDespues;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
   useEffect(() => {
     cargarEstructuraFormulario();
   }, []);
@@ -3349,6 +3415,39 @@ const FormularioDinamico = ({ order, onClose }) => {
           return;
         } else {
           console.log('✅ Validación Recibo_Conforme pasó - continuando con guardado');
+        }
+      }
+
+      // 🚀 Validaciones específicas para LIMPIEZA DE DUCTOS
+      if (tableName === 'informe_limpieza_ductos') {
+        console.log('');
+        console.log('🔧 ===== VALIDACIONES LIMPIEZA DE DUCTOS =====');
+        
+        // Validación específica para CAMPANA 1 (solo para informe ductos)
+        console.log('📸 Ejecutando validación Campana_1...');
+        const campana1Complete = await isCampana1CompleteForm();
+        console.log('🔍 Resultado validación Campana_1:', campana1Complete);
+        
+        if (!campana1Complete) {
+          console.log('❌ Validación Campana_1 falló - mostrando alerta');
+          Alert.alert(
+            'CAMPANA 1 Incompleta',
+            'Para actualizar los datos debes completar todas las fotografías de la sección "CAMPANA 1":\n\n• Fotografía ANTES (obligatoria)\n• Fotografía PROCESO (obligatoria)\n• Fotografía DESPUÉS (obligatoria)\n\nVe a la sección CAMPANA 1 para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Campana_1 - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Campana_1 pasó - continuando con guardado');
         }
       }
 
