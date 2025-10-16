@@ -2808,6 +2808,90 @@ const FormularioDinamico = ({ order, onClose }) => {
     }
   };
 
+  // Validación específica para Ductos_y_Registros (Limpieza de ductos)
+  const isDuctosYRegistrosCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN DUCTOS_Y_REGISTROS (TODAS LAS FOTOGRAFÍAS)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      console.log('🔧 Tabla actual:', tableName);
+      
+      // Verificar si estamos en el formulario correcto
+      if (tableName !== 'informe_limpieza_ductos') {
+        console.log('⚠️ No es formulario de ductos, saltando validación');
+        return true;
+      }
+      
+      // Primero verificar todas las fotografías de Ductos_y_Registros disponibles
+      console.log('🔍 Verificando TODAS las fotografías de Ductos_y_Registros...');
+      const { data: todasFotosDuctos, error: errorGeneral } = await supabase
+        .from('informe_fotografias')
+        .select('id, componente, seccion, url')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Ductos_y_Registros');
+
+      console.log('📸 TODAS las fotografías Ductos_y_Registros:', todasFotosDuctos);
+      console.log('❌ Error general:', errorGeneral);
+      
+      // Verificar fotografías ANTES
+      const { data: fotosAntes, error: errorAntes } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Ductos_y_Registros')
+        .eq('seccion', 'ANTES');
+
+      console.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
+      
+      // Verificar fotografías PROCESO
+      const { data: fotosProceso, error: errorProceso } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Ductos_y_Registros')
+        .eq('seccion', 'PROCESO');
+
+      console.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
+      
+      // Verificar fotografías DESPUÉS
+      const { data: fotosDespues, error: errorDespues } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Ductos_y_Registros')
+        .eq('seccion', 'DESPUES');
+
+      console.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
+
+      // Evaluar condiciones
+      const hasFotosAntes = fotosAntes && fotosAntes.length > 0;
+      const hasFotosProceso = fotosProceso && fotosProceso.length > 0;
+      const hasFotosDespues = fotosDespues && fotosDespues.length > 0;
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
+      console.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
+      console.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
+      
+      const isComplete = hasFotosAntes && hasFotosProceso && hasFotosDespues;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
   useEffect(() => {
     cargarEstructuraFormulario();
   }, []);
@@ -3466,6 +3550,33 @@ const FormularioDinamico = ({ order, onClose }) => {
           return;
         } else {
           console.log('✅ Validación Campana_1 pasó - continuando con guardado');
+        }
+
+        // Validación específica para DUCTOS Y REGISTROS (solo para informe ductos)
+        console.log('📸 Ejecutando validación Ductos_y_Registros...');
+        const ductosRegistrosComplete = await isDuctosYRegistrosCompleteForm();
+        console.log('🔍 Resultado validación Ductos_y_Registros:', ductosRegistrosComplete);
+        
+        if (!ductosRegistrosComplete) {
+          console.log('❌ Validación Ductos_y_Registros falló - mostrando alerta');
+          Alert.alert(
+            'DUCTOS Y REGISTROS Incompleto',
+            'Para actualizar los datos debes completar todas las fotografías de la sección "DUCTOS Y REGISTROS":\n\n• Fotografía ANTES (obligatoria)\n• Fotografía PROCESO (obligatoria)\n• Fotografía DESPUÉS (obligatoria)\n\nVe a la sección DUCTOS Y REGISTROS para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Ductos_y_Registros - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Ductos_y_Registros pasó - continuando con guardado');
         }
       }
 
