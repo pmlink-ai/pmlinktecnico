@@ -2892,6 +2892,157 @@ const FormularioDinamico = ({ order, onClose }) => {
     }
   };
 
+  // Validación específica para Motores_y_Cubierta (Limpieza de ductos)
+  const isMotoresYCubiertaCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN MOTORES_Y_CUBIERTA (TODAS LAS FOTOGRAFÍAS)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      console.log('🔧 Tabla actual:', tableName);
+      
+      // Verificar si estamos en el formulario correcto
+      if (tableName !== 'informe_limpieza_ductos') {
+        console.log('⚠️ No es formulario de ductos, saltando validación');
+        return true;
+      }
+      
+      // Primero verificar todas las fotografías de Motores_y_Cubierta disponibles
+      console.log('🔍 Verificando TODAS las fotografías de Motores_y_Cubierta...');
+      const { data: todasFotosMotores, error: errorGeneral } = await supabase
+        .from('informe_fotografias')
+        .select('id, componente, seccion, url')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Motores_y_Cubierta');
+
+      console.log('📸 TODAS las fotografías Motores_y_Cubierta:', todasFotosMotores);
+      console.log('❌ Error general:', errorGeneral);
+      
+      // Verificar fotografías ANTES
+      const { data: fotosAntes, error: errorAntes } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Motores_y_Cubierta')
+        .eq('seccion', 'ANTES');
+
+      console.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
+      
+      // Verificar fotografías PROCESO
+      const { data: fotosProceso, error: errorProceso } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Motores_y_Cubierta')
+        .eq('seccion', 'PROCESO');
+
+      console.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
+      
+      // Verificar fotografías DESPUÉS
+      const { data: fotosDespues, error: errorDespues } = await supabase
+        .from('informe_fotografias')
+        .select('id')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Motores_y_Cubierta')
+        .eq('seccion', 'DESPUES');
+
+      console.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
+
+      // Evaluar condiciones
+      const hasFotosAntes = fotosAntes && fotosAntes.length > 0;
+      const hasFotosProceso = fotosProceso && fotosProceso.length > 0;
+      const hasFotosDespues = fotosDespues && fotosDespues.length > 0;
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
+      console.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
+      console.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
+      
+      const isComplete = hasFotosAntes && hasFotosProceso && hasFotosDespues;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
+  // Validación específica para Panoramica_y_Sector (Limpieza de ductos)
+  const isPanoramicaYSectorCompleteForm = async () => {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VALIDACIÓN PANORAMICA_Y_SECTOR (FOTOGRAFÍA Y CAMPO OBLIGATORIOS)');
+    console.log('═══════════════════════════════════════');
+    try {
+      console.log('📋 Orden ID:', order.id);
+      console.log('🔧 Tabla actual:', tableName);
+      
+      // Verificar si estamos en el formulario correcto
+      if (tableName !== 'informe_limpieza_ductos') {
+        console.log('⚠️ No es formulario de ductos, saltando validación');
+        return true;
+      }
+      
+      // Verificar fotografías de Panoramica_y_Sector (solo sección ANTES)
+      console.log('🔍 Verificando fotografías de Panoramica_y_Sector...');
+      const { data: fotosPanoramica, error: errorFotos } = await supabase
+        .from('informe_fotografias')
+        .select('id, componente, seccion')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Panoramica_y_Sector')
+        .eq('seccion', 'ANTES');
+
+      console.log('📸 Fotografías Panoramica_y_Sector encontradas:', fotosPanoramica);
+      console.log('❌ Error fotografías:', errorFotos);
+      
+      // Verificar campo obligatorio en observaciones_fotografias
+      console.log('🔍 Verificando campo observación de Panoramica_y_Sector...');
+      const { data: observacionData, error: errorObservacion } = await supabase
+        .from('observaciones_fotografias')
+        .select('observaciones')
+        .eq('orden_trabajo_id', order.id)
+        .eq('componente', 'Panoramica_y_Sector')
+        .single();
+
+      console.log('📝 Observación Panoramica_y_Sector encontrada:', observacionData);
+      console.log('❌ Error observación:', errorObservacion);
+
+      // Evaluar condiciones
+      const hasFotoPanoramica = fotosPanoramica && fotosPanoramica.length > 0;
+      const hasObservacionPanoramica = observacionData && observacionData.observaciones && 
+                                      observacionData.observaciones.trim() !== '';
+
+      console.log('✅ Validación resultados:');
+      console.log('  - Fotografía ANTES:', hasFotoPanoramica, `(${fotosPanoramica?.length || 0})`);
+      console.log('  - Campo observación:', hasObservacionPanoramica);
+      console.log('  - Contenido observación:', observacionData?.observaciones || 'VACÍO');
+      
+      const isComplete = hasFotoPanoramica && hasObservacionPanoramica;
+      console.log('');
+      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
+      return isComplete;
+    } catch (error) {
+      console.log('');
+      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      console.log('   Stack:', error.stack);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return false;
+    }
+  };
+
   useEffect(() => {
     cargarEstructuraFormulario();
   }, []);
@@ -3577,6 +3728,60 @@ const FormularioDinamico = ({ order, onClose }) => {
           return;
         } else {
           console.log('✅ Validación Ductos_y_Registros pasó - continuando con guardado');
+        }
+
+        // Validación específica para MOTORES Y CUBIERTA (solo para informe ductos)
+        console.log('📸 Ejecutando validación Motores_y_Cubierta...');
+        const motoresCubiertaComplete = await isMotoresYCubiertaCompleteForm();
+        console.log('🔍 Resultado validación Motores_y_Cubierta:', motoresCubiertaComplete);
+        
+        if (!motoresCubiertaComplete) {
+          console.log('❌ Validación Motores_y_Cubierta falló - mostrando alerta');
+          Alert.alert(
+            'MOTORES Y CUBIERTA Incompleto',
+            'Para actualizar los datos debes completar todas las fotografías de la sección "MOTORES Y CUBIERTA":\n\n• Fotografía ANTES (obligatoria)\n• Fotografía PROCESO (obligatoria)\n• Fotografía DESPUÉS (obligatoria)\n\nVe a la sección MOTORES Y CUBIERTA para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Motores_y_Cubierta - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Motores_y_Cubierta pasó - continuando con guardado');
+        }
+
+        // Validación específica para PANORAMICA Y/O SECTOR (solo para informe ductos)
+        console.log('📸 Ejecutando validación Panoramica_y_Sector...');
+        const panoramicaSectorComplete = await isPanoramicaYSectorCompleteForm();
+        console.log('🔍 Resultado validación Panoramica_y_Sector:', panoramicaSectorComplete);
+        
+        if (!panoramicaSectorComplete) {
+          console.log('❌ Validación Panoramica_y_Sector falló - mostrando alerta');
+          Alert.alert(
+            'PANORAMICA Y/O SECTOR Incompleto',
+            'Para actualizar los datos debes completar la sección "PANORAMICA Y/O SECTOR":\n\n• Fotografía ANTES (obligatoria)\n• Campo "¿REQUIERE TRATAMIENTO DE LIMPIEZA DE CUBIERTA?" (obligatorio)\n\nVe a la sección PANORAMICA Y/O SECTOR para completar estos campos.',
+            [
+              { 
+                text: 'Saltar validación (temporal)', 
+                onPress: () => {
+                  console.log('⚠️ Usuario saltó validación Panoramica_y_Sector - continuando guardado');
+                  // Continuar con el guardado sin validación
+                }, 
+                style: 'destructive' 
+              },
+              { text: 'Entendido', style: 'default' }
+            ]
+          );
+          return;
+        } else {
+          console.log('✅ Validación Panoramica_y_Sector pasó - continuando con guardado');
         }
       }
 
