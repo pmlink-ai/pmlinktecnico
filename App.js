@@ -3092,25 +3092,74 @@ const FormularioDinamico = ({ order, onClose }) => {
 
   const handleSubmit = async () => {
     try {
+      console.log('');
+      console.log('🚀 ===== INICIO HANDLESUBMIT =====');
+      console.log('📋 Tabla:', tableName);
+      console.log('📊 FormData actual:', formData);
+      console.log('🔍 ExistingRecord:', existingRecord);
+      console.log('⚙️ Campos disponibles:', campos.map(c => c.column_name));
+      
       setSaving(true);
 
       if (!tableName) {
+        console.log('❌ ERROR: No hay tableName configurado');
         Alert.alert('Error', 'No se ha configurado la tabla del formulario');
         return;
       }
 
       // Validar campos requeridos (de la tabla + campos especiales)
-      // Obtener todos los campos obligatorios dinámicamente
-      const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
+      console.log('');
+      console.log('✅ ===== VALIDACIÓN CAMPOS REQUERIDOS =====');
+      
+      // Campos base de la tabla
+      const tableFields = campos.map(campo => campo.column_name);
+      
+      // Campos especiales que pueden o no existir según el tipo de informe
+      const specialFields = ['encargado', 'asist_personal', 'horas_trabajo'];
+      
+      // Campos específicos de ANSUL R-102
+      const ansulSpecificFields = ['cliente', 'nombre_local', 'fecha_inicio'];
+      
+      // Combinar campos según el tipo de informe
+      let allFields = [...tableFields, ...specialFields];
+      if (tableName === 'informe_ansul_r102') {
+        allFields = [...allFields, ...ansulSpecificFields];
+      }
+      
+      console.log('📋 Todos los campos posibles para', tableName, ':', allFields);
+      
       const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
-      const missingFields = requiredFields.filter(fieldName => 
-        !formData[fieldName] || formData[fieldName].trim() === ''
-      ).map(fieldName => formatFieldName(fieldName));
+      console.log('⚠️ Campos requeridos detectados:', requiredFields);
+      
+      const missingFields = requiredFields.filter(fieldName => {
+        const value = formData[fieldName];
+        // Verificar si el campo está vacío, null, undefined o string vacío
+        if (value === null || value === undefined || value === '') {
+          return true;
+        }
+        // Si es string, verificar si está vacío después de trim
+        if (typeof value === 'string' && value.trim() === '') {
+          return true;
+        }
+        return false;
+      });
+      console.log('❌ Campos faltantes:', missingFields);
+      console.log('📊 Valores actuales de campos requeridos:');
+      requiredFields.forEach(field => {
+        const value = formData[field];
+        const valueType = typeof value;
+        console.log(`   - ${field}: "${value}" (tipo: ${valueType})`);
+      });
 
       if (missingFields.length > 0) {
-        Alert.alert('Campos Requeridos', `Por favor completa: ${missingFields.join(', ')}`);
+        const missingFieldsFormatted = missingFields.map(fieldName => formatFieldName(fieldName));
+        console.log('🚨 Deteniendo guardado por campos faltantes:', missingFieldsFormatted);
+        Alert.alert('Campos Requeridos', `Por favor completa: ${missingFieldsFormatted.join(', ')}`);
         return;
       }
+      
+      console.log('✅ Validación de campos requeridos PASADA');
+      console.log('==========================================');
 
       // Validación específica para RECAMBIO DE FUSIBLES TÉRMICOS (solo para informe ANSUL)
       if (tableName === 'informe_ansul_r102') {
@@ -3304,7 +3353,32 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       // Preparar datos para guardar, transformando campos numéricos vacíos a null
+      console.log('');
+      console.log('🔄 ===== PREPARACIÓN DE DATOS =====');
+      console.log('📝 Datos originales:', formData);
+      
       const dataToSave = { ...formData };
+      
+      // Filtrar campos según la tabla - eliminar campos que no existen en la tabla actual
+      const validColumns = campos.map(campo => campo.column_name);
+      console.log('📋 Columnas válidas en la tabla:', validColumns);
+      
+      // Campos que siempre pueden estar presentes
+      const alwaysAllowedFields = ['orden_trabajo_id', 'encargado', 'asist_personal', 'horas_trabajo', 'cantidad_de_motores'];
+      
+      // Crear lista de todos los campos permitidos para esta tabla
+      const allowedFields = [...validColumns, ...alwaysAllowedFields];
+      console.log('✅ Campos permitidos:', allowedFields);
+      
+      // Filtrar dataToSave para incluir solo campos válidos
+      Object.keys(dataToSave).forEach(key => {
+        if (!allowedFields.includes(key)) {
+          console.log(`🗑️ Eliminando campo '${key}' - no permitido en tabla ${tableName}`);
+          delete dataToSave[key];
+        }
+      });
+      
+      console.log('📋 Datos a guardar (filtrados):', dataToSave);
       
       // Identificar y procesar campos numéricos según los tipos de la tabla
       campos.forEach(campo => {
@@ -3335,28 +3409,47 @@ const FormularioDinamico = ({ order, onClose }) => {
         }
       });
 
-      console.log('💾 Guardando en tabla:', tableName);
+      console.log('');
+      console.log('💾 ===== OPERACIÓN DE GUARDADO =====');
+      console.log('🗃️ Tabla destino:', tableName);
       console.log('📝 Datos originales:', formData);
-      console.log('📝 Datos a guardar (procesados):', dataToSave);
+      console.log('📝 Datos procesados:', dataToSave);
+      console.log('🔍 ¿Es actualización?', !!existingRecord);
+      if (existingRecord) {
+        console.log('🆔 ID del registro existente:', existingRecord.id);
+      }
 
       let result;
       if (existingRecord) {
         // Actualizar registro existente
+        console.log('🔄 Ejecutando UPDATE...');
         result = await supabase
           .from(tableName)
           .update(dataToSave)
           .eq('id', existingRecord.id);
+        console.log('✅ Resultado UPDATE:', result);
       } else {
         // Crear nuevo registro
+        console.log('➕ Ejecutando INSERT...');
         result = await supabase
           .from(tableName)
           .insert([dataToSave])
           .select();
+        console.log('✅ Resultado INSERT:', result);
       }
 
       if (result.error) {
-        console.error('❌ Error guardando:', result.error);
-        Alert.alert('Error', 'No se pudo guardar el formulario');
+        console.log('');
+        console.log('❌ ===== ERROR EN GUARDADO =====');
+        console.error('💥 Error completo:', result.error);
+        console.error('📊 Código:', result.error.code);
+        console.error('💬 Mensaje:', result.error.message);
+        console.error('📋 Detalles:', result.error.details);
+        console.error('💡 Sugerencia:', result.error.hint);
+        console.log('🗃️ Tabla que falló:', tableName);
+        console.log('📝 Datos que causaron error:', dataToSave);
+        console.log('================================');
+        Alert.alert('Error', `No se pudo guardar el formulario: ${result.error.message}`);
         return;
       }
 
@@ -3383,8 +3476,16 @@ const FormularioDinamico = ({ order, onClose }) => {
       );
 
     } catch (error) {
-      console.error('❌ Error general al guardar:', error);
-      Alert.alert('Error', 'Error inesperado al guardar');
+      console.log('');
+      console.log('💥 ===== ERROR GENERAL HANDLESUBMIT =====');
+      console.error('🚨 Error completo:', error);
+      console.error('📝 Mensaje:', error.message);
+      console.error('📍 Stack trace:', error.stack);
+      console.log('🗃️ Tabla actual:', tableName);
+      console.log('📊 FormData al momento del error:', formData);
+      console.log('🔍 ExistingRecord al momento del error:', existingRecord);
+      console.log('=====================================');
+      Alert.alert('Error', `Error inesperado al guardar: ${error.message}`);
     } finally {
       setSaving(false);
     }
