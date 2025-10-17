@@ -788,24 +788,19 @@ export class PDFService {
     `;
   }
 
-  // Generar tabla de diagnóstico específica para Mantenimiento Electromecánico
+  // Generar tabla de diagnóstico específica para Mantenimiento Electromecánico - ACTUALIZADO
   static generateElectromecanicosDiagnosticTable(formData) {
+    console.log('🔧 Generando tabla electromecánica ACTUALIZADA');
     const electromecanicosItems = [
       // Componentes principales según la estructura real de la tabla
-      { label: 'Rejillas Motor', field: 'rejillas_motor_estado' },
+      { label: 'Rejillas en el Motor', field: 'rejillas_motor_estado' },
       { label: 'Cantidad de Motores', field: 'cantidad_motores' },
-      { label: 'Estado del Fuelle', field: 'fuelle_estado' },
-      { label: 'Modelo de Correas', field: 'correas_modelo' },
-      { label: 'Estado de Rodamientos', field: 'rodamientos_estado' },
-      
-      // Mediciones de consumo eléctrico
-      { label: 'Consumo Fase R (A)', field: 'consumo_fase_r' },
-      { label: 'Consumo Fase S (A)', field: 'consumo_fase_s' },
-      { label: 'Consumo Fase T (A)', field: 'consumo_fase_t' },
+      { label: 'Fuelle', field: 'fuelle_estado' },
+      { label: 'Correas', field: 'correas_modelo' },
+      { label: 'Rodamientos', field: 'rodamientos_estado' },
       
       // Información del servicio
       { label: 'Horas de Trabajo', field: 'horas_trabajo' },
-      { label: 'Asistencia Personal', field: 'asistencia_personal' },
     ];
 
     return `

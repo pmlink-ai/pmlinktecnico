@@ -1,0 +1,34 @@
+🔧 CORRECCIÓN APLICADA - MAPEO DE TABLA
+=======================================
+
+❌ PROBLEMA IDENTIFICADO:
+El form_key en Supabase es "INFORME_MTTO_ELECTROMECANICO" pero la tabla real se llama "informe_electromecanico"
+
+✅ SOLUCIÓN IMPLEMENTADA:
+Agregado mapeo explícito entre form_key y nombre de tabla real
+
+📝 CAMBIOS REALIZADOS EN App.js:
+
+1. **Función getFormComponent()** - Línea ~2023:
+   - Cambio de toLowerCase() a comparación exacta con form_key
+   - Reconoce "INFORME_MTTO_ELECTROMECANICO" correctamente
+
+2. **Conversión form_key a tabla** - Línea ~3178:
+   ```javascript
+   const formKeyToTableMapping = {
+     'INFORME_MTTO_ELECTROMECANICO': 'informe_electromecanico',
+     'INFORME_LIMPIEZA_DUCTOS': 'informe_limpieza_ductos',
+     'INFORME_ANSUL_R102': 'informe_ansul_r102'
+   };
+   ```
+
+3. **Función getComponentesActuales()** - Línea ~148:
+   - Agregado el mismo mapeo para componentes fotográficos
+
+🎯 RESULTADO:
+- El error "relation 'informe_mtto_electromecanico' does not exist" debería estar resuelto
+- Ahora usará correctamente "informe_electromecanico" como nombre de tabla
+- El form_key "INFORME_MTTO_ELECTROMECANICO" se mapea correctamente
+
+🚀 ESTADO: LISTO PARA PROBAR
+=======================================

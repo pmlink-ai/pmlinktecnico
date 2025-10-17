@@ -20,16 +20,11 @@ El **INFORME ELECTROMECANICO** es un formulario especializado en el mantenimient
 - `horas_trabajo` (TEXT) - Horas de trabajo empleadas
 
 #### **Componentes Físicos**
-- `rejillas_motor_estado` (TEXT) - Estado de las rejillas del motor
-- `cantidad_motores` (INTEGER) - Cantidad de motores en el sistema
-- `fuelle_estado` (TEXT) - Estado del fuelle
-- `correas_modelo` (TEXT) - Modelo de las correas
-- `rodamientos_estado` (TEXT) - Estado de los rodamientos
-
-#### **Mediciones Eléctricas**
-- `consumo_fase_r` (NUMERIC 5,2) - Consumo eléctrico fase R en amperios
-- `consumo_fase_s` (NUMERIC 5,2) - Consumo eléctrico fase S en amperios
-- `consumo_fase_t` (NUMERIC 5,2) - Consumo eléctrico fase T en amperios
+- `rejillas_motor_estado` (TEXT) - Rejillas en el Motor
+- `cantidad_motores` (INTEGER) - Cantidad de Motores  
+- `fuelle_estado` (TEXT) - Fuelle
+- `correas_modelo` (TEXT) - Correas
+- `rodamientos_estado` (TEXT) - Rodamientos
 
 #### **Observaciones**
 - `observaciones_generales` (TEXT) - Observaciones generales del servicio
@@ -90,9 +85,9 @@ El **INFORME ELECTROMECANICO** es un formulario especializado en el mantenimient
 
 ### **Tabla de Diagnóstico Especializada**
 La tabla incluye todos los componentes específicos del mantenimiento electromecánico según la estructura real:
-- **Componentes físicos**: Rejillas motor, cantidad de motores, fuelle, correas, rodamientos
-- **Mediciones eléctricas**: Consumo por fases (R, S, T) en amperios
+- **Componentes físicos**: Rejillas en el Motor, Cantidad de Motores, Fuelle, Correas, Rodamientos
 - **Información del servicio**: Horas de trabajo, personal asistente
+- **Observaciones**: Observaciones generales del servicio
 
 ## 🔧 Configuración de Base de Datos
 

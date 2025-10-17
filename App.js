@@ -68,7 +68,7 @@ const getStorageFolderName = (componenteKey, informeTabla) => {
       'Ductos_Salida': 'DUCTOS_SALIDA',
       'Recibo_Conforme': 'RECIBO_CONFORME'
     },
-    'informe_mtto_electromecanico': {
+    'informe_electromecanico': {
       'Observaciones_Fotograficas': 'OBSERVACIONES_FOTOGRAFICAS',
       'Motor_Principal': 'MOTOR_PRINCIPAL',
       'Sistema_Electrico': 'SISTEMA_ELECTRICO',
@@ -108,7 +108,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       { key: 'Tipo_Cartucho', title: 'Tipo de cartucho expulsor, cantidad y su peso', icon: '📦' },
       { key: 'Recibo_Conforme', title: 'Recibo Conforme', icon: '✅' }
     ],
-    'informe_mtto_electromecanico': [
+    'informe_electromecanico': [
       { key: 'Observaciones_Fotograficas', title: 'Observaciones Fotográficas', icon: '📸' },
       { key: 'Motor_Principal', title: 'Motor Principal', icon: '⚙️' },
       { key: 'Sistema_Electrico', title: 'Sistema Eléctrico', icon: '⚡' },
@@ -146,7 +146,14 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
   // Obtener componentes para el servicio actual
   const getComponentesActuales = () => {
-    const tablaKey = informeTabla?.toLowerCase() || 'default';
+    // Mapear form_key a nombre de tabla real para componentes
+    const formKeyToTableMapping = {
+      'INFORME_MTTO_ELECTROMECANICO': 'informe_electromecanico',
+      'INFORME_LIMPIEZA_DUCTOS': 'informe_limpieza_ductos',
+      'INFORME_ANSUL_R102': 'informe_ansul_r102'
+    };
+    
+    const tablaKey = formKeyToTableMapping[informeTabla] || informeTabla?.toLowerCase() || 'default';
     return componentesPorServicio[tablaKey] || componentesPorServicio.default;
   };
 
@@ -2023,9 +2030,9 @@ const OrderDetailScreen = ({ route, navigation }) => {
   const getFormComponent = () => {
     if (!formularioInfo?.form_key) return null;
 
-    const formKey = formularioInfo.form_key.toLowerCase();
+    const formKey = formularioInfo.form_key;
     
-    if (formKey.includes('limpieza_ductos') || formKey.includes('ansul_r102') || formKey.includes('mtto_electromecanico')) {
+    if (formKey === 'INFORME_LIMPIEZA_DUCTOS' || formKey === 'INFORME_ANSUL_R102' || formKey === 'INFORME_MTTO_ELECTROMECANICO') {
       return <FormularioDinamico order={order} onClose={() => setShowFormModal(false)} />;
     }
     
@@ -3175,9 +3182,15 @@ const FormularioDinamico = ({ order, onClose }) => {
 
       console.log('✅ Form Key obtenido:', formularioData.form_key);
 
-      // Paso 4: Usar el form_key como nombre de tabla
+      // Paso 4: Mapear form_key a nombre de tabla real
+      const formKeyToTableMapping = {
+        'INFORME_MTTO_ELECTROMECANICO': 'informe_electromecanico',
+        'INFORME_LIMPIEZA_DUCTOS': 'informe_limpieza_ductos',
+        'INFORME_ANSUL_R102': 'informe_ansul_r102'
+      };
+      
       const tableNameQuery = formularioData.form_key.toUpperCase();
-      const tableNameLower = formularioData.form_key.toLowerCase();
+      const tableNameLower = formKeyToTableMapping[formularioData.form_key] || formularioData.form_key.toLowerCase();
       
       setTableName(tableNameLower);
 
@@ -3200,9 +3213,9 @@ const FormularioDinamico = ({ order, onClose }) => {
       console.log('✅ Tabla accesible:', tableNameQuery);
 
       // Obtener estructura de la tabla
-      console.log('🔍 Llamando a get_table_structure con:', tableNameQuery);
+      console.log('🔍 Llamando a get_table_structure con:', tableNameLower);
       const { data: estructura, error: estructuraError } = await supabase
-        .rpc('get_table_structure', { input_table_name: tableNameQuery });
+        .rpc('get_table_structure', { input_table_name: tableNameLower });
 
       if (estructuraError) {
         console.error('❌ Error obteniendo estructura:', estructuraError);
@@ -3222,7 +3235,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       // Filtrar campos que no queremos mostrar (incluyendo los especiales que se muestran al inicio)
-      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'asistencia_personal', 'horas_trabajo'];
+      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'asist_personal', 'asistencia_personal', 'horas_trabajo', 'consumo_fase_r', 'consumo_fase_s', 'consumo_fase_t'];
       const camposFiltrados = estructura.filter(campo => 
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
@@ -3380,6 +3393,13 @@ const FormularioDinamico = ({ order, onClose }) => {
       'correas': 'CORREAS',
       'rodamientos': 'RODAMIENTOS',
       
+      // Campos de mantenimiento electromecánico
+      'rejillas_motor_estado': 'REJILLAS EN EL MOTOR',
+      'cantidad_motores': 'CANTIDAD DE MOTORES',
+      'fuelle_estado': 'FUELLE',
+      'correas_modelo': 'CORREAS',
+      'rodamientos_estado': 'RODAMIENTOS',
+      
       // Campos de ANSUL R102
       'inspeccion_visual_montaje': 'INSPECCIÓN VISUAL DEL CORRECTO MONTAJE DEL SISTEMA',
       'estado_cartuchos_gas': 'ESTADO DE CARTUCHOS DE GAS EXPULSOR',
@@ -3395,7 +3415,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       'estado_piola_acero': 'ESTADO DE PIOLA DE ACERO INOX DE LA LINEA DE DETECCIÓN',
       'verificacion_automan_gas': 'CORROBORAR QUE AUTOMAN DE GAS SE ACTIVO LUEGO DE LA PRUEBA DE DETONACION',
       'verificacion_senal_alarma': 'SEÑAL DE ALARMA SE ACTIVO AL DETONAR',
-      'observaciones_generales': 'OBSERVACIONES GENERALES',
+      'observaciones_generales': 'OBSERVACIONES',
       
       // Campos comunes
       'observaciones': 'OBSERVACIONES',
@@ -3454,7 +3474,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       const tableFields = campos.map(campo => campo.column_name);
       
       // Campos especiales que pueden o no existir según el tipo de informe
-      const specialFields = ['asistencia_personal', 'horas_trabajo'];
+      const specialFields = ['horas_trabajo'];
       
       // Campos específicos de ANSUL R-102
       const ansulSpecificFields = ['cliente', 'nombre_local', 'fecha_inicio'];
@@ -3828,7 +3848,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       console.log('📋 Columnas válidas en la tabla:', validColumns);
       
       // Campos que siempre pueden estar presentes
-      const alwaysAllowedFields = ['orden_trabajo_id', 'asistencia_personal', 'horas_trabajo', 'cantidad_motores', 'cliente', 'nombre_local', 'fecha_inicio'];
+      const alwaysAllowedFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'nombre_local', 'fecha_inicio'];
       
       // Crear lista de todos los campos permitidos para esta tabla
       const allowedFields = [...validColumns, ...alwaysAllowedFields];
@@ -3979,7 +3999,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       } else if (tableName === 'informe_limpieza_ductos') {
         fileName = `FORMULARIO_INFORME_LIMPIEZA_DUCTOS_${order.id?.substring(0, 8)}`;
       } else if (tableName === 'informe_electromecanico') {
-        fileName = `FORMULARIO_INFORME_MTTO_ELECTROMECANICO_${order.id?.substring(0, 8)}`;
+        fileName = `FORMULARIO_INFORME_ELECTROMECANICO_${order.id?.substring(0, 8)}`;
       } else {
         // Para otros formularios, usar el nombre de la tabla formateado
         fileName = `FORMULARIO_${tableName.replace(/_/g, '_').toUpperCase()}_${order.id?.substring(0, 8)}`;
@@ -3992,7 +4012,7 @@ const FormularioDinamico = ({ order, onClose }) => {
         console.log('🔍 Validando campos obligatorios para ANSUL R-102...');
         
         // Obtener todos los campos obligatorios dinámicamente
-        const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'asistencia_personal', 'horas_trabajo'];
+        const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'horas_trabajo'];
         const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
         
         console.log('📋 Campos obligatorios a validar:', requiredFields);
@@ -4345,7 +4365,7 @@ const FormularioDinamico = ({ order, onClose }) => {
                   
                   {/* Campos dinámicos de la tabla */}
                   {campos.filter(campo => 
-                    !['cliente', 'nombre_local', 'fecha_inicio', 'asistencia_personal', 'horas_trabajo'].includes(campo.column_name)
+                    !['cliente', 'nombre_local', 'fecha_inicio', 'horas_trabajo'].includes(campo.column_name)
                   ).map(renderField)}
                 </>
               )}
