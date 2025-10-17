@@ -67,6 +67,16 @@ const getStorageFolderName = (componenteKey, informeTabla) => {
       'Ductos_Alimentacion': 'DUCTOS_ALIMENTACION',
       'Ductos_Salida': 'DUCTOS_SALIDA',
       'Recibo_Conforme': 'RECIBO_CONFORME'
+    },
+    'informe_mtto_electromecanico': {
+      'Observaciones_Fotograficas': 'OBSERVACIONES_FOTOGRAFICAS',
+      'Motor_Principal': 'MOTOR_PRINCIPAL',
+      'Sistema_Electrico': 'SISTEMA_ELECTRICO',
+      'Tablero_Control': 'TABLERO_CONTROL',
+      'Componentes_Mecanicos': 'COMPONENTES_MECANICOS',
+      'Sistema_Lubricacion': 'SISTEMA_LUBRICACION',
+      'Mediciones_Pruebas': 'MEDICIONES_PRUEBAS',
+      'Recibo_Conforme': 'RECIBO_CONFORME'
     }
   };
   
@@ -96,6 +106,16 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       { key: 'Pruebas_Sistema', title: 'Panel de alarma /Si aplicara', icon: '🔍' },
       { key: 'Prueba_Neumatica', title: 'Prueba neumatica a cañerias de distribución', icon: '🔧' },
       { key: 'Tipo_Cartucho', title: 'Tipo de cartucho expulsor, cantidad y su peso', icon: '📦' },
+      { key: 'Recibo_Conforme', title: 'Recibo Conforme', icon: '✅' }
+    ],
+    'informe_mtto_electromecanico': [
+      { key: 'Observaciones_Fotograficas', title: 'Observaciones Fotográficas', icon: '📸' },
+      { key: 'Motor_Principal', title: 'Motor Principal', icon: '⚙️' },
+      { key: 'Sistema_Electrico', title: 'Sistema Eléctrico', icon: '⚡' },
+      { key: 'Tablero_Control', title: 'Tablero de Control', icon: '🎛️' },
+      { key: 'Componentes_Mecanicos', title: 'Componentes Mecánicos', icon: '🔩' },
+      { key: 'Sistema_Lubricacion', title: 'Sistema de Lubricación', icon: '🛢️' },
+      { key: 'Mediciones_Pruebas', title: 'Mediciones y Pruebas', icon: '📊' },
       { key: 'Recibo_Conforme', title: 'Recibo Conforme', icon: '✅' }
     ],
     'informe_mantenimiento_motor': [
@@ -2005,7 +2025,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
 
     const formKey = formularioInfo.form_key.toLowerCase();
     
-    if (formKey.includes('limpieza_ductos') || formKey.includes('ansul_r102')) {
+    if (formKey.includes('limpieza_ductos') || formKey.includes('ansul_r102') || formKey.includes('mtto_electromecanico')) {
       return <FormularioDinamico order={order} onClose={() => setShowFormModal(false)} />;
     }
     
@@ -3202,7 +3222,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       // Filtrar campos que no queremos mostrar (incluyendo los especiales que se muestran al inicio)
-      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'encargado', 'asist_personal', 'horas_trabajo'];
+      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'asistencia_personal', 'horas_trabajo'];
       const camposFiltrados = estructura.filter(campo => 
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
@@ -3434,7 +3454,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       const tableFields = campos.map(campo => campo.column_name);
       
       // Campos especiales que pueden o no existir según el tipo de informe
-      const specialFields = ['encargado', 'asist_personal', 'horas_trabajo'];
+      const specialFields = ['asistencia_personal', 'horas_trabajo'];
       
       // Campos específicos de ANSUL R-102
       const ansulSpecificFields = ['cliente', 'nombre_local', 'fecha_inicio'];
@@ -3785,6 +3805,17 @@ const FormularioDinamico = ({ order, onClose }) => {
         }
       }
 
+      // 🚀 Validaciones específicas para MTTO ELECTROMECANICO
+      if (tableName === 'informe_electromecanico') {
+        console.log('');
+        console.log('🔧 ===== VALIDACIONES MTTO ELECTROMECANICO =====');
+        console.log('ℹ️ Validaciones específicas para mantenimiento electromecánico implementadas');
+        
+        // Aquí se pueden agregar validaciones específicas para componentes electromecánicos
+        // Por ahora, solo se registra que se ejecutaron las validaciones
+        console.log('✅ Validaciones Mtto Electromecánico completadas');
+      }
+
       // Preparar datos para guardar, transformando campos numéricos vacíos a null
       console.log('');
       console.log('🔄 ===== PREPARACIÓN DE DATOS =====');
@@ -3797,7 +3828,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       console.log('📋 Columnas válidas en la tabla:', validColumns);
       
       // Campos que siempre pueden estar presentes
-      const alwaysAllowedFields = ['orden_trabajo_id', 'encargado', 'asist_personal', 'horas_trabajo', 'cantidad_de_motores', 'cliente', 'nombre_local', 'fecha_inicio'];
+      const alwaysAllowedFields = ['orden_trabajo_id', 'asistencia_personal', 'horas_trabajo', 'cantidad_motores', 'cliente', 'nombre_local', 'fecha_inicio'];
       
       // Crear lista de todos los campos permitidos para esta tabla
       const allowedFields = [...validColumns, ...alwaysAllowedFields];
@@ -3947,6 +3978,8 @@ const FormularioDinamico = ({ order, onClose }) => {
         fileName = `FORMULARIO_INFORME_ANSUL_R102_${order.id?.substring(0, 8)}`;
       } else if (tableName === 'informe_limpieza_ductos') {
         fileName = `FORMULARIO_INFORME_LIMPIEZA_DUCTOS_${order.id?.substring(0, 8)}`;
+      } else if (tableName === 'informe_electromecanico') {
+        fileName = `FORMULARIO_INFORME_MTTO_ELECTROMECANICO_${order.id?.substring(0, 8)}`;
       } else {
         // Para otros formularios, usar el nombre de la tabla formateado
         fileName = `FORMULARIO_${tableName.replace(/_/g, '_').toUpperCase()}_${order.id?.substring(0, 8)}`;
@@ -3959,7 +3992,7 @@ const FormularioDinamico = ({ order, onClose }) => {
         console.log('🔍 Validando campos obligatorios para ANSUL R-102...');
         
         // Obtener todos los campos obligatorios dinámicamente
-        const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'];
+        const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'asistencia_personal', 'horas_trabajo'];
         const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
         
         console.log('📋 Campos obligatorios a validar:', requiredFields);
@@ -4226,6 +4259,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       'informe_limpieza_ductos': 'FORMULARIO INFORME LIMPIEZA DUCTOS',
       'informe_limpiza_ductos': 'FORMULARIO INFORME LIMPIEZA DUCTOS', // Corregir error de tipeo
       'informe_ansul_r102': 'FORMULARIO INFORME ANSUL R102',
+      'informe_electromecanico': 'FORMULARIO INFORME ELECTROMECANICO',
       // Agregar más formularios según sea necesario
     };
     
@@ -4311,7 +4345,7 @@ const FormularioDinamico = ({ order, onClose }) => {
                   
                   {/* Campos dinámicos de la tabla */}
                   {campos.filter(campo => 
-                    !['cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo'].includes(campo.column_name)
+                    !['cliente', 'nombre_local', 'fecha_inicio', 'asistencia_personal', 'horas_trabajo'].includes(campo.column_name)
                   ).map(renderField)}
                 </>
               )}

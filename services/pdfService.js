@@ -30,6 +30,16 @@ export class PDFService {
         'Ductos_Alimentacion': 'DUCTOS_ALIMENTACION',
         'Ductos_Salida': 'DUCTOS_SALIDA',
         'Recibo_Conforme': 'RECIBO_CONFORME'
+      },
+      'informe_electromecanico': {
+        'Observaciones_Fotograficas': 'OBSERVACIONES_FOTOGRAFICAS',
+        'Rejillas_Motor': 'REJILLAS_MOTOR',
+        'Motores': 'MOTORES',
+        'Fuelle': 'FUELLE',
+        'Correas': 'CORREAS',
+        'Rodamientos': 'RODAMIENTOS',
+        'Consumo_Electrico': 'CONSUMO_ELECTRICO',
+        'Recibo_Conforme': 'RECIBO_CONFORME'
       }
     };
     
@@ -275,8 +285,10 @@ export class PDFService {
           return 'INFORME DE MANTEIMIENTO SEMESTRAL ANSUL R-102';
         case 'informe_limpieza_ductos':
           return 'INFORME LIMPIEZA DE DUCTOS';
+        case 'informe_electromecanico':
+          return 'INFORME MANTENIMIENTO ELECTROMECÁNICO';
         default:
-          return 'INFORME LIMPIEZA DE DUCTOS';
+          return 'INFORME TÉCNICO';
       }
     };
     
@@ -285,6 +297,8 @@ export class PDFService {
     // Generar contenido específico según el tipo de informe
     if (tableName === 'informe_ansul_r102') {
       return this.generateAnsulR102PDF(order, formData, service, photos, observaciones, tecnicos, informeTitle);
+    } else if (tableName === 'informe_electromecanico') {
+      return this.generateMttoElectromecanicosPDF(order, formData, service, photos, tecnicos, informeTitle);
     } else {
       return this.generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle);
     }
@@ -307,6 +321,29 @@ export class PDFService {
           ${this.generateTecnicosSection(tecnicos)}
           ${this.generateServiceDataSection(order, service, formData)}
           ${this.generateDiagnosticTable(formData)}
+          ${this.generatePhotosSection(photos)}
+        </body>
+      </html>
+    `;
+  }
+
+  // Generar PDF específico para Mantenimiento Electromecánico
+  static generateMttoElectromecanicosPDF(order, formData, service, photos, tecnicos, informeTitle) {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Informe de Mantenimiento Electromecánico</title>
+          <style>
+            ${this.getPDFStyles()}
+          </style>
+        </head>
+        <body>
+          ${this.generateHeaderSection(order, service, informeTitle)}
+          ${this.generateTecnicosSection(tecnicos)}
+          ${this.generateServiceDataSection(order, service, formData)}
+          ${this.generateElectromecanicosDiagnosticTable(formData)}
           ${this.generatePhotosSection(photos)}
         </body>
       </html>
@@ -745,6 +782,59 @@ export class PDFService {
           <div class="observations">
             <div class="observations-title">Observaciones</div>
             <div>${formData.observaciones}</div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Generar tabla de diagnóstico específica para Mantenimiento Electromecánico
+  static generateElectromecanicosDiagnosticTable(formData) {
+    const electromecanicosItems = [
+      // Componentes principales según la estructura real de la tabla
+      { label: 'Rejillas Motor', field: 'rejillas_motor_estado' },
+      { label: 'Cantidad de Motores', field: 'cantidad_motores' },
+      { label: 'Estado del Fuelle', field: 'fuelle_estado' },
+      { label: 'Modelo de Correas', field: 'correas_modelo' },
+      { label: 'Estado de Rodamientos', field: 'rodamientos_estado' },
+      
+      // Mediciones de consumo eléctrico
+      { label: 'Consumo Fase R (A)', field: 'consumo_fase_r' },
+      { label: 'Consumo Fase S (A)', field: 'consumo_fase_s' },
+      { label: 'Consumo Fase T (A)', field: 'consumo_fase_t' },
+      
+      // Información del servicio
+      { label: 'Horas de Trabajo', field: 'horas_trabajo' },
+      { label: 'Asistencia Personal', field: 'asistencia_personal' },
+    ];
+
+    return `
+      <div class="diagnostic-section">
+        <div class="section-title">TABLA DE DIAGNÓSTICO - MANTENIMIENTO ELECTROMECÁNICO</div>
+        <table class="diagnostic-table">
+          <thead>
+            <tr>
+              <th style="width: 60%;">COMPONENTE/PARÁMETRO</th>
+              <th style="width: 40%;">ESTADO/MEDICIÓN</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${electromecanicosItems.map(item => {
+              const value = formData[item.field] || '';
+              return `
+                <tr>
+                  <td class="component-name">${item.label}</td>
+                  <td class="component-status">${value}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+        
+        ${formData.observaciones_generales ? `
+          <div class="observations">
+            <div class="observations-title">Observaciones</div>
+            <div>${formData.observaciones_generales}</div>
           </div>
         ` : ''}
       </div>
