@@ -565,6 +565,55 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     return currentImages.length < 4;
   };
 
+  // Función para validar fotografías obligatorias antes de avanzar
+  const validateRequiredPhotos = (componenteKey) => {
+    if (informeTabla !== 'informe_limpieza_ductos') return true;
+    
+    // Verificar si el componente tiene datos de imágenes
+    const componenteImages = imagesByComponenteAndSeccion[componenteKey];
+    if (!componenteImages) {
+      console.log(`❌ No hay estructura de imágenes para componente ${componenteKey}`);
+      return false; // No hay estructura, considerar como falta de fotos
+    }
+    
+    // Para limpieza ductos, las secciones típicas son ANTES, DESPUES, PROCESO
+    // Verificar cada sección que existe en la estructura
+    const seccionesDisponibles = Object.keys(componenteImages);
+    let tieneFotoEnAlgunaSeccion = false;
+    
+    for (const seccion of seccionesDisponibles) {
+      const images = componenteImages[seccion] || [];
+      if (images.length > 0) {
+        tieneFotoEnAlgunaSeccion = true;
+        console.log(`✅ Componente ${componenteKey}, sección ${seccion} tiene ${images.length} fotos`);
+      } else {
+        console.log(`⚠️ Componente ${componenteKey}, sección ${seccion} sin fotos`);
+      }
+    }
+    
+    if (!tieneFotoEnAlgunaSeccion) {
+      console.log(`❌ Componente ${componenteKey} no tiene fotos en ninguna sección`);
+      return false; // Necesita al menos una foto en alguna sección
+    }
+    
+    console.log(`✅ Componente ${componenteKey} validado correctamente`);
+    return true; // Tiene al menos una foto
+  };
+
+  // Función para mostrar mensaje de validación de fotos
+  const showPhotoValidationAlert = (componenteTitle) => {
+    Alert.alert(
+      '📸 Fotografías Obligatorias',
+      `No puede continuar al siguiente componente sin completar todas las fotografías obligatorias de "${componenteTitle}".\n\n⚠️ Debe tomar al menos una fotografía en cada sección marcada como obligatoria.`,
+      [
+        { 
+          text: 'Entendido', 
+          style: 'default'
+        }
+      ]
+    );
+  };
+
   // Función helper para obtener texto del botón según el límite
   const getAddPhotoButtonText = (componenteKey, seccionKey, seccionTitle) => {
     // Para el componente Prueba_Neumatica en ANSUL R102, cambiar PROCESO por RESPALDO
@@ -626,9 +675,30 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionData.key] || [];
     const uploadingKey = `${componenteKey}_${seccionData.key}`;
     const isUploading = uploading[uploadingKey];
+    const isPhotoRequired = informeTabla === 'informe_limpieza_ductos';
+    const hasNoPhotos = images.length === 0;
 
     return (
       <View key={seccionData.key} style={styles.componentSection}>
+        {/* Indicador discreto para fotografía obligatoria */}
+        {isPhotoRequired && hasNoPhotos && (
+          <View style={{
+            backgroundColor: '#FFF5F5',
+            borderLeftWidth: 3,
+            borderLeftColor: '#FF6B6B',
+            padding: 8,
+            marginBottom: 8
+          }}>
+            <Text style={{
+              color: '#D63031',
+              fontSize: 12,
+              fontStyle: 'italic'
+            }}>
+              📸 Fotografía requerida - {seccionData.title}
+            </Text>
+          </View>
+        )}
+
         {images.length > 0 && (
           <FlatList
             data={images}
@@ -644,7 +714,11 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           style={[
             styles.addSectionPhotoButton, 
             { 
-              borderColor: canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc',
+              borderColor: isPhotoRequired && hasNoPhotos 
+                ? '#FF6B6B' 
+                : (canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc'),
+              borderWidth: isPhotoRequired && hasNoPhotos ? 2 : 1,
+              backgroundColor: 'white',
               opacity: canAddMorePhotos(componenteKey, seccionData.key) ? 1 : 0.5
             }
           ]}
@@ -657,17 +731,40 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
             <>
               <Text style={[
                 styles.addPhotoIcon, 
-                { color: canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc' }
+                { color: isPhotoRequired && hasNoPhotos 
+                    ? '#FF6B6B' 
+                    : (canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc') }
               ]}>📷</Text>
               <Text style={[
                 styles.addSectionPhotoText, 
-                { color: canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc' }
+                { 
+                  color: isPhotoRequired && hasNoPhotos 
+                    ? '#FF6B6B' 
+                    : (canAddMorePhotos(componenteKey, seccionData.key) ? seccionData.color : '#ccc'),
+                  fontWeight: 'normal'
+                }
               ]}>
-                {getAddPhotoButtonText(componenteKey, seccionData.key, seccionData.title)}
+                {isPhotoRequired && hasNoPhotos 
+                  ? `${seccionData.title} (Requerida)`
+                  : getAddPhotoButtonText(componenteKey, seccionData.key, seccionData.title)
+                }
               </Text>
             </>
           )}
         </TouchableOpacity>
+        
+        {/* Mensaje discreto debajo del botón */}
+        {isPhotoRequired && hasNoPhotos && (
+          <Text style={{
+            fontSize: 11,
+            color: '#999',
+            fontStyle: 'italic',
+            textAlign: 'center',
+            marginTop: 4
+          }}>
+            * Necesaria para continuar
+          </Text>
+        )}
         
         {/* Campo de observaciones por sección - solo para DESPUÉS */}
         {seccionData.key === 'DESPUES' && componenteKey !== 'Canerias_Distribucion' && componenteKey !== 'Campana_1' && componenteKey !== 'Campana_2' && componenteKey !== 'Ductos_y_Registros' && componenteKey !== 'Motores_y_Cubierta' && (
@@ -1109,8 +1206,33 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
             />
           )}
           
+          {/* Indicador discreto para fotografía obligatoria */}
+          {images.length === 0 && (
+            <View style={{
+              backgroundColor: '#FFF5F5',
+              borderLeftWidth: 3,
+              borderLeftColor: '#FF6B6B',
+              padding: 8,
+              marginBottom: 10
+            }}>
+              <Text style={{
+                color: '#D63031',
+                fontSize: 12,
+                fontStyle: 'italic'
+              }}>
+                📸 Fotografía requerida para esta sección
+              </Text>
+            </View>
+          )}
+
           <TouchableOpacity 
-            style={[styles.addSectionPhotoButton, { borderColor: '#45B7D1' }]}
+            style={[
+              styles.addSectionPhotoButton, 
+              { 
+                borderColor: images.length === 0 ? '#FF6B6B' : '#45B7D1',
+                borderWidth: images.length === 0 ? 2 : 1
+              }
+            ]}
             onPress={() => pickImage(componenteKey, 'FOTO')}
             disabled={isUploading}
           >
@@ -1119,14 +1241,25 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
             ) : (
               <>
                 <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>📷</Text>
-                <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#45B7D1' }]}>
-                  {images.length === 0 ? 'Fotografía Obligatoria' : 'Tomar Fotografía'}
+                <Text style={[styles.addSectionPhotoText, { 
+                  color: images.length === 0 ? '#FF6B6B' : '#45B7D1'
+                }]}>
+                  {images.length === 0 ? 'Tomar Fotografía (Requerida)' : 'Tomar Fotografía Adicional'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
+          
           {images.length === 0 && (
-            <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+            <Text style={{
+              fontSize: 11,
+              color: '#999',
+              fontStyle: 'italic',
+              textAlign: 'center',
+              marginTop: 4
+            }}>
+              * Necesaria para generar PDF
+            </Text>
           )}
           
           {/* Campo de observaciones personalizado */}
@@ -1193,11 +1326,30 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           />
         )}
         
+        {/* Indicador discreto para fotografía de conformidad */}
+        {images.length === 0 && (
+          <View style={{
+            backgroundColor: '#F0F8FF',
+            borderLeftWidth: 3,
+            borderLeftColor: '#28A745',
+            padding: 8,
+            marginBottom: 10
+          }}>
+            <Text style={{
+              color: '#155724',
+              fontSize: 12,
+              fontStyle: 'italic'
+            }}>
+              📸 Foto de conformidad requerida para finalizar
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity 
           style={[
             styles.addSectionPhotoButton, 
             {
-              borderColor: images.length === 0 ? '#FF6B6B' : '#28A745',
+              borderColor: images.length === 0 ? '#28A745' : '#28A745',
               borderWidth: images.length === 0 ? 2 : 1
             }
           ]}
@@ -1208,15 +1360,24 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
             <ActivityIndicator size="small" color="#28A745" />
           ) : (
             <>
-              <Text style={[styles.addPhotoIcon, { color: images.length === 0 ? '#FF6B6B' : '#28A745' }]}>📷</Text>
-              <Text style={[styles.addSectionPhotoText, { color: images.length === 0 ? '#FF6B6B' : '#28A745' }]}>
-                {images.length === 0 ? 'Fotografía Obligatoria' : 'Tomar Fotografía de Conformidad'}
+              <Text style={[styles.addPhotoIcon, { color: '#28A745' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: '#28A745' }]}>
+                {images.length === 0 ? 'Tomar Foto de Conformidad (Requerida)' : 'Agregar Foto de Conformidad'}
               </Text>
             </>
           )}
         </TouchableOpacity>
+        
         {images.length === 0 && (
-          <Text style={styles.requiredFieldText}>* Fotografía obligatoria</Text>
+          <Text style={{
+            fontSize: 11,
+            color: '#999',
+            fontStyle: 'italic',
+            textAlign: 'center',
+            marginTop: 4
+          }}>
+            * Requerida para finalizar el informe
+          </Text>
         )}
       </View>
     );
@@ -1673,7 +1834,23 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                   {currentPhotoPage < componentes.length - 1 && (
                     <TouchableOpacity 
                       style={[styles.photoNavButton, styles.photoNavButtonNext]}
-                      onPress={() => setCurrentPhotoPage(currentPhotoPage + 1)}
+                      onPress={() => {
+                        const componenteActual = componentes[currentPhotoPage];
+                        
+                        // Validar fotografías obligatorias antes de avanzar
+                        if (informeTabla === 'informe_limpieza_ductos') {
+                          const isValid = validateRequiredPhotos(componenteActual.key);
+                          if (!isValid) {
+                            // Obtener el título del componente usando getComponentesActuales()
+                            const componenteTitle = getComponentesActuales().find(c => c.key === componenteActual.key)?.title || componenteActual.key;
+                            showPhotoValidationAlert(componenteTitle);
+                            return; // No avanzar si faltan fotos
+                          }
+                        }
+                        
+                        // Si pasa la validación, avanzar a la siguiente página
+                        setCurrentPhotoPage(currentPhotoPage + 1);
+                      }}
                     >
                       <Text style={styles.photoNavButtonText}>SIGUIENTE ➡</Text>
                     </TouchableOpacity>
@@ -1973,33 +2150,59 @@ const OrderDetailScreen = ({ route, navigation }) => {
       // Obtener información del local
       if (servicioData?.local_id) {
         console.log('🔗 Obteniendo información del local...');
-        const { data: localData, error: localError } = await supabase
+        
+        // Primero, verificar qué columnas tiene la tabla 'local'
+        console.log('🔍 Diagnosticando estructura de tabla local...');
+        const { data: localDataAll, error: localErrorAll } = await supabase
           .from('local')
-          .select('nombre_local, empresa_id')
+          .select('*')
           .eq('local_id', servicioData.local_id)
           .single();
 
-        if (localError) {
-          console.error('❌ Error obteniendo local:', localError);
+        if (localErrorAll) {
+          console.error('❌ Error obteniendo local completo:', localErrorAll);
         } else {
-          console.log('✅ Información del local obtenida:', localData);
-          setLocalInfo(localData);
+          console.log('✅ Estructura completa del local:', localDataAll);
+          console.log('✅ Columnas disponibles:', Object.keys(localDataAll || {}));
+          setLocalInfo(localDataAll);
 
-          // Obtener información de la empresa
-          if (localData?.empresa_id) {
-            console.log('🔗 Obteniendo información de la empresa...');
-            const { data: empresaData, error: empresaError } = await supabase
-              .from('empresa')
-              .select('nombre_empresa')
-              .eq('empresa_id', localData.empresa_id)
+          // Nueva lógica: Local → Zona → Empresa
+          const zonaId = localDataAll?.zona_id;
+          if (zonaId) {
+            console.log('🔗 Obteniendo información de la zona con ID:', zonaId);
+            const { data: zonaData, error: zonaError } = await supabase
+              .from('zona')
+              .select('*')
+              .eq('zona_id', zonaId)
               .single();
 
-            if (empresaError) {
-              console.error('❌ Error obteniendo empresa:', empresaError);
+            if (zonaError) {
+              console.error('❌ Error obteniendo zona:', zonaError);
             } else {
-              console.log('✅ Información de la empresa obtenida:', empresaData);
-              setEmpresaInfo(empresaData);
+              console.log('✅ Información de la zona obtenida:', zonaData);
+              
+              // Ahora obtener la empresa usando zona.empresa_id
+              const empresaId = zonaData?.empresa_id;
+              if (empresaId) {
+                console.log('🔗 Obteniendo información de la empresa con ID:', empresaId);
+                const { data: empresaData, error: empresaError } = await supabase
+                  .from('empresa')
+                  .select('*')
+                  .eq('empresa_id', empresaId)
+                  .single();
+
+                if (empresaError) {
+                  console.error('❌ Error obteniendo empresa:', empresaError);
+                } else {
+                  console.log('✅ Información de la empresa obtenida:', empresaData);
+                  setEmpresaInfo(empresaData);
+                }
+              } else {
+                console.log('⚠️ La zona no tiene empresa_id asociado');
+              }
             }
+          } else {
+            console.log('⚠️ El local no tiene zona_id asociado');
           }
         }
       }
@@ -3250,12 +3453,29 @@ const FormularioDinamico = ({ order, onClose }) => {
 
       // Obtener estructura de la tabla
       console.log('🔍 Llamando a get_table_structure con:', tableNameLower);
-      const { data: estructura, error: estructuraError } = await supabase
-        .rpc('get_table_structure', { input_table_name: tableNameLower });
+      
+      let estructura;
+      try {
+        const { data: estructuraData, error: estructuraError } = await supabase
+          .rpc('get_table_structure', { input_table_name: tableNameLower });
 
-      if (estructuraError) {
-        console.error('❌ Error obteniendo estructura:', estructuraError);
-        Alert.alert('Error', `No se pudo obtener la estructura del formulario: ${estructuraError.message}`);
+        console.log('📨 Respuesta de get_table_structure recibida');
+        console.log('📊 Data:', estructuraData);
+        console.log('❌ Error:', estructuraError);
+
+        if (estructuraError) {
+          console.error('❌ Error obteniendo estructura:', estructuraError);
+          console.error('🔍 Tipo de error:', typeof estructuraError);
+          console.error('🔍 Propiedades del error:', Object.keys(estructuraError));
+          Alert.alert('Error', `No se pudo obtener la estructura del formulario: ${estructuraError.message}`);
+          setLoading(false);
+          return;
+        }
+
+        estructura = estructuraData;
+      } catch (rpcError) {
+        console.error('💥 Error ejecutando RPC get_table_structure:', rpcError);
+        Alert.alert('Error', `Error de conexión al obtener estructura: ${rpcError.message}`);
         setLoading(false);
         return;
       }
@@ -4090,6 +4310,8 @@ const FormularioDinamico = ({ order, onClose }) => {
     }
   };
 
+
+
   // Función para renderizar los campos especiales al inicio del formulario
   const renderSpecialFields = () => {
     console.log('🔧 Renderizando campos especiales...');
@@ -4137,15 +4359,25 @@ const FormularioDinamico = ({ order, onClose }) => {
       
       if (field.type === 'date') {
         console.log(`🗓️ Renderizando campo de fecha: ${field.key}, valor: ${fieldValue}`);
-        // Formatear la fecha para mostrar
+        console.log(`🗓️ Estado showDatePicker:`, showDatePicker);
+        console.log(`🗓️ Platform.OS:`, Platform.OS);
+        
+        // Formatear la fecha para mostrar - EVITANDO problemas de zona horaria
         const displayDate = fieldValue ? (() => {
           try {
-            const date = new Date(fieldValue);
-            return date.toLocaleDateString('es-ES', {
-              day: '2-digit',
-              month: '2-digit', 
-              year: 'numeric'
-            });
+            // Si fieldValue es un string YYYY-MM-DD, parsearlo manualmente
+            if (typeof fieldValue === 'string' && fieldValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const [year, month, day] = fieldValue.split('-').map(Number);
+              return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+            } else {
+              // Fallback para otros formatos
+              const date = new Date(fieldValue + 'T12:00:00'); // Agregar tiempo para evitar UTC
+              return date.toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric'
+              });
+            }
           } catch {
             return 'Fecha inválida';
           }
@@ -4159,44 +4391,59 @@ const FormularioDinamico = ({ order, onClose }) => {
             <TouchableOpacity
               style={[styles.input, { justifyContent: 'center', paddingVertical: 15 }]}
               onPress={() => {
-                console.log(`📅 Abriendo DatePicker para ${field.key}`);
-                setShowDatePicker({...showDatePicker, [field.key]: true});
+                console.log(`📅 CLICK: Abriendo DatePicker para ${field.key}`);
+                
+                // Inicializar selectedDate con la fecha actual del campo o hoy
+                let currentFieldDate;
+                if (fieldValue && typeof fieldValue === 'string' && fieldValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                  // Si es formato YYYY-MM-DD, crear fecha agregando tiempo para evitar UTC
+                  currentFieldDate = new Date(fieldValue + 'T12:00:00');
+                } else if (fieldValue) {
+                  currentFieldDate = new Date(fieldValue);
+                } else {
+                  currentFieldDate = new Date();
+                }
+                
+                console.log(`📅 Inicializando selector con:`, {
+                  fieldValue: fieldValue,
+                  currentFieldDate: currentFieldDate.toString(),
+                  day: currentFieldDate.getDate(),
+                  month: currentFieldDate.getMonth() + 1,
+                  year: currentFieldDate.getFullYear()
+                });
+                
+                setSelectedDate(currentFieldDate);
+                
+                const newState = {...showDatePicker, [field.key]: true};
+                setShowDatePicker(newState);
               }}
             >
               <Text style={displayDate ? { color: '#000' } : { color: '#999' }}>
                 {displayDate || 'Seleccionar fecha'}
               </Text>
             </TouchableOpacity>
-            
-            {/* DatePicker como Modal para Android o inline para iOS */}
-            {showDatePicker[field.key] && Platform.OS === 'android' && (
-              <DateTimePicker
-                value={fieldValue ? new Date(fieldValue) : new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker({...showDatePicker, [field.key]: false});
-                  if (selectedDate && event.type !== 'dismissed') {
-                    const dateString = selectedDate.toISOString().split('T')[0];
-                    handleInputChange(field.key, dateString);
-                  }
-                }}
-              />
-            )}
-            
-            {/* Para iOS, usamos modal explícito */}
-            {Platform.OS === 'ios' && (
+
+
+            {/* Modal con selector manual de fecha */}
+            {showDatePicker[field.key] && (
               <Modal
                 transparent={true}
                 animationType="slide"
-                visible={showDatePicker[field.key] || false}
-                onRequestClose={() => setShowDatePicker({...showDatePicker, [field.key]: false})}
+                visible={showDatePicker[field.key]}
+                onRequestClose={() => {
+                  const newState = {...showDatePicker, [field.key]: false};
+                  setShowDatePicker(newState);
+                }}
               >
                 <View style={styles.modalOverlay}>
-                  <View style={styles.datePickerModal}>
+                  <View style={[styles.datePickerModal, { minHeight: 500, maxHeight: '80%' }]}>
                     <View style={styles.datePickerHeader}>
                       <TouchableOpacity
-                        onPress={() => setShowDatePicker({...showDatePicker, [field.key]: false})}
+                        onPress={() => {
+                          console.log(`📅 Cancelar selector manual`);
+                          const newState = {...showDatePicker, [field.key]: false};
+                          setShowDatePicker(newState);
+                        }}
                         style={styles.datePickerButton}
                       >
                         <Text style={styles.datePickerButtonText}>Cancelar</Text>
@@ -4204,26 +4451,211 @@ const FormularioDinamico = ({ order, onClose }) => {
                       <Text style={styles.datePickerTitle}>Seleccionar Fecha</Text>
                       <TouchableOpacity
                         onPress={() => {
-                          setShowDatePicker({...showDatePicker, [field.key]: false});
-                          const currentDate = selectedDate || (fieldValue ? new Date(fieldValue) : new Date());
-                          const dateString = currentDate.toISOString().split('T')[0];
+                          // Usar selectedDate y asegurar que mantenga la fecha local exacta
+                          const finalDate = selectedDate || (fieldValue ? new Date(fieldValue) : new Date());
+                          
+                          // SOLUCIÓN: Crear una nueva fecha limpia para evitar problemas de zona horaria
+                          // Extraer componentes usando métodos locales
+                          const year = finalDate.getFullYear();
+                          const month = finalDate.getMonth() + 1; // +1 porque getMonth() es 0-indexed
+                          const day = finalDate.getDate();
+                          
+                          // Construir fecha string manualmente - NUNCA usar toISOString()
+                          const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                          
+                          console.log(`📅 CONFIRMANDO FECHA - DEBUG COMPLETO:`, {
+                            selectedDateOriginal: selectedDate ? selectedDate.toString() : 'null',
+                            finalDate: finalDate.toString(),
+                            componentesExtraidos: {
+                              year: year,
+                              month: month,
+                              day: day
+                            },
+                            dateStringFinal: dateString,
+                            getFullYear: finalDate.getFullYear(),
+                            getMonth: finalDate.getMonth(),
+                            getDate: finalDate.getDate(),
+                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                          });
+                          
+                          // Verificar que la fecha se construyó correctamente
+                          const verification = new Date(dateString + 'T12:00:00');
+                          console.log(`📅 VERIFICACIÓN:`, {
+                            dateStringCreated: dateString,
+                            verificationDate: verification.toString(),
+                            verificationDay: verification.getDate(),
+                            verificationMonth: verification.getMonth() + 1,
+                            verificationYear: verification.getFullYear()
+                          });
+                          
                           handleInputChange(field.key, dateString);
+                          
+                          const newState = {...showDatePicker, [field.key]: false};
+                          setShowDatePicker(newState);
                         }}
                         style={styles.datePickerButton}
                       >
                         <Text style={styles.datePickerButtonText}>Confirmar</Text>
                       </TouchableOpacity>
                     </View>
-                    <DateTimePicker
-                      value={fieldValue ? new Date(fieldValue) : new Date()}
-                      mode="date"
-                      display="spinner"
-                      onChange={(event, date) => {
-                        if (date) {
-                          setSelectedDate(date);
-                        }
-                      }}
-                    />
+                    
+                    <ScrollView style={{ flex: 1, padding: 20 }}>
+                      {(() => {
+                        // Configurar fecha actual para los selectores
+                        const currentDate = fieldValue ? new Date(fieldValue) : new Date();
+                        const currentYear = new Date().getFullYear();
+                        const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+                        const months = [
+                          { value: 0, label: 'Enero' }, { value: 1, label: 'Febrero' }, { value: 2, label: 'Marzo' },
+                          { value: 3, label: 'Abril' }, { value: 4, label: 'Mayo' }, { value: 5, label: 'Junio' },
+                          { value: 6, label: 'Julio' }, { value: 7, label: 'Agosto' }, { value: 8, label: 'Septiembre' },
+                          { value: 9, label: 'Octubre' }, { value: 10, label: 'Noviembre' }, { value: 11, label: 'Diciembre' }
+                        ];
+                        const days = Array.from({ length: 31 }, (_, i) => i + 1);
+
+                        return (
+                          <>
+                            {/* Fecha actual seleccionada */}
+                            <Text style={{ 
+                              fontSize: 18, 
+                              fontWeight: 'bold', 
+                              marginBottom: 20, 
+                              textAlign: 'center',
+                              backgroundColor: '#f0f0f0',
+                              padding: 10,
+                              borderRadius: 5
+                            }}>
+                              {(selectedDate || currentDate).toLocaleDateString('es-ES', {
+                                day: '2-digit',
+                                month: 'long', 
+                                year: 'numeric'
+                              })}
+                            </Text>
+                            
+                            {/* Selector de Año */}
+                            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>Año:</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 25 }}>
+                              {years.map(year => (
+                                <TouchableOpacity
+                                  key={year}
+                                  style={{
+                                    backgroundColor: year === (selectedDate || currentDate).getFullYear() ? '#007AFF' : '#f0f0f0',
+                                    padding: 12,
+                                    margin: 3,
+                                    borderRadius: 8,
+                                    minWidth: 70,
+                                    alignItems: 'center'
+                                  }}
+                                  onPress={() => {
+                                    const newDate = new Date(selectedDate || currentDate);
+                                    newDate.setFullYear(year);
+                                    setSelectedDate(newDate);
+                                    console.log(`📅 Año seleccionado:`, year, newDate);
+                                  }}
+                                >
+                                  <Text style={{ 
+                                    color: year === (selectedDate || currentDate).getFullYear() ? 'white' : '#333',
+                                    fontWeight: year === (selectedDate || currentDate).getFullYear() ? 'bold' : 'normal',
+                                    fontSize: 16
+                                  }}>
+                                    {year}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                            
+                            {/* Selector de Mes */}
+                            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>Mes:</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 25 }}>
+                              {months.map(month => {
+                                const isSelected = month.value === (selectedDate || currentDate).getMonth();
+                                return (
+                                  <TouchableOpacity
+                                    key={month.value}
+                                    style={{
+                                      backgroundColor: isSelected ? '#007AFF' : '#f0f0f0',
+                                      padding: 12,
+                                      margin: 3,
+                                      borderRadius: 8,
+                                      minWidth: 85,
+                                      alignItems: 'center',
+                                      borderWidth: isSelected ? 2 : 1,
+                                      borderColor: isSelected ? '#0056b3' : '#ddd'
+                                    }}
+                                    onPress={() => {
+                                      const baseDate = selectedDate || currentDate;
+                                      const newDate = new Date(baseDate.getFullYear(), month.value, baseDate.getDate());
+                                      setSelectedDate(newDate);
+                                      console.log(`📅 Mes seleccionado:`, {
+                                        monthLabel: month.label,
+                                        monthValue: month.value,
+                                        baseDate: baseDate.toString(),
+                                        newDate: newDate.toString(),
+                                        finalMonth: newDate.getMonth() + 1
+                                      });
+                                    }}
+                                  >
+                                    <Text style={{ 
+                                      color: isSelected ? 'white' : '#333',
+                                      fontWeight: isSelected ? 'bold' : 'normal',
+                                      fontSize: 13
+                                    }}>
+                                      {month.label}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                            
+                            {/* Selector de Día */}
+                            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>Día:</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                              {days.map(day => {
+                                const isSelected = day === (selectedDate || currentDate).getDate();
+                                return (
+                                  <TouchableOpacity
+                                    key={day}
+                                    style={{
+                                      backgroundColor: isSelected ? '#007AFF' : '#f0f0f0',
+                                      padding: 12,
+                                      margin: 3,
+                                      borderRadius: 8,
+                                      minWidth: 45,
+                                      minHeight: 45,
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderWidth: isSelected ? 2 : 1,
+                                      borderColor: isSelected ? '#0056b3' : '#ddd'
+                                    }}
+                                    onPress={() => {
+                                      const baseDate = selectedDate || currentDate;
+                                      const newDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), day);
+                                      setSelectedDate(newDate);
+                                      console.log(`📅 Día seleccionado:`, {
+                                        day: day,
+                                        baseDate: baseDate.toString(),
+                                        newDate: newDate.toString(),
+                                        finalDay: newDate.getDate(),
+                                        finalMonth: newDate.getMonth() + 1,
+                                        finalYear: newDate.getFullYear()
+                                      });
+                                    }}
+                                  >
+                                    <Text style={{ 
+                                      color: isSelected ? 'white' : '#333',
+                                      fontWeight: isSelected ? 'bold' : 'normal',
+                                      fontSize: 16
+                                    }}>
+                                      {day}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </>
+                        );
+                      })()}
+                    </ScrollView>
                   </View>
                 </View>
               </Modal>
