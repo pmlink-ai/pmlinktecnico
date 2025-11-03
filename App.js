@@ -10,13 +10,13 @@ import {
   TextInput,
   Alert,
   Modal,
-  SafeAreaView,
   ActivityIndicator,
   Image,
   FlatList,
   Dimensions,
   Platform
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -2343,6 +2343,42 @@ const FormularioDinamico = ({ order, onClose }) => {
   const scrollRef = useRef(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
+  // Helper para obtener componentes según el tipo de formulario
+  const getComponentesParaFormulario = (tableName) => {
+    const componentesPorTipo = {
+      'informe_limpieza_ductos': [
+        { key: 'Observaciones_Fotograficas', title: 'Observaciones Fotográficas' },
+        { key: 'Campana_1', title: 'Campana 1' },
+        { key: 'Campana_2', title: 'Campana 2' },
+        { key: 'Ductos_y_Registros', title: 'Ductos y Registros' },
+        { key: 'Motores_y_Cubierta', title: 'Motores y Cubierta' },
+        { key: 'Panoramica_y_Sector', title: 'Panorámica y/o Sector' },
+        { key: 'Recibo_Conforme', title: 'Recibo Conforme' }
+      ],
+      'informe_ansul_r102': [
+        { key: 'Sistema_Supresion', title: 'Observaciones Fotográficas' },
+        { key: 'Cartuchos_Gas', title: 'Recambio de Fusibles Térmicos' },
+        { key: 'Boquillas_Sistema', title: 'Válvula de Gas' },
+        { key: 'Panel_Control', title: 'Alimentación Eléctrica' },
+        { key: 'Pruebas_Sistema', title: 'Panel de Alarma' },
+        { key: 'Prueba_Neumatica', title: 'Prueba Neumática' },
+        { key: 'Tipo_Cartucho', title: 'Tipo de Cartucho' },
+        { key: 'Recibo_Conforme', title: 'Recibo Conforme' }
+      ],
+      'informe_electromecanico': [
+        { key: 'Rejillas_Motor', title: 'Rejillas Motor' },
+        { key: 'Motores', title: 'Motores' },
+        { key: 'Fuelle', title: 'Fuelle' },
+        { key: 'Rodamientos', title: 'Rodamientos' },
+        { key: 'Correas', title: 'Correas' },
+        { key: 'Filtros', title: 'Filtros' },
+        { key: 'Damper', title: 'Damper' },
+        { key: 'Drenajes', title: 'Drenajes' }
+      ]
+    };
+    return componentesPorTipo[tableName] || [];
+  };
+
   // Validación específica para Cartuchos_Gas (Recambio de fusibles térmicos)
   const isCartuchosGasCompleteForm = async () => {
     console.log('');
@@ -4373,23 +4409,11 @@ const FormularioDinamico = ({ order, onClose }) => {
 
             {/* BOTÓN SIGUIENTE PARA IR A FOTOGRAFÍAS */}
             <TouchableOpacity 
-              style={[
-                styles.nextButton, 
-                !existingRecord && styles.nextButtonDisabled
-              ]}
+              style={styles.nextButton}
               onPress={() => {
-                if (!existingRecord) {
-                  Alert.alert(
-                    'Actualizar Datos Primero',
-                    'Debe presionar "ACTUALIZAR DATOS" antes de acceder a las fotografías',
-                    [{ text: 'OK' }]
-                  );
-                  return;
-                }
                 setCurrentView('fotografias');
                 setCurrentPhotoPage(0); // Resetear a la primera página
               }}
-              disabled={!existingRecord}
             >
               <Text style={styles.nextButtonText}>� Fotografías ➜</Text>
             </TouchableOpacity>
@@ -4419,19 +4443,23 @@ const FormularioDinamico = ({ order, onClose }) => {
           </>
         )}
 
-        <TouchableOpacity 
-          style={styles.saveButton}
-          onPress={handleSubmit}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.saveButtonText}>
-              {existingRecord ? 'Actualizar Datos' : 'Guardar Formulario'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {/* BOTÓN GUARDAR FORMULARIO - Solo mostrar en condiciones específicas */}
+        {(currentView === 'datos' && tableName !== 'informe_limpieza_ductos') || 
+         (currentView === 'fotografias' && tableName === 'informe_limpieza_ductos' && currentPhotoPage === (getComponentesParaFormulario(tableName).length - 1)) ? (
+          <TouchableOpacity 
+            style={styles.saveButton}
+            onPress={handleSubmit}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.saveButtonText}>
+                {existingRecord ? 'Actualizar Datos' : 'Guardar Formulario'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        ) : null}
 
 
 
@@ -4452,10 +4480,33 @@ const App = () => {
 
   const checkAuthState = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsLoggedIn(!!session);
+      console.log('🔍 Verificando estado de autenticación...');
+      
+      // Intentar obtener la sesión actual
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Error obteniendo sesión:', error);
+        // Si hay error con la sesión, limpiar completamente y permitir login
+        try {
+          await supabase.auth.signOut();
+          await AsyncStorage.clear(); // Limpiar almacenamiento local corrupto
+          console.log('🧹 Almacenamiento limpiado debido a error de sesión');
+        } catch (cleanupError) {
+          console.error('Error limpiando almacenamiento:', cleanupError);
+        }
+        setIsLoggedIn(false);
+      } else if (session) {
+        console.log('✅ Sesión activa encontrada:', session.user?.email);
+        setIsLoggedIn(true);
+      } else {
+        console.log('ℹ️ No hay sesión activa');
+        setIsLoggedIn(false);
+      }
     } catch (error) {
-      console.error('Error checking auth state:', error);
+      console.error('❌ Error general verificando autenticación:', error);
+      // En caso de error, permitir login
+      setIsLoggedIn(false);
     } finally {
       setLoading(false);
     }
@@ -4463,23 +4514,27 @@ const App = () => {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator 
-        screenOptions={{ headerShown: false }}
-        initialRouteName={isLoggedIn ? "Home" : "Login"}
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Stack.Navigator 
+          screenOptions={{ headerShown: false }}
+          initialRouteName={isLoggedIn ? "Home" : "Login"}
+        >
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 };
 
