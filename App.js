@@ -3491,7 +3491,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
 
       // Filtrar campos que no queremos mostrar (incluyendo los especiales que se muestran al inicio)
-      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'asist_personal', 'asistencia_personal', 'horas_trabajo', 'consumo_fase_r', 'consumo_fase_s', 'consumo_fase_t'];
+      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'asist_personal', 'asistencia_personal', 'horas_trabajo', 'consumo_fase_r', 'consumo_fase_s', 'consumo_fase_t', 'encargado'];
       const camposFiltrados = estructura.filter(campo => 
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
@@ -3521,9 +3521,10 @@ const FormularioDinamico = ({ order, onClose }) => {
       });
       
       // Agregar campos especiales que no están en la estructura de la tabla
+      const todayDate = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
       const specialFields = [
         { key: 'cliente', defaultValue: '' },
-        { key: 'fecha_inicio', defaultValue: '' },
+        { key: 'fecha_inicio', defaultValue: todayDate },
         { key: 'nombre_local', defaultValue: '' },
         { key: 'encargado', defaultValue: '' },
         { key: 'asist_personal', defaultValue: '' },
@@ -3560,6 +3561,12 @@ const FormularioDinamico = ({ order, onClose }) => {
             : String(existingData[key]);
         });
         
+        // Si no hay fecha_inicio en los datos existentes, usar la fecha actual
+        if (!processedData.fecha_inicio || processedData.fecha_inicio.trim() === '') {
+          processedData.fecha_inicio = todayDate;
+          console.log('📅 Fecha inicio establecida a fecha actual:', todayDate);
+        }
+        
         console.log('🔍 Datos procesados:', processedData);
         console.log('🔍 cantidad_de_motores procesado:', processedData.cantidad_de_motores);
         
@@ -3567,6 +3574,7 @@ const FormularioDinamico = ({ order, onClose }) => {
         setFormData(processedData);
       } else {
         console.log('ℹ️ No se encontraron datos existentes, usando datos iniciales');
+        console.log('📅 Fecha inicio en datos iniciales:', initialData.fecha_inicio);
         console.log('🔍 FormData inicial:', initialData);
         setFormData(initialData);
       }
@@ -3630,6 +3638,60 @@ const FormularioDinamico = ({ order, onClose }) => {
     if (fieldName === 'cantidad_de_motores') {
       console.log('  - Valor final guardado:', finalValue);
     }
+  };
+
+  // Función para validar que todos los campos obligatorios estén completos
+  const areAllRequiredFieldsComplete = () => {
+    // Lista de campos obligatorios para limpieza de ductos
+    const requiredFields = [
+      'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo',
+      'campanas_estado', 'filtros_estado', 'ductos_estado', 'damper_estado', 'drenajes_estado',
+      'registros_local_estado', 'registros_techumbre_estado', 'rejillas_en_el_motor',
+      'cantidad_de_motores', 'fuelle_extractor', 'correas_estado', 'rodamientos_estado', 'observaciones_adicionales'
+    ];
+
+    console.log('🔍 Validando campos obligatorios...');
+    console.log('📋 FormData actual:', formData);
+    
+    for (const field of requiredFields) {
+      const value = formData[field];
+      const isEmpty = !value || value.toString().trim() === '';
+      
+      if (isEmpty) {
+        console.log(`❌ Campo faltante: ${field}`);
+        return false;
+      }
+    }
+    
+    console.log('✅ Todos los campos obligatorios están completos');
+    return true;
+  };
+
+  // Función para validar que todos los campos obligatorios estén completos
+  const validateAllRequiredFields = () => {
+    // Lista de campos obligatorios para limpieza de ductos (nombres reales de la BD)
+    const requiredFields = [
+      'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo',
+      'campanas_estado', 'filtros_estado', 'ductos_estado', 'damper_estado', 'drenajes_estado',
+      'registros_local_estado', 'registros_techumbre_estado', 'rejillas_en_el_motor',
+      'cantidad_de_motores', 'fuelle', 'correas', 'rodamientos', 'observaciones'
+    ];
+
+    console.log('🔍 Validando campos obligatorios...');
+    console.log('📋 FormData actual:', formData);
+    
+    for (const field of requiredFields) {
+      const value = formData[field];
+      const isEmpty = !value || value.toString().trim() === '';
+      
+      if (isEmpty) {
+        console.log(`❌ Campo faltante: ${field}`);
+        return false;
+      }
+    }
+    
+    console.log('✅ Todos los campos obligatorios están completos');
+    return true;
   };
 
   const formatFieldName = (fieldName) => {
@@ -4363,6 +4425,11 @@ const FormularioDinamico = ({ order, onClose }) => {
         console.log(`🗓️ Platform.OS:`, Platform.OS);
         
         // Formatear la fecha para mostrar - EVITANDO problemas de zona horaria
+        const getCurrentDateForDisplay = () => {
+          const today = new Date();
+          return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        };
+        
         const displayDate = fieldValue ? (() => {
           try {
             // Si fieldValue es un string YYYY-MM-DD, parsearlo manualmente
@@ -4379,9 +4446,9 @@ const FormularioDinamico = ({ order, onClose }) => {
               });
             }
           } catch {
-            return 'Fecha inválida';
+            return getCurrentDateForDisplay(); // Si hay error, mostrar fecha actual
           }
-        })() : null;
+        })() : getCurrentDateForDisplay(); // Si no hay valor, mostrar fecha actual
 
         return (
           <View key={field.key} style={styles.fieldContainer}>
@@ -4418,8 +4485,8 @@ const FormularioDinamico = ({ order, onClose }) => {
                 setShowDatePicker(newState);
               }}
             >
-              <Text style={displayDate ? { color: '#000' } : { color: '#999' }}>
-                {displayDate || 'Seleccionar fecha'}
+              <Text style={{ color: '#000' }}>
+                {displayDate}
               </Text>
             </TouchableOpacity>
 
@@ -4841,13 +4908,30 @@ const FormularioDinamico = ({ order, onClose }) => {
 
             {/* BOTÓN SIGUIENTE PARA IR A FOTOGRAFÍAS */}
             <TouchableOpacity 
-              style={styles.nextButton}
+              style={[
+                styles.nextButton,
+                !validateAllRequiredFields() && styles.nextButtonDisabled
+              ]}
               onPress={() => {
+                if (!validateAllRequiredFields()) {
+                  Alert.alert(
+                    'Campos Incompletos',
+                    'Para acceder a las fotografías, primero debes completar todos los campos obligatorios del formulario.\n\n• Verifica que todos los campos estén llenos\n• Todos los campos son requeridos para continuar',
+                    [{ text: 'Entendido', style: 'default' }]
+                  );
+                  return;
+                }
                 setCurrentView('fotografias');
                 setCurrentPhotoPage(0); // Resetear a la primera página
               }}
+              disabled={!validateAllRequiredFields()}
             >
-              <Text style={styles.nextButtonText}>� Fotografías ➜</Text>
+              <Text style={[
+                styles.nextButtonText,
+                !validateAllRequiredFields() && styles.nextButtonTextDisabled
+              ]}>
+                {validateAllRequiredFields() ? '📸 Fotografías ➜' : '🔒 Completa Campos Obligatorios'}
+              </Text>
             </TouchableOpacity>
           </>
         ) : (
