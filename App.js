@@ -569,7 +569,38 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   const validateRequiredPhotos = (componenteKey) => {
     if (informeTabla !== 'informe_limpieza_ductos') return true;
     
-    // Verificar si el componente tiene datos de imágenes
+    // CAMPANA 2 es opcional - sin validaciones de fotos requeridas
+    if (componenteKey === 'Campana_2') {
+      console.log('✅ CAMPANA 2 es opcional - no requiere validación de fotografías');
+      return true;
+    }
+    
+    // Validación específica para CAMPANA 1: requiere al menos una foto en cada sección
+    if (componenteKey === 'Campana_1') {
+      console.log('🔍 Validación especial para CAMPANA 1 - requiere fotos en todas las secciones');
+      const componenteImages = imagesByComponenteAndSeccion[componenteKey];
+      
+      if (!componenteImages) {
+        console.log('❌ No hay estructura de imágenes para CAMPANA 1');
+        return false;
+      }
+      
+      // Verificar que tenga al menos una foto en cada sección obligatoria
+      const seccionesObligatorias = ['ANTES', 'PROCESO', 'DESPUES'];
+      for (const seccion of seccionesObligatorias) {
+        const images = componenteImages[seccion] || [];
+        if (images.length === 0) {
+          console.log(`❌ CAMPANA 1 falta fotografía en sección: ${seccion}`);
+          return false;
+        }
+        console.log(`✅ CAMPANA 1 sección ${seccion} tiene ${images.length} fotos`);
+      }
+      
+      console.log('✅ CAMPANA 1 validación completa - todas las secciones tienen fotos');
+      return true;
+    }
+    
+    // Verificar si el componente tiene datos de imágenes (validación estándar para otros componentes)
     const componenteImages = imagesByComponenteAndSeccion[componenteKey];
     if (!componenteImages) {
       console.log(`❌ No hay estructura de imágenes para componente ${componenteKey}`);
@@ -639,6 +670,10 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     
     // Para informe_limpieza_ductos, mostrar texto específico según la sección
     if (seccionKey === 'ANTES') {
+      // Para Observaciones Fotográficas, solo mostrar "AÑADIR FOTO"
+      if (componenteKey === 'Observaciones_Fotograficas') {
+        return `AÑADIR FOTO (${currentImages.length}/4)`;
+      }
       return `AÑADIR FOTO ANTES (${currentImages.length}/4)`;
     } else if (seccionKey === 'PROCESO') {
       return `AÑADIR FOTO PROCESO (${currentImages.length}/4)`;
@@ -675,7 +710,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionData.key] || [];
     const uploadingKey = `${componenteKey}_${seccionData.key}`;
     const isUploading = uploading[uploadingKey];
-    const isPhotoRequired = informeTabla === 'informe_limpieza_ductos';
+    const isPhotoRequired = informeTabla === 'informe_limpieza_ductos' && componenteKey !== 'Campana_2';
     const hasNoPhotos = images.length === 0;
 
     return (
@@ -1841,9 +1876,18 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                         if (informeTabla === 'informe_limpieza_ductos') {
                           const isValid = validateRequiredPhotos(componenteActual.key);
                           if (!isValid) {
-                            // Obtener el título del componente usando getComponentesActuales()
-                            const componenteTitle = getComponentesActuales().find(c => c.key === componenteActual.key)?.title || componenteActual.key;
-                            showPhotoValidationAlert(componenteTitle);
+                            // Mensaje específico para CAMPANA 1
+                            if (componenteActual.key === 'Campana_1') {
+                              Alert.alert(
+                                '📸 CAMPANA 1 - Fotografías Obligatorias',
+                                'Para continuar a la siguiente sección, CAMPANA 1 debe tener al menos una fotografía en cada una de las siguientes secciones:\n\n• ANTES (obligatoria)\n• PROCESO (obligatoria)\n• DESPUÉS (obligatoria)\n\nCompleta todas las secciones para poder avanzar.',
+                                [{ text: 'Entendido', style: 'default' }]
+                              );
+                            } else {
+                              // Mensaje general para otros componentes
+                              const componenteTitle = getComponentesActuales().find(c => c.key === componenteActual.key)?.title || componenteActual.key;
+                              showPhotoValidationAlert(componenteTitle);
+                            }
                             return; // No avanzar si faltan fotos
                           }
                         }
@@ -3490,8 +3534,8 @@ const FormularioDinamico = ({ order, onClose }) => {
         return;
       }
 
-      // Filtrar campos que no queremos mostrar (incluyendo los especiales que se muestran al inicio)
-      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id', 'asist_personal', 'asistencia_personal', 'horas_trabajo', 'consumo_fase_r', 'consumo_fase_s', 'consumo_fase_t', 'encargado'];
+      // Filtrar campos que no queremos mostrar (solo campos técnicos del sistema)
+      const camposExcluidos = ['id', 'created_at', 'updated_at', 'orden_trabajo_id'];
       const camposFiltrados = estructura.filter(campo => 
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
@@ -3560,6 +3604,16 @@ const FormularioDinamico = ({ order, onClose }) => {
             ? '' 
             : String(existingData[key]);
         });
+        
+        // Limpiar valores "N/A" heredados de correcciones anteriores
+        if (processedData.encargado === 'N/A') {
+          processedData.encargado = '';
+          console.log('🧹 Limpiando valor N/A del campo encargado');
+        }
+        if (processedData.asist_personal === 'N/A') {
+          processedData.asist_personal = '';
+          console.log('🧹 Limpiando valor N/A del campo asist_personal');
+        }
         
         // Si no hay fecha_inicio en los datos existentes, usar la fecha actual
         if (!processedData.fecha_inicio || processedData.fecha_inicio.trim() === '') {
@@ -3759,6 +3813,11 @@ const FormularioDinamico = ({ order, onClose }) => {
     // Campos que nunca son obligatorios
     const nonRequiredFields = ['id', 'created_at', 'orden_trabajo_id'];
     
+    // Para formulario limpieza ductos: fecha_inicio se auto-completa, no requiere validación
+    if (tableName === 'informe_limpieza_ductos' && fieldName === 'fecha_inicio') {
+      return false;
+    }
+    
     // Si es un campo que nunca debe ser obligatorio, retornar false
     if (nonRequiredFields.includes(fieldName)) {
       return false;
@@ -3785,59 +3844,7 @@ const FormularioDinamico = ({ order, onClose }) => {
         return;
       }
 
-      // Validar campos requeridos (de la tabla + campos especiales)
-      console.log('');
-      console.log('✅ ===== VALIDACIÓN CAMPOS REQUERIDOS =====');
-      
-      // Campos base de la tabla
-      const tableFields = campos.map(campo => campo.column_name);
-      
-      // Campos especiales que pueden o no existir según el tipo de informe
-      const specialFields = ['horas_trabajo'];
-      
-      // Campos específicos de ANSUL R-102
-      const ansulSpecificFields = ['cliente', 'nombre_local', 'fecha_inicio'];
-      
-      // Combinar campos según el tipo de informe
-      let allFields = [...tableFields, ...specialFields];
-      if (tableName === 'informe_ansul_r102') {
-        allFields = [...allFields, ...ansulSpecificFields];
-      }
-      
-      console.log('📋 Todos los campos posibles para', tableName, ':', allFields);
-      
-      const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
-      console.log('⚠️ Campos requeridos detectados:', requiredFields);
-      
-      const missingFields = requiredFields.filter(fieldName => {
-        const value = formData[fieldName];
-        // Verificar si el campo está vacío, null, undefined o string vacío
-        if (value === null || value === undefined || value === '') {
-          return true;
-        }
-        // Si es string, verificar si está vacío después de trim
-        if (typeof value === 'string' && value.trim() === '') {
-          return true;
-        }
-        return false;
-      });
-      console.log('❌ Campos faltantes:', missingFields);
-      console.log('📊 Valores actuales de campos requeridos:');
-      requiredFields.forEach(field => {
-        const value = formData[field];
-        const valueType = typeof value;
-        console.log(`   - ${field}: "${value}" (tipo: ${valueType})`);
-      });
-
-      if (missingFields.length > 0) {
-        const missingFieldsFormatted = missingFields.map(fieldName => formatFieldName(fieldName));
-        console.log('🚨 Deteniendo guardado por campos faltantes:', missingFieldsFormatted);
-        Alert.alert('Campos Requeridos', `Por favor completa: ${missingFieldsFormatted.join(', ')}`);
-        return;
-      }
-      
-      console.log('✅ Validación de campos requeridos PASADA');
-      console.log('==========================================');
+      console.log('✅ Saltando validación de campos - usuario llegó a página final');
 
       // Validación específica para RECAMBIO DE FUSIBLES TÉRMICOS (solo para informe ANSUL)
       if (tableName === 'informe_ansul_r102') {
@@ -4030,118 +4037,11 @@ const FormularioDinamico = ({ order, onClose }) => {
         }
       }
 
-      // 🚀 Validaciones específicas para LIMPIEZA DE DUCTOS
+      // 🚀 Validaciones específicas para LIMPIEZA DE DUCTOS - DESHABILITADAS
       if (tableName === 'informe_limpieza_ductos') {
         console.log('');
-        console.log('🔧 ===== VALIDACIONES LIMPIEZA DE DUCTOS =====');
-        
-        // Validación específica para CAMPANA 1 (solo para informe ductos)
-        console.log('📸 Ejecutando validación Campana_1...');
-        const campana1Complete = await isCampana1CompleteForm();
-        console.log('🔍 Resultado validación Campana_1:', campana1Complete);
-        
-        if (!campana1Complete) {
-          console.log('❌ Validación Campana_1 falló - mostrando alerta');
-          Alert.alert(
-            'CAMPANA 1 Incompleta',
-            'Para actualizar los datos debes completar todas las fotografías de la sección "CAMPANA 1":\n\n• Fotografía ANTES (obligatoria)\n• Fotografía PROCESO (obligatoria)\n• Fotografía DESPUÉS (obligatoria)\n\nVe a la sección CAMPANA 1 para completar estos campos.',
-            [
-              { 
-                text: 'Saltar validación (temporal)', 
-                onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Campana_1 - continuando guardado');
-                  // Continuar con el guardado sin validación
-                }, 
-                style: 'destructive' 
-              },
-              { text: 'Entendido', style: 'default' }
-            ]
-          );
-          return;
-        } else {
-          console.log('✅ Validación Campana_1 pasó - continuando con guardado');
-        }
-
-        // Validación específica para DUCTOS Y REGISTROS (solo para informe ductos)
-        console.log('📸 Ejecutando validación Ductos_y_Registros...');
-        const ductosRegistrosComplete = await isDuctosYRegistrosCompleteForm();
-        console.log('🔍 Resultado validación Ductos_y_Registros:', ductosRegistrosComplete);
-        
-        if (!ductosRegistrosComplete) {
-          console.log('❌ Validación Ductos_y_Registros falló - mostrando alerta');
-          Alert.alert(
-            'DUCTOS Y REGISTROS Incompleto',
-            'Para actualizar los datos debes completar todas las fotografías de la sección "DUCTOS Y REGISTROS":\n\n• Fotografía ANTES (obligatoria)\n• Fotografía PROCESO (obligatoria)\n• Fotografía DESPUÉS (obligatoria)\n\nVe a la sección DUCTOS Y REGISTROS para completar estos campos.',
-            [
-              { 
-                text: 'Saltar validación (temporal)', 
-                onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Ductos_y_Registros - continuando guardado');
-                  // Continuar con el guardado sin validación
-                }, 
-                style: 'destructive' 
-              },
-              { text: 'Entendido', style: 'default' }
-            ]
-          );
-          return;
-        } else {
-          console.log('✅ Validación Ductos_y_Registros pasó - continuando con guardado');
-        }
-
-        // Validación específica para MOTORES Y CUBIERTA (solo para informe ductos)
-        console.log('📸 Ejecutando validación Motores_y_Cubierta...');
-        const motoresCubiertaComplete = await isMotoresYCubiertaCompleteForm();
-        console.log('🔍 Resultado validación Motores_y_Cubierta:', motoresCubiertaComplete);
-        
-        if (!motoresCubiertaComplete) {
-          console.log('❌ Validación Motores_y_Cubierta falló - mostrando alerta');
-          Alert.alert(
-            'MOTORES Y CUBIERTA Incompleto',
-            'Para actualizar los datos debes completar todas las fotografías de la sección "MOTORES Y CUBIERTA":\n\n• Fotografía ANTES (obligatoria)\n• Fotografía PROCESO (obligatoria)\n• Fotografía DESPUÉS (obligatoria)\n\nVe a la sección MOTORES Y CUBIERTA para completar estos campos.',
-            [
-              { 
-                text: 'Saltar validación (temporal)', 
-                onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Motores_y_Cubierta - continuando guardado');
-                  // Continuar con el guardado sin validación
-                }, 
-                style: 'destructive' 
-              },
-              { text: 'Entendido', style: 'default' }
-            ]
-          );
-          return;
-        } else {
-          console.log('✅ Validación Motores_y_Cubierta pasó - continuando con guardado');
-        }
-
-        // Validación específica para PANORAMICA Y/O SECTOR (solo para informe ductos)
-        console.log('📸 Ejecutando validación Panoramica_y_Sector...');
-        const panoramicaSectorComplete = await isPanoramicaYSectorCompleteForm();
-        console.log('🔍 Resultado validación Panoramica_y_Sector:', panoramicaSectorComplete);
-        
-        if (!panoramicaSectorComplete) {
-          console.log('❌ Validación Panoramica_y_Sector falló - mostrando alerta');
-          Alert.alert(
-            'PANORAMICA Y/O SECTOR Incompleto',
-            'Para actualizar los datos debes completar la sección "PANORAMICA Y/O SECTOR":\n\n• Fotografía ANTES (obligatoria)\n• Campo "¿REQUIERE TRATAMIENTO DE LIMPIEZA DE CUBIERTA?" (obligatorio)\n\nVe a la sección PANORAMICA Y/O SECTOR para completar estos campos.',
-            [
-              { 
-                text: 'Saltar validación (temporal)', 
-                onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Panoramica_y_Sector - continuando guardado');
-                  // Continuar con el guardado sin validación
-                }, 
-                style: 'destructive' 
-              },
-              { text: 'Entendido', style: 'default' }
-            ]
-          );
-          return;
-        } else {
-          console.log('✅ Validación Panoramica_y_Sector pasó - continuando con guardado');
-        }
+        console.log('🔧 ===== VALIDACIONES LIMPIEZA DE DUCTOS - SALTADAS =====');
+        console.log('ℹ️ Validaciones saltadas - usuario llegó a página final');
       }
 
       // 🚀 Validaciones específicas para MTTO ELECTROMECANICO
@@ -4162,12 +4062,24 @@ const FormularioDinamico = ({ order, onClose }) => {
       
       const dataToSave = { ...formData };
       
+      // Asegurar que fecha_inicio tenga un valor válido para limpieza de ductos
+      if (tableName === 'informe_limpieza_ductos') {
+        if (!dataToSave.fecha_inicio || dataToSave.fecha_inicio.trim() === '') {
+          const todayDate = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+          dataToSave.fecha_inicio = todayDate;
+          console.log('📅 Fecha inicio corregida a fecha actual:', todayDate);
+        }
+        
+        console.log('🔍 Verificación campos críticos:');
+        console.log('  - fecha_inicio:', dataToSave.fecha_inicio);
+      }
+      
       // Filtrar campos según la tabla - eliminar campos que no existen en la tabla actual
       const validColumns = campos.map(campo => campo.column_name);
       console.log('📋 Columnas válidas en la tabla:', validColumns);
       
       // Campos que siempre pueden estar presentes
-      const alwaysAllowedFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'nombre_local', 'fecha_inicio'];
+      const alwaysAllowedFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal'];
       
       // Crear lista de todos los campos permitidos para esta tabla
       const allowedFields = [...validColumns, ...alwaysAllowedFields];
@@ -4431,7 +4343,13 @@ const FormularioDinamico = ({ order, onClose }) => {
           return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
         };
         
-        const displayDate = fieldValue ? (() => {
+        // Para fecha_inicio, siempre mostrar la fecha actual o el valor válido
+        const displayDate = (() => {
+          // Si no hay valor o es vacío, mostrar fecha actual
+          if (!fieldValue || fieldValue.trim() === '') {
+            return getCurrentDateForDisplay();
+          }
+          
           try {
             // Si fieldValue es un string YYYY-MM-DD, parsearlo manualmente
             if (typeof fieldValue === 'string' && fieldValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -4440,6 +4358,9 @@ const FormularioDinamico = ({ order, onClose }) => {
             } else {
               // Fallback para otros formatos
               const date = new Date(fieldValue + 'T12:00:00'); // Agregar tiempo para evitar UTC
+              if (isNaN(date.getTime())) {
+                return getCurrentDateForDisplay(); // Si la fecha es inválida, mostrar fecha actual
+              }
               return date.toLocaleDateString('es-ES', {
                 day: '2-digit',
                 month: '2-digit', 
@@ -4449,47 +4370,61 @@ const FormularioDinamico = ({ order, onClose }) => {
           } catch {
             return getCurrentDateForDisplay(); // Si hay error, mostrar fecha actual
           }
-        })() : getCurrentDateForDisplay(); // Si no hay valor, mostrar fecha actual
+        })();
 
         return (
           <View key={field.key} style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>
               {field.label} {field.required && '*'}
             </Text>
-            <TouchableOpacity
-              style={[styles.input, { justifyContent: 'center', paddingVertical: 15 }]}
-              onPress={() => {
-                console.log(`📅 CLICK: Abriendo DatePicker para ${field.key}`);
-                
-                // Inicializar selectedDate con la fecha actual del campo o hoy
-                let currentFieldDate;
-                if (fieldValue && typeof fieldValue === 'string' && fieldValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                  // Si es formato YYYY-MM-DD, crear fecha agregando tiempo para evitar UTC
-                  currentFieldDate = new Date(fieldValue + 'T12:00:00');
-                } else if (fieldValue) {
-                  currentFieldDate = new Date(fieldValue);
-                } else {
-                  currentFieldDate = new Date();
-                }
-                
-                console.log(`📅 Inicializando selector con:`, {
-                  fieldValue: fieldValue,
-                  currentFieldDate: currentFieldDate.toString(),
-                  day: currentFieldDate.getDate(),
-                  month: currentFieldDate.getMonth() + 1,
-                  year: currentFieldDate.getFullYear()
-                });
-                
-                setSelectedDate(currentFieldDate);
-                
-                const newState = {...showDatePicker, [field.key]: true};
-                setShowDatePicker(newState);
-              }}
+            {/* Campo de solo lectura con fecha actual */}
+            <View
+              style={[styles.input, styles.readOnlyInput, { justifyContent: 'center', paddingVertical: 15 }]}
             >
-              <Text style={{ color: '#000' }}>
+              <Text style={{ color: '#666' }}>
                 {displayDate}
               </Text>
-            </TouchableOpacity>
+            </View>
+
+            {/* CÓDIGO DEL CALENDARIO MANTENIDO PARA FUTURAS ACTIVACIONES */}
+            {false && ( // Cambiar false por true para activar el calendario
+              <>
+                <TouchableOpacity
+                  style={[styles.input, { justifyContent: 'center', paddingVertical: 15 }]}
+                  onPress={() => {
+                    console.log(`📅 CLICK: Abriendo DatePicker para ${field.key}`);
+                    
+                    // Inicializar selectedDate con la fecha actual del campo o hoy
+                    let currentFieldDate;
+                    if (fieldValue && typeof fieldValue === 'string' && fieldValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                      // Si es formato YYYY-MM-DD, crear fecha agregando tiempo para evitar UTC
+                      currentFieldDate = new Date(fieldValue + 'T12:00:00');
+                    } else if (fieldValue) {
+                      currentFieldDate = new Date(fieldValue);
+                    } else {
+                      currentFieldDate = new Date();
+                    }
+                    
+                    console.log(`📅 Inicializando selector con:`, {
+                      fieldValue: fieldValue,
+                      currentFieldDate: currentFieldDate.toString(),
+                      day: currentFieldDate.getDate(),
+                      month: currentFieldDate.getMonth() + 1,
+                      year: currentFieldDate.getFullYear()
+                    });
+                    
+                    setSelectedDate(currentFieldDate);
+                    
+                    const newState = {...showDatePicker, [field.key]: true};
+                    setShowDatePicker(newState);
+                  }}
+                >
+                  <Text style={{ color: '#000' }}>
+                    {displayDate}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
 
 
             {/* Modal con selector manual de fecha */}
@@ -4901,7 +4836,7 @@ const FormularioDinamico = ({ order, onClose }) => {
                   
                   {/* Campos dinámicos de la tabla */}
                   {campos.filter(campo => 
-                    !['cliente', 'nombre_local', 'fecha_inicio', 'horas_trabajo'].includes(campo.column_name)
+                    !['cliente', 'nombre_local', 'fecha_inicio', 'horas_trabajo', 'encargado', 'asist_personal'].includes(campo.column_name)
                   ).map(renderField)}
                 </>
               )}
