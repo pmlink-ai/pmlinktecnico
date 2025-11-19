@@ -89,7 +89,7 @@ export class PDFService {
         // No es crítico si no hay datos del formulario
       }
 
-      // 3. Obtener información del servicio y local
+      // 3. Obtener información del servicio y local (consulta simplificada)
       const { data: serviceData, error: serviceError } = await supabase
         .from('servicios')
         .select(`
@@ -97,7 +97,7 @@ export class PDFService {
           local(
             nombre_local,
             direccion,
-            empresa(nombre_empresa)
+            zona_id
           )
         `)
         .eq('servicio_id', orderData.servicio_id)
@@ -105,6 +105,33 @@ export class PDFService {
 
       if (serviceError) {
         console.error('Error obteniendo servicio:', serviceError);
+      }
+
+      // Obtener información de la empresa por separado
+      let empresaInfo = null;
+      if (serviceData?.local?.zona_id) {
+        const { data: zonaData, error: zonaError } = await supabase
+          .from('zona')
+          .select('empresa_id')
+          .eq('zona_id', serviceData.local.zona_id)
+          .single();
+
+        if (zonaData?.empresa_id && !zonaError) {
+          const { data: empresa, error: empresaError } = await supabase
+            .from('empresa')
+            .select('nombre_empresa')
+            .eq('empresa_id', zonaData.empresa_id)
+            .single();
+
+          if (!empresaError) {
+            empresaInfo = empresa;
+          }
+        }
+      }
+
+      // Agregar la información de empresa al serviceData para mantener compatibilidad
+      if (serviceData?.local && empresaInfo) {
+        serviceData.local.zona = { empresa: empresaInfo };
       }
 
       // 4. Obtener fotografías organizadas por componente
@@ -717,7 +744,7 @@ export class PDFService {
         <table class="data-table">
           <tr>
             <td class="label">CLIENTE</td>
-            <td>${service.local?.empresa?.nombre_empresa || 'No disponible'}</td>
+            <td>${service.local?.zona?.empresa?.nombre_empresa || 'No disponible'}</td>
           </tr>
           <tr>
             <td class="label">FECHA- INICIO</td>
