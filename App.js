@@ -3670,8 +3670,9 @@ const FormularioDinamico = ({ order, onClose }) => {
   // Función para validar que todos los campos obligatorios estén completos
   const validateAllRequiredFields = () => {
     // Lista de campos obligatorios para limpieza de ductos (nombres reales de la BD)
+    // Nota: fecha_inicio se excluye porque se llena automáticamente
     const requiredFields = [
-      'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo',
+      'cliente', 'nombre_local', 'encargado', 'asist_personal', 'horas_trabajo',
       'campanas_estado', 'filtros_estado', 'ductos_estado', 'damper_estado', 'drenajes_estado',
       'registros_local_estado', 'registros_techumbre_estado', 'rejillas_en_el_motor',
       'cantidad_de_motores', 'fuelle', 'correas', 'rodamientos', 'observaciones'
