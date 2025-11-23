@@ -2,6 +2,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
+import { DocumentStorageService } from './documentStorageService';
+// import { DocumentStorageServiceTemp } from './documentStorageServiceTemp'; // Versión temporal
 
 // ==================== SERVICIO DE GENERACIÓN DE PDF ====================
 export class PDFService {
@@ -77,16 +79,30 @@ export class PDFService {
         throw new Error('No se pudo obtener la información de la orden');
       }
 
-      // 2. Obtener datos del formulario específico
+      // 2. Obtener datos del formulario específico (FORZAR DATOS FRESCOS)
+      console.log(`🔄 Consultando tabla ${tableName} para orden ${orderId}...`);
       const { data: formData, error: formError } = await supabase
         .from(tableName)
         .select('*')
         .eq('orden_trabajo_id', orderId)
-        .single();
+        .order('created_at', { ascending: false }) // Usar created_at, el más reciente primero
+        .single(); // Obtener solo un registro
 
       if (formError) {
         console.error('Error obteniendo formulario:', formError);
-        // No es crítico si no hay datos del formulario
+        console.log('⚠️ Continuando sin datos del formulario...');
+      } else {
+        console.log('✅ Datos del formulario obtenidos:', {
+          campos: Object.keys(formData || {}).length,
+          fecha_creacion: formData?.created_at,
+          muestra_campos: {
+            asist_personal: formData?.asist_personal,
+            horas_trabajo: formData?.horas_trabajo,
+            cliente: formData?.cliente,
+            campanas_estado: formData?.campanas_estado // AGREGAR ESTE CAMPO ESPECÍFICO
+          }
+        });
+        console.log('🔍 DEBUG: Valor específico de campanas_estado desde BD:', formData?.campanas_estado);
       }
 
       // 3. Obtener información del servicio y local (consulta simplificada)
@@ -134,8 +150,9 @@ export class PDFService {
         serviceData.local.zona = { empresa: empresaInfo };
       }
 
-      // 4. Obtener fotografías organizadas por componente
-      console.log('📸 DEBUG: Consultando fotografías para orden:', orderId, 'tabla:', tableName);
+      // 4. Obtener fotografías organizadas por componente (DATOS FRESCOS)
+      console.log('📸 Consultando fotografías actualizadas para PDF...');
+      console.log('📸 DEBUG: Parámetros consulta fotos:', { orderId, tableName });
       
       const { data: photos, error: photosError } = await supabase
         .from('informe_fotografias')
@@ -144,29 +161,28 @@ export class PDFService {
         .eq('informe_tabla', tableName)
         .order('componente', { ascending: true })
         .order('seccion', { ascending: true })
-        .order('uploaded_at', { ascending: true });
+        .order('uploaded_at', { ascending: false }); // Más recientes primero
 
-      console.log('📸 DEBUG: Fotografías obtenidas de la BD:', photos?.length || 0);
+      console.log('📸 Fotografías obtenidas:', {
+        total: photos?.length || 0,
+        error: photosError?.message
+      });
+      
       if (photos && photos.length > 0) {
-        console.log('📸 DEBUG: Primeras 3 fotos:', photos.slice(0, 3).map(p => ({
+        console.log('📸 Detalles de fotografías:', photos.slice(0, 3).map(p => ({
           id: p.id,
           componente: p.componente,
           seccion: p.seccion,
           etiqueta: p.etiqueta,
+          uploaded_at: p.uploaded_at,
           storage_path: p.storage_path
         })));
         
         // Verificar específicamente fotos de Campana_1 ANTES
         const campana1Antes = photos.filter(p => p.componente === 'Campana_1' && p.seccion === 'ANTES');
         console.log('📸 DEBUG: Fotos Campana_1 ANTES en BD:', campana1Antes.length);
-        campana1Antes.forEach((foto, index) => {
-          console.log(`📸 DEBUG: Campana_1 ANTES foto ${index + 1}:`, {
-            id: foto.id,
-            etiqueta: foto.etiqueta,
-            storage_path: foto.storage_path,
-            uploaded_at: foto.uploaded_at
-          });
-        });
+      } else {
+        console.log('⚠️ No se encontraron fotografías para esta orden');
       }
 
       if (photosError) {
@@ -333,6 +349,10 @@ export class PDFService {
 
   // Generar PDF específico para Limpieza de Ductos
   static generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle) {
+    console.log('📄 DEBUG: Generando PDF de Limpieza de Ductos...');
+    console.log('📄 DEBUG: formData completo:', JSON.stringify(formData, null, 2));
+    console.log('📄 DEBUG: Valor específico campanas_estado:', formData?.campanas_estado);
+    
     return `
       <!DOCTYPE html>
       <html>
@@ -755,10 +775,6 @@ export class PDFService {
             <td>${service.local?.nombre_local || 'No disponible'}</td>
           </tr>
           <tr>
-            <td class="label">ENCARGADO</td>
-            <td>${formData.encargado || 'No especificado'}</td>
-          </tr>
-          <tr>
             <td class="label">ASISTENCIA DE PERSONAL</td>
             <td>${formData.asist_personal || 'No especificado'}</td>
           </tr>
@@ -773,6 +789,9 @@ export class PDFService {
 
   // Generar tabla de diagnóstico
   static generateDiagnosticTable(formData) {
+    console.log('📊 DEBUG: Generando tabla de diagnóstico...');
+    console.log('📊 DEBUG: formData recibido:', formData);
+    
     const diagnosticItems = [
       { label: 'Campanas', field: 'campanas_estado' },
       { label: 'FILTROS', field: 'filtros_estado' },
@@ -790,6 +809,8 @@ export class PDFService {
 
     let tableRows = diagnosticItems.map(item => {
       const value = formData[item.field] || 'NO ESPECIFICADO';
+      console.log(`📊 DEBUG: ${item.label} (${item.field}): "${value}"`);
+      
       return `
         <tr>
           <td>${item.label}</td>
@@ -797,6 +818,8 @@ export class PDFService {
         </tr>
       `;
     }).join('');
+
+    console.log('📊 DEBUG: Tabla de diagnóstico generada');
 
     return `
       <div class="section">
@@ -1287,8 +1310,19 @@ export class PDFService {
       console.log('🔄 Iniciando generación de PDF...');
       console.log('📄 Nombre de archivo solicitado:', customFileName);
       
-      // 1. Obtener datos completos
+      // FORZAR RECARGA: Esperar un momento para asegurar que los datos estén sincronizados
+      console.log('⏱️ Esperando sincronización de datos...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 1. Obtener datos completos FRESCOS (sin cache)
+      console.log('🔄 Obteniendo datos actualizados de la base de datos...');
       const data = await this.getCompleteOrderData(orderId, tableName);
+      
+      console.log('📊 Datos del formulario obtenidos:', {
+        tieneFormData: !!data.formData,
+        campos: data.formData ? Object.keys(data.formData).length : 0,
+        fotosCount: data.photos?.length || 0
+      });
       
       // 2. Generar HTML
       const htmlContent = this.generatePDFHTML(data);
@@ -1311,7 +1345,35 @@ export class PDFService {
       console.log('✅ PDF generado en:', uri);
       console.log('📄 Nombre final del archivo:', finalFileName);
 
-      // 4. Compartir PDF
+      // 4. Guardar en Supabase Storage
+      console.log('☁️ Guardando PDF en Supabase Storage...');
+      
+      // Determinar tipo de documento más descriptivo
+      let tipoDocumento;
+      if (tableName === 'informe_limpieza_ductos') {
+        tipoDocumento = 'Informe Limpieza Ductos';
+      } else if (tableName === 'informe_ansul_r102') {
+        tipoDocumento = 'Informe ANSUL R-102';
+      } else if (tableName === 'informe_electromecanico') {
+        tipoDocumento = 'Informe Electromecánico';
+      } else {
+        tipoDocumento = tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      }
+      
+      const storageResult = await DocumentStorageService.saveDocument(orderId, uri, tipoDocumento);
+      
+      if (storageResult.success) {
+        console.log('✅ PDF guardado en Storage:', {
+          esNuevo: storageResult.esNuevo,
+          version: storageResult.version,
+          url: storageResult.urlPublica
+        });
+      } else {
+        console.warn('⚠️ Error guardando en Storage:', storageResult.error);
+        // Continuar con el proceso aunque falle el guardado
+      }
+
+      // 5. Compartir PDF
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
@@ -1323,7 +1385,12 @@ export class PDFService {
         throw new Error('Compartir archivos no está disponible en este dispositivo');
       }
 
-      return { success: true, uri, fileName: finalFileName };
+      return { 
+        success: true, 
+        uri, 
+        fileName: finalFileName,
+        storage: storageResult
+      };
 
     } catch (error) {
       console.error('❌ Error generando PDF:', error);

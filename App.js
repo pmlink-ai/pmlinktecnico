@@ -25,6 +25,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import PDFService from './services/pdfService';
+import { DocumentStorageService } from './services/documentStorageService';
 
 const { width } = Dimensions.get('window');
 
@@ -4225,18 +4226,81 @@ const FormularioDinamico = ({ order, onClose }) => {
       
       // Generar nombre de archivo basado en el tipo de formulario
       let fileName;
+      let tipoDocumento;
       if (tableName === 'informe_ansul_r102') {
         fileName = `FORMULARIO_INFORME_ANSUL_R102_${order.id?.substring(0, 8)}`;
+        tipoDocumento = 'Informe ANSUL R-102';
       } else if (tableName === 'informe_limpieza_ductos') {
         fileName = `FORMULARIO_INFORME_LIMPIEZA_DUCTOS_${order.id?.substring(0, 8)}`;
+        tipoDocumento = 'Informe Limpieza Ductos';
       } else if (tableName === 'informe_electromecanico') {
         fileName = `FORMULARIO_INFORME_ELECTROMECANICO_${order.id?.substring(0, 8)}`;
+        tipoDocumento = 'Informe Electromecánico';
       } else {
         // Para otros formularios, usar el nombre de la tabla formateado
         fileName = `FORMULARIO_${tableName.replace(/_/g, '_').toUpperCase()}_${order.id?.substring(0, 8)}`;
+        tipoDocumento = tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
       }
       
-      console.log('📄 Nombre de archivo a generar:', fileName);
+      console.log('📄 Verificando documento existente...', { fileName, tipoDocumento });
+
+      // Verificar si ya existe un documento del mismo tipo
+      const existingDoc = await DocumentStorageService.checkDocumentExists(order.id, tipoDocumento);
+      
+      if (existingDoc.existe) {
+        console.log('⚠️ Documento ya existe, solicitando confirmación...');
+        
+        // Mostrar confirmación al usuario
+        Alert.alert(
+          'Actualizar Archivo',
+          '¿Está seguro de actualizar el archivo? Se eliminará el archivo actual y se generará uno nuevo con la información actualizada.',
+          [
+            {
+              text: 'No',
+              style: 'cancel',
+              onPress: () => {
+                console.log('👤 Usuario canceló la actualización');
+                setGeneratingPDF(false);
+              }
+            },
+            {
+              text: 'Sí',
+              style: 'default',
+              onPress: async () => {
+                console.log('👤 Usuario confirmó actualización, eliminando documento anterior...');
+                
+                // Eliminar documento existente
+                const eliminado = await DocumentStorageService.deleteDocumentCompletely(existingDoc.documento);
+                
+                if (eliminado) {
+                  console.log('✅ Documento anterior eliminado, generando nuevo...');
+                  await generateNewPDF(fileName, tipoDocumento);
+                } else {
+                  Alert.alert('Error', 'No se pudo eliminar el archivo anterior');
+                  setGeneratingPDF(false);
+                }
+              }
+            }
+          ]
+        );
+        return; // Salir aquí, la generación continúa en el callback del Alert
+      }
+
+      // Si no existe documento, generar directamente
+      console.log('📄 No existe documento anterior, generando nuevo...');
+      await generateNewPDF(fileName, tipoDocumento);
+
+    } catch (error) {
+      console.error('❌ Error en handleGeneratePDF:', error);
+      Alert.alert('Error', 'No se pudo generar el PDF: ' + error.message);
+      setGeneratingPDF(false);
+    }
+  };
+
+  // Función auxiliar para generar el PDF
+  const generateNewPDF = async (fileName, tipoDocumento) => {
+    try {
+      console.log('🚀 Iniciando generación de PDF...', { fileName, tipoDocumento });
       
       // Validación específica para ANSUL R-102: verificar campos obligatorios
       if (tableName === 'informe_ansul_r102') {
@@ -4264,11 +4328,15 @@ const FormularioDinamico = ({ order, onClose }) => {
               `Debe ingresar información en el Campo ${fieldLabel} para generar el PDF`,
               [{ text: 'OK' }]
             );
+            setGeneratingPDF(false);
             return;
           }
         }
       }
       
+      console.log('✅ Validaciones completadas, generando PDF...');
+      
+      // Generar PDF usando PDFService
       await PDFService.generateAndSharePDF(
         order.id, 
         tableName, 

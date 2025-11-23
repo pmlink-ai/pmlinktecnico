@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import FormularioDinamico from './FormularioDinamico';
+import DocumentManager from '../../components/DocumentManager';
 
 export default function DetalleOrdenScreen({ route, navigation }) {
   const { orden } = route.params;
@@ -430,6 +431,9 @@ export default function DetalleOrdenScreen({ route, navigation }) {
             ordenId={orden.id}
           />
         )}
+
+        {/* Gestor de documentos */}
+        <DocumentManager ordenId={orden.id} />
       </ScrollView>
     </SafeAreaView>
   );
