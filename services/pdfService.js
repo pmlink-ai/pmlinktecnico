@@ -534,37 +534,36 @@ export class PDFService {
         width: 30%;
       }
       
-      /* TABLA DIAGNÓSTICO - VERSIÓN DEFINITIVA 30/70 - ${timestamp} - ID:${uniqueId} */
+      /* TABLA DIAGNÓSTICO - VERSIÓN PROFESIONAL 30/70 - ${timestamp} - ID:${uniqueId} */
       .diagnostic-table-v3070-final {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 20px;
         table-layout: fixed; /* Forzar ancho fijo de columnas */
-        border: 3px solid #FF0000; /* Borde ROJO visible para verificar cambios */
       }
       
       .diagnostic-table-v3070-final th,
       .diagnostic-table-v3070-final td {
-        padding: 10px;
-        border: 2px solid #000; /* Bordes negros más visibles */
+        padding: 6px;
+        border: 1px solid #ddd;
         text-align: left;
-        font-size: 10px;
+        font-size: 9px;
         vertical-align: top; /* Alinear contenido arriba */
       }
       
-      /* PRIMERA COLUMNA: 30% - COMPONENTES FIJOS - VERSIÓN FINAL */
+      /* PRIMERA COLUMNA: 30% - COMPONENTES FIJOS */
       .diagnostic-table-v3070-final td:first-child {
         width: 30% !important; /* FORZAR 30% con !important */
         min-width: 30% !important;
         max-width: 30% !important;
         white-space: nowrap; /* No permitir salto de línea */
         font-weight: bold;
-        background-color: #FFE0E0; /* Color rosado para verificar */
+        background-color: #f5f5f5; /* Mismo color que data-table .label */
         overflow: hidden;
         text-overflow: ellipsis; /* Agregar ... si es muy largo */
       }
       
-      /* SEGUNDA COLUMNA: 70% - VALORES VARIABLES - VERSIÓN FINAL */
+      /* SEGUNDA COLUMNA: 70% - VALORES VARIABLES */
       .diagnostic-table-v3070-final td:last-child {
         width: 70% !important; /* FORZAR 70% con !important */
         min-width: 70% !important;
@@ -572,15 +571,15 @@ export class PDFService {
         white-space: pre-wrap; /* Permitir salto de línea y espacios */
         word-wrap: break-word; /* Partir palabras largas */
         line-height: 1.4;
-        background-color: #E0E0FF; /* Color azul claro para verificar */
+        background-color: #ffffff;
         overflow-wrap: break-word; /* Alternativa moderna */
       }
       
       .diagnostic-table-v3070-final th {
-        background-color: #00FF00; /* Color VERDE para verificar cabecera */
+        background-color: #f5f5f5; /* Mismo color que data-table .label */
         font-weight: bold;
         white-space: nowrap;
-        font-size: 11px;
+        font-size: 10px;
         text-align: center;
       }
       
@@ -1401,8 +1400,8 @@ export class PDFService {
       console.log('🔍 Verificando contenido del HTML generado...');
       console.log('📝 HTML contiene tabla diagnóstico?', htmlContent.includes('diagnostic-table-v3070-final'));
       console.log('📝 HTML contiene estilos 30/70?', htmlContent.includes('width: 30%') && htmlContent.includes('width: 70%'));
-      console.log('📝 HTML contiene versión final?', htmlContent.includes('VERSIÓN DEFINITIVA'));
-      console.log('📝 HTML contiene colores de verificación?', htmlContent.includes('#FFE0E0') && htmlContent.includes('#E0E0FF'));
+      console.log('📝 HTML contiene versión profesional?', htmlContent.includes('VERSIÓN PROFESIONAL'));
+      console.log('📝 HTML contiene colores profesionales?', htmlContent.includes('#f5f5f5'));
 
       // 4. Guardar en Supabase Storage - FORZAR NUEVA VERSIÓN
       console.log('☁️ Guardando PDF actualizado en Supabase Storage...');
