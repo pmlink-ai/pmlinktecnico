@@ -41,9 +41,12 @@ export class DocumentStorageService {
       });
 
       // 4. Leer archivo como base64
+      console.log('📖 Leyendo archivo PDF desde URI:', pdfUri);
       const base64Data = await FileSystem.readAsStringAsync(pdfUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
+      
+      console.log('📊 Archivo leído, tamaño en base64:', base64Data.length);
 
       // 5. Convertir base64 a array buffer
       const byteCharacters = atob(base64Data);
@@ -52,9 +55,13 @@ export class DocumentStorageService {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
+      
+      console.log('🔄 Archivo convertido a bytes, tamaño:', byteArray.length);
 
       // 6. Subir archivo a Supabase Storage
-      console.log('☁️ Subiendo archivo a Supabase Storage...');
+      console.log('☁️ Subiendo archivo actualizado a Supabase Storage...');
+      console.log('📁 Ruta de destino:', rutaStorage);
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documentos-ordenes')
         .upload(rutaStorage, byteArray, {
@@ -339,6 +346,7 @@ export class DocumentStorageService {
    */
   static generateFileName(tipoDocumento, ordenId) {
     const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeWithSeconds = new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].substring(0, 8); // HH-MM-SS
     
     // Normalizar el tipo de documento para nombre de archivo (sin espacios)
     let tipoNormalizado;
@@ -356,7 +364,8 @@ export class DocumentStorageService {
         .replace(/_+/g, '_');
     }
     
-    return `FORMULARIO_${tipoNormalizado}_${ordenId.slice(0, 8)}_${timestamp}.pdf`;
+    // Agregar timestamp con segundos para forzar nueva versión
+    return `FORMULARIO_${tipoNormalizado}_${ordenId.slice(0, 8)}_${timestamp}_${timeWithSeconds}.pdf`;
   }
 
   /**

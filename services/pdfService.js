@@ -318,8 +318,12 @@ export class PDFService {
   }
 
   // Generar HTML del PDF
-  static generatePDFHTML(data) {
+  static generatePDFHTML(data, forceTimestamp = null) {
     const { order, formData, service, photos, observaciones, tecnicos, tableName } = data;
+    
+    // ID único para forzar regeneración
+    const uniqueId = forceTimestamp || new Date().toISOString();
+    console.log('🆔 Generando PDF con ID único:', uniqueId.substring(0, 19));
     
     // Determinar el título basado en el tipo de informe
     const getInformeTitle = (tableName) => {
@@ -343,15 +347,16 @@ export class PDFService {
     } else if (tableName === 'informe_electromecanico') {
       return this.generateMttoElectromecanicosPDF(order, formData, service, photos, tecnicos, informeTitle);
     } else {
-      return this.generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle);
+      return this.generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle, uniqueId);
     }
   }
 
   // Generar PDF específico para Limpieza de Ductos
-  static generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle) {
+  static generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle, uniqueId = null) {
     console.log('📄 DEBUG: Generando PDF de Limpieza de Ductos...');
     console.log('📄 DEBUG: formData completo:', JSON.stringify(formData, null, 2));
     console.log('📄 DEBUG: Valor específico campanas_estado:', formData?.campanas_estado);
+    console.log('🆔 PDF con ID único:', uniqueId?.substring(0, 19));
     
     return `
       <!DOCTYPE html>
@@ -359,6 +364,8 @@ export class PDFService {
         <head>
           <meta charset="utf-8">
           <title>Informe de Limpieza de Ductos</title>
+          <!-- Versión CSS FORZADA: ${uniqueId || new Date().toISOString()} -->
+          <!-- ESTILOS ACTUALIZADOS 30/70 -->
           <style>
             ${this.getPDFStyles()}
           </style>
@@ -418,8 +425,12 @@ export class PDFService {
         </body>
       </html>
     `;
-  }  // Estilos CSS para el PDF
+  }
+
+  // Estilos CSS para el PDF
   static getPDFStyles() {
+    const timestamp = new Date().toISOString();
+    const uniqueId = Math.random().toString(36).substr(2, 9);
     return `
       @page {
         margin: 20px;
@@ -523,23 +534,54 @@ export class PDFService {
         width: 30%;
       }
       
-      .diagnostic-table {
+      /* TABLA DIAGNÓSTICO - VERSIÓN DEFINITIVA 30/70 - ${timestamp} - ID:${uniqueId} */
+      .diagnostic-table-v3070-final {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        table-layout: fixed; /* Forzar ancho fijo de columnas */
+        border: 3px solid #FF0000; /* Borde ROJO visible para verificar cambios */
       }
       
-      .diagnostic-table th,
-      .diagnostic-table td {
-        padding: 6px;
-        border: 1px solid #ddd;
+      .diagnostic-table-v3070-final th,
+      .diagnostic-table-v3070-final td {
+        padding: 10px;
+        border: 2px solid #000; /* Bordes negros más visibles */
         text-align: left;
-        font-size: 9px;
+        font-size: 10px;
+        vertical-align: top; /* Alinear contenido arriba */
       }
       
-      .diagnostic-table th {
-        background-color: #f5f5f5;
+      /* PRIMERA COLUMNA: 30% - COMPONENTES FIJOS - VERSIÓN FINAL */
+      .diagnostic-table-v3070-final td:first-child {
+        width: 30% !important; /* FORZAR 30% con !important */
+        min-width: 30% !important;
+        max-width: 30% !important;
+        white-space: nowrap; /* No permitir salto de línea */
         font-weight: bold;
+        background-color: #FFE0E0; /* Color rosado para verificar */
+        overflow: hidden;
+        text-overflow: ellipsis; /* Agregar ... si es muy largo */
+      }
+      
+      /* SEGUNDA COLUMNA: 70% - VALORES VARIABLES - VERSIÓN FINAL */
+      .diagnostic-table-v3070-final td:last-child {
+        width: 70% !important; /* FORZAR 70% con !important */
+        min-width: 70% !important;
+        max-width: 70% !important;
+        white-space: pre-wrap; /* Permitir salto de línea y espacios */
+        word-wrap: break-word; /* Partir palabras largas */
+        line-height: 1.4;
+        background-color: #E0E0FF; /* Color azul claro para verificar */
+        overflow-wrap: break-word; /* Alternativa moderna */
+      }
+      
+      .diagnostic-table-v3070-final th {
+        background-color: #00FF00; /* Color VERDE para verificar cabecera */
+        font-weight: bold;
+        white-space: nowrap;
+        font-size: 11px;
+        text-align: center;
       }
       
       .component-section {
@@ -824,8 +866,16 @@ export class PDFService {
     return `
       <div class="section">
         <div class="section-title">Tabla de Diagnóstico</div>
-        <table class="diagnostic-table">
-          ${tableRows}
+        <table class="diagnostic-table-v3070-final">
+          <thead>
+            <tr>
+              <th style="width: 30%;">COMPONENTE</th>
+              <th style="width: 70%;">ESTADO / OBSERVACIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
         </table>
         
         ${formData.observaciones ? `
@@ -856,11 +906,11 @@ export class PDFService {
     return `
       <div class="diagnostic-section">
         <div class="section-title">TABLA DE DIAGNÓSTICO - MANTENIMIENTO ELECTROMECÁNICO</div>
-        <table class="diagnostic-table">
+        <table class="diagnostic-table-v3070-final">
           <thead>
             <tr>
-              <th style="width: 60%;">COMPONENTE/PARÁMETRO</th>
-              <th style="width: 40%;">ESTADO/MEDICIÓN</th>
+              <th style="width: 30%;">COMPONENTE/PARÁMETRO</th>
+              <th style="width: 70%;">ESTADO/MEDICIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -917,7 +967,7 @@ export class PDFService {
     return `
       <div class="section">
         <div class="section-title">Tabla de Diagnóstico ANSUL R-102</div>
-        <table class="diagnostic-table">
+        <table class="diagnostic-table-v3070-final">
           ${tableRows}
         </table>
         
@@ -1310,9 +1360,9 @@ export class PDFService {
       console.log('🔄 Iniciando generación de PDF...');
       console.log('📄 Nombre de archivo solicitado:', customFileName);
       
-      // FORZAR RECARGA: Esperar un momento para asegurar que los datos estén sincronizados
-      console.log('⏱️ Esperando sincronización de datos...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // FORZAR RECARGA COMPLETA: Limpiar cualquier cache
+      console.log('⏱️ Forzando regeneración completa...');
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Aumentar tiempo de espera
       
       // 1. Obtener datos completos FRESCOS (sin cache)
       console.log('🔄 Obteniendo datos actualizados de la base de datos...');
@@ -1324,11 +1374,13 @@ export class PDFService {
         fotosCount: data.photos?.length || 0
       });
       
-      // 2. Generar HTML
-      const htmlContent = this.generatePDFHTML(data);
+      // 2. Generar HTML con timestamp único para forzar nueva versión
+      const timestamp = new Date().toISOString();
+      const htmlContent = this.generatePDFHTML(data, timestamp);
       
-      // 3. Generar PDF con nombre personalizado
-      const finalFileName = `${customFileName}.pdf`;
+      // 3. Generar PDF con nombre completamente único y timestamp
+      const uniqueId = Math.random().toString(36).substr(2, 15);
+      const finalFileName = `${customFileName}_FINAL_v3070_${Date.now()}_${uniqueId}.pdf`;
       
       const { uri } = await Print.printToFileAsync({
         html: htmlContent,
@@ -1345,8 +1397,16 @@ export class PDFService {
       console.log('✅ PDF generado en:', uri);
       console.log('📄 Nombre final del archivo:', finalFileName);
 
-      // 4. Guardar en Supabase Storage
-      console.log('☁️ Guardando PDF en Supabase Storage...');
+      // VERIFICAR CONTENIDO DEL PDF GENERADO
+      console.log('🔍 Verificando contenido del HTML generado...');
+      console.log('📝 HTML contiene tabla diagnóstico?', htmlContent.includes('diagnostic-table-v3070-final'));
+      console.log('📝 HTML contiene estilos 30/70?', htmlContent.includes('width: 30%') && htmlContent.includes('width: 70%'));
+      console.log('📝 HTML contiene versión final?', htmlContent.includes('VERSIÓN DEFINITIVA'));
+      console.log('📝 HTML contiene colores de verificación?', htmlContent.includes('#FFE0E0') && htmlContent.includes('#E0E0FF'));
+
+      // 4. Guardar en Supabase Storage - FORZAR NUEVA VERSIÓN
+      console.log('☁️ Guardando PDF actualizado en Supabase Storage...');
+      console.log('📁 URI del archivo FRESCO a guardar:', uri);
       
       // Determinar tipo de documento más descriptivo
       let tipoDocumento;
@@ -1360,6 +1420,36 @@ export class PDFService {
         tipoDocumento = tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
       }
       
+      // FORZAR ELIMINACIÓN MÚLTIPLE ANTES DE GUARDAR
+      console.log('🗑️ ELIMINANDO TODOS los archivos anteriores para forzar nueva versión...');
+      try {
+        // Primera eliminación por tipo
+        const existingDoc = await DocumentStorageService.getDocumentByType(orderId, tipoDocumento);
+        if (existingDoc) {
+          console.log('🗑️ Eliminando documento anterior del storage (primera pasada)...');
+          await DocumentStorageService.deleteDocumentCompletely(existingDoc);
+          console.log('✅ Primera eliminación completada');
+        }
+        
+        // Esperar y segunda eliminación por patrón de nombre
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Segunda eliminación más agresiva para cualquier archivo relacionado
+        console.log('🔄 Realizando segunda pasada de eliminación...');
+        const allDocsForOrder = await DocumentStorageService.getDocumentsByOrder(orderId);
+        for (const doc of allDocsForOrder.filter(d => d.tipo_documento === tipoDocumento)) {
+          await DocumentStorageService.deleteDocumentCompletely(doc);
+        }
+        
+        // Esperar adicional para limpieza completa de cache
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('✅ Eliminación múltiple completada');
+        
+      } catch (deleteError) {
+        console.warn('⚠️ Error eliminando documentos anteriores:', deleteError);
+      }
+      
+      console.log('💾 Guardando archivo NUEVO con proporciones 30/70:', tipoDocumento);
       const storageResult = await DocumentStorageService.saveDocument(orderId, uri, tipoDocumento);
       
       if (storageResult.success) {
@@ -1373,7 +1463,9 @@ export class PDFService {
         // Continuar con el proceso aunque falle el guardado
       }
 
-      // 5. Compartir PDF
+      // 5. Compartir PDF - COMENTADO TEMPORALMENTE
+      // Comentado para solo guardar en storage sin mostrar opciones de compartir
+      /*
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
@@ -1384,6 +1476,9 @@ export class PDFService {
       } else {
         throw new Error('Compartir archivos no está disponible en este dispositivo');
       }
+      */
+      
+      console.log('✅ PDF generado y guardado en storage (sin compartir):', finalFileName);
 
       return { 
         success: true, 
