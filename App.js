@@ -2083,10 +2083,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       <Modal
         visible={showFirmaModal}
         animationType="slide"
-        presentationStyle="formSheet"
+        presentationStyle="fullScreen"
         onRequestClose={() => setShowFirmaModal(false)}
       >
-        <SafeAreaView style={styles.firmaModalContainer}>
+        <SafeAreaView style={[styles.firmaModalContainer, {
+          position: 'relative',
+          overflow: 'hidden'
+        }]}>
           <View style={styles.firmaModalHeader}>
             <TouchableOpacity
               onPress={() => setShowFirmaModal(false)}
@@ -2110,35 +2113,105 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
               onEmpty={() => Alert.alert('Firma requerida', 'Por favor, capture la firma del cliente antes de continuar')}
               descriptionText="Firme aquí"
               clearText="Limpiar"
-              confirmText="Confirmar Firma"
+              confirmText="Confirmar"
               webStyle={`
+                * {
+                  -webkit-touch-callout: none;
+                  -webkit-user-select: none;
+                  -khtml-user-select: none;
+                  -moz-user-select: none;
+                  -ms-user-select: none;
+                  user-select: none;
+                  touch-action: none;
+                }
+                body, html {
+                  overflow: hidden;
+                  position: fixed;
+                  width: 100%;
+                  height: 100%;
+                  margin: 0;
+                  padding: 0;
+                }
                 .m-signature-pad {
                   box-shadow: none;
                   border: 2px dashed #2196F3;
                   border-radius: 10px;
-                  margin: 10px;
+                  margin: 20px auto;
+                  width: 85%;
+                  max-width: 350px;
+                  height: auto;
+                  position: relative;
+                  background: white;
+                  display: block;
                 }
                 .m-signature-pad--body {
                   border: none;
+                  position: relative;
+                  height: 250px !important;
+                  max-height: 250px !important;
+                  touch-action: none;
+                  overflow: hidden;
+                }
+                .m-signature-pad--body canvas {
+                  touch-action: none !important;
+                  position: relative;
+                  width: 100% !important;
+                  height: 250px !important;
+                  max-height: 250px !important;
+                  background: white;
+                  border-radius: 8px;
                 }
                 .m-signature-pad--footer {
-                  margin: 10px;
+                  position: absolute;
+                  bottom: -80px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  text-align: center;
+                  width: 100%;
+                  max-width: 300px;
+                  margin: 0;
+                  padding: 15px;
+                  background: rgba(248, 249, 250, 0.98);
+                  backdrop-filter: blur(10px);
+                  border: 1px solid #e0e0e0;
+                  border-radius: 12px;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  gap: 15px;
+                  z-index: 100;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
                 }
                 .description {
                   color: #2196F3;
-                  font-size: 16px;
-                  margin: 10px;
+                  font-size: 18px;
+                  margin: 15px auto 20px;
                   text-align: center;
+                  width: 100%;
+                  font-weight: bold;
+                  padding: 10px;
                 }
                 .m-signature-pad--footer .button {
                   background-color: #2196F3;
                   color: white;
                   border: none;
-                  border-radius: 8px;
-                  padding: 12px 24px;
-                  margin: 5px;
+                  border-radius: 12px;
+                  padding: 18px 30px;
+                  margin: 0;
                   font-size: 16px;
                   font-weight: 600;
+                  min-height: 55px;
+                  min-width: 130px;
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  cursor: pointer;
+                  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                  transition: all 0.2s ease;
+                }
+                .m-signature-pad--footer .button:hover {
+                  transform: translateY(-2px);
+                  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
                 }
                 .m-signature-pad--footer .button.clear {
                   background-color: #DC3545;
@@ -6388,6 +6461,8 @@ const styles = StyleSheet.create({
   firmaModalContainer: {
     flex: 1,
     backgroundColor: '#F5F7FA',
+    position: 'relative',
+    overflow: 'hidden',
   },
   firmaModalHeader: {
     flexDirection: 'row',
@@ -6441,6 +6516,7 @@ const styles = StyleSheet.create({
   firmaCanvasContainer: {
     flex: 1,
     margin: 20,
+    marginBottom: 120,
     backgroundColor: 'white',
     borderRadius: 10,
     shadowColor: '#000',
@@ -6448,6 +6524,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    overflow: 'visible',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 30,
   },
 });
 
