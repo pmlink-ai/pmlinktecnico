@@ -2157,6 +2157,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
   const [servicioInfo, setServicioInfo] = useState(null);
   const [localInfo, setLocalInfo] = useState(null);
   const [empresaInfo, setEmpresaInfo] = useState(null);
+  const [zonaInfo, setZonaInfo] = useState(null);
   const [formularioInfo, setFormularioInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
@@ -2225,6 +2226,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
               console.error('❌ Error obteniendo zona:', zonaError);
             } else {
               console.log('✅ Información de la zona obtenida:', zonaData);
+              setZonaInfo(zonaData); // Guardar la información de la zona
               
               // Ahora obtener la empresa usando zona.empresa_id
               const empresaId = zonaData?.empresa_id;
@@ -2586,6 +2588,12 @@ const FormularioDinamico = ({ order, onClose }) => {
   const [currentView, setCurrentView] = useState('datos'); // 'datos' o 'fotografias'
   const [currentPhotoPage, setCurrentPhotoPage] = useState(0); // Índice de la página actual de fotografías
   const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // Estados para información adicional
+  const [servicioInfo, setServicioInfo] = useState(null);
+  const [localInfo, setLocalInfo] = useState(null);
+  const [empresaInfo, setEmpresaInfo] = useState(null);
+  const [zonaInfo, setZonaInfo] = useState(null);
   
   // Referencia simple para el scroll
   const scrollRef = useRef(null);
@@ -3466,6 +3474,9 @@ const FormularioDinamico = ({ order, onClose }) => {
 
       console.log('✅ Form Key obtenido:', formularioData.form_key);
 
+      // Cargar información adicional del servicio (zona, empresa, local)
+      await cargarInformacionServicio(ordenData.servicio_id);
+
       // Paso 4: Mapear form_key a nombre de tabla real
       const formKeyToTableMapping = {
         'INFORME_MTTO_ELECTROMECANICO': 'informe_electromecanico',
@@ -3569,6 +3580,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       const todayDate = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
       const specialFields = [
         { key: 'cliente', defaultValue: '' },
+        { key: 'zona', defaultValue: '' },
         { key: 'fecha_inicio', defaultValue: todayDate },
         { key: 'nombre_local', defaultValue: '' },
         { key: 'encargado', defaultValue: '' },
@@ -3634,11 +3646,79 @@ const FormularioDinamico = ({ order, onClose }) => {
         setFormData(initialData);
       }
 
+      // Cargar información adicional del servicio (zona, empresa, local)
+      await cargarInformacionServicio(ordenData.servicio_id);
+
     } catch (error) {
       console.error('❌ Error general:', error);
       Alert.alert('Error', `Error inesperado al cargar el formulario: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para cargar información adicional del servicio (zona, empresa, local)
+  const cargarInformacionServicio = async (servicioId) => {
+    try {
+      console.log('🔍 Cargando información del servicio ID:', servicioId);
+      
+      // Obtener información del servicio con local
+      const { data: servicioData, error: servicioError } = await supabase
+        .from('servicios')
+        .select(`
+          *,
+          local(
+            nombre_local,
+            direccion,
+            zona_id
+          )
+        `)
+        .eq('servicio_id', servicioId)
+        .single();
+
+      if (servicioError) {
+        console.error('❌ Error obteniendo servicio:', servicioError);
+        return;
+      }
+
+      console.log('✅ Información del servicio obtenida:', servicioData);
+      setServicioInfo(servicioData);
+      setLocalInfo(servicioData?.local);
+
+      // Obtener información de la zona si existe
+      if (servicioData?.local?.zona_id) {
+        const { data: zonaData, error: zonaError } = await supabase
+          .from('zona')
+          .select('empresa_id, nombre_zona')
+          .eq('zona_id', servicioData.local.zona_id)
+          .single();
+
+        if (zonaError) {
+          console.error('❌ Error obteniendo zona:', zonaError);
+        } else {
+          console.log('✅ Información de la zona obtenida:', zonaData);
+          setZonaInfo(zonaData);
+
+          // Obtener información de la empresa
+          if (zonaData?.empresa_id) {
+            const { data: empresaData, error: empresaError } = await supabase
+              .from('empresa')
+              .select('*')
+              .eq('empresa_id', zonaData.empresa_id)
+              .single();
+
+            if (empresaError) {
+              console.error('❌ Error obteniendo empresa:', empresaError);
+            } else {
+              console.log('✅ Información de la empresa obtenida:', empresaData);
+              setEmpresaInfo(empresaData);
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Error general cargando información del servicio:', error);
     }
   };
 
@@ -3699,7 +3779,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   const areAllRequiredFieldsComplete = () => {
     // Lista de campos obligatorios para limpieza de ductos
     const requiredFields = [
-      'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo',
+      'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo',
       'campanas_estado', 'filtros_estado', 'ductos_estado', 'damper_estado', 'drenajes_estado',
       'registros_local_estado', 'registros_techumbre_estado', 'rejillas_en_el_motor',
       'cantidad_de_motores', 'fuelle_extractor', 'correas_estado', 'rodamientos_estado', 'observaciones_adicionales'
@@ -4080,7 +4160,7 @@ const FormularioDinamico = ({ order, onClose }) => {
       console.log('📋 Columnas válidas en la tabla:', validColumns);
       
       // Campos que siempre pueden estar presentes
-      const alwaysAllowedFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal'];
+      const alwaysAllowedFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal'];
       
       // Crear lista de todos los campos permitidos para esta tabla
       const allowedFields = [...validColumns, ...alwaysAllowedFields];
@@ -4307,7 +4387,7 @@ const FormularioDinamico = ({ order, onClose }) => {
         console.log('🔍 Validando campos obligatorios para ANSUL R-102...');
         
         // Obtener todos los campos obligatorios dinámicamente
-        const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'nombre_local', 'fecha_inicio', 'horas_trabajo'];
+        const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'horas_trabajo'];
         const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
         
         console.log('📋 Campos obligatorios a validar:', requiredFields);
@@ -4363,13 +4443,22 @@ const FormularioDinamico = ({ order, onClose }) => {
         key: 'cliente',
         label: 'CLIENTE',
         required: true,
-        type: 'text'
+        type: 'text',
+        readOnly: true
+      },
+      {
+        key: 'zona',
+        label: 'ZONA',
+        required: false,
+        type: 'text',
+        readOnly: true
       },
       {
         key: 'nombre_local',
         label: 'NOMBRE DE LOCAL',
         required: true,
-        type: 'text'
+        type: 'text',
+        readOnly: true
       },
       {
         key: 'fecha_inicio',
@@ -4398,7 +4487,17 @@ const FormularioDinamico = ({ order, onClose }) => {
     ];
 
     return specialFields.map((field) => {
-      const fieldValue = formData[field.key] || '';
+      // Obtener el valor del campo con lógica especial para campos de BD
+      let fieldValue = formData[field.key] || '';
+      
+      // Lógica especial para campos que se obtienen de la BD
+      if (field.key === 'zona') {
+        fieldValue = zonaInfo?.nombre_zona || 'No disponible';
+      } else if (field.key === 'cliente') {
+        fieldValue = empresaInfo?.nombre_empresa || 'No disponible';
+      } else if (field.key === 'nombre_local') {
+        fieldValue = localInfo?.nombre_local || 'No disponible';
+      }
       
       if (field.type === 'date') {
         console.log(`🗓️ Renderizando campo de fecha: ${field.key}, valor: ${fieldValue}`);
@@ -4741,13 +4840,14 @@ const FormularioDinamico = ({ order, onClose }) => {
             {field.label} {field.required && '*'}
           </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, field.readOnly && styles.readOnlyInput]}
             value={String(fieldValue)}
-            onChangeText={(value) => handleInputChange(field.key, value)}
-            placeholder={`Ingresa ${field.label.toLowerCase()}`}
+            onChangeText={field.readOnly ? undefined : (value) => handleInputChange(field.key, value)}
+            placeholder={field.readOnly ? '' : `Ingresa ${field.label.toLowerCase()}`}
             keyboardType={field.type === 'numeric' ? 'numeric' : 'default'}
             autoCapitalize={field.type === 'numeric' ? 'none' : 'characters'}
             autoCorrect={false}
+            editable={!field.readOnly}
           />
         </View>
       );
@@ -4904,7 +5004,7 @@ const FormularioDinamico = ({ order, onClose }) => {
                   
                   {/* Campos dinámicos de la tabla */}
                   {campos.filter(campo => 
-                    !['cliente', 'nombre_local', 'fecha_inicio', 'horas_trabajo', 'encargado', 'asist_personal'].includes(campo.column_name)
+                    !['cliente', 'zona', 'nombre_local', 'fecha_inicio', 'horas_trabajo', 'encargado', 'asist_personal'].includes(campo.column_name)
                   ).map(renderField)}
                 </>
               )}

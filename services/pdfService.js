@@ -123,31 +123,43 @@ export class PDFService {
         console.error('Error obteniendo servicio:', serviceError);
       }
 
-      // Obtener información de la empresa por separado
+      // Obtener información de la empresa y zona por separado
       let empresaInfo = null;
+      let zonaInfo = null;
       if (serviceData?.local?.zona_id) {
         const { data: zonaData, error: zonaError } = await supabase
           .from('zona')
-          .select('empresa_id')
+          .select('empresa_id, nombre_zona')
           .eq('zona_id', serviceData.local.zona_id)
           .single();
 
-        if (zonaData?.empresa_id && !zonaError) {
-          const { data: empresa, error: empresaError } = await supabase
-            .from('empresa')
-            .select('nombre_empresa')
-            .eq('empresa_id', zonaData.empresa_id)
-            .single();
+        if (zonaData && !zonaError) {
+          // Guardar información de la zona
+          zonaInfo = { nombre_zona: zonaData.nombre_zona };
+          
+          // Obtener información de la empresa
+          if (zonaData.empresa_id) {
+            const { data: empresa, error: empresaError } = await supabase
+              .from('empresa')
+              .select('nombre_empresa')
+              .eq('empresa_id', zonaData.empresa_id)
+              .single();
 
-          if (!empresaError) {
-            empresaInfo = empresa;
+            if (!empresaError) {
+              empresaInfo = empresa;
+            }
           }
         }
       }
 
-      // Agregar la información de empresa al serviceData para mantener compatibilidad
-      if (serviceData?.local && empresaInfo) {
-        serviceData.local.zona = { empresa: empresaInfo };
+      // Agregar la información de empresa y zona al serviceData para mantener compatibilidad
+      if (serviceData?.local) {
+        if (empresaInfo || zonaInfo) {
+          serviceData.local.zona = { 
+            empresa: empresaInfo,
+            ...zonaInfo
+          };
+        }
       }
 
       // 4. Obtener fotografías organizadas por componente (DATOS FRESCOS)
@@ -806,6 +818,10 @@ export class PDFService {
           <tr>
             <td class="label">CLIENTE</td>
             <td>${service.local?.zona?.empresa?.nombre_empresa || 'No disponible'}</td>
+          </tr>
+          <tr>
+            <td class="label">ZONA</td>
+            <td>${service.local?.zona?.nombre_zona || 'No disponible'}</td>
           </tr>
           <tr>
             <td class="label">FECHA- INICIO</td>
