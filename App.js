@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
+import Signature from 'react-native-signature-canvas';
 import PDFService from './services/pdfService';
 import { DocumentStorageService } from './services/documentStorageService';
 
@@ -135,6 +136,11 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   const [uploading, setUploading] = useState({});
   const [loading, setLoading] = useState(true);
   const [expandedComponents, setExpandedComponents] = useState({});
+  
+  // Estados para firma digital
+  const [firmaCliente, setFirmaCliente] = useState(null); // Base64 de la firma
+  const [documentoFirmado, setDocumentoFirmado] = useState(false); // Estado de firmado
+  const [showFirmaModal, setShowFirmaModal] = useState(false); // Modal de firma
   const [observacionesPorComponente, setObservacionesPorComponente] = useState({});
   const [observacionesSecciones, setObservacionesSecciones] = useState({});
   const [observacionesTimeouts, setObservacionesTimeouts] = useState({});
@@ -1335,6 +1341,149 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     }));
   };
 
+  // ================== FUNCIONES DE FIRMA DIGITAL ==================
+  const handleOpenFirma = () => {
+    if (documentoFirmado) {
+      Alert.alert('Documento ya firmado', 'Este documento ya cuenta con firma del cliente');
+      return;
+    }
+    setShowFirmaModal(true);
+  };
+
+  // Manejar firma completada
+  const handleFirmaCompleted = (signatureBase64) => {
+    console.log('✅ Firma capturada');
+    setFirmaCliente(signatureBase64);
+    setDocumentoFirmado(true);
+    setShowFirmaModal(false);
+    Alert.alert('Firma guardada', 'La firma del cliente ha sido capturada correctamente');
+  };
+
+  // Limpiar firma (permitir nueva firma)
+  const handleLimpiarFirma = () => {
+    Alert.alert(
+      'Limpiar Firma',
+      '¿Está seguro de eliminar la firma actual? Se desbloqueará el documento para modificaciones.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Limpiar',
+          onPress: () => {
+            setFirmaCliente(null);
+            setDocumentoFirmado(false);
+            console.log('🧹 Firma limpiada - documento desbloqueado');
+          },
+          style: 'destructive'
+        }
+      ]
+    );
+  };
+
+  // ================== RENDERIZADO DE SECCIÓN DE FIRMA ==================
+  const renderFirmaSection = () => {
+    return (
+      <View style={{
+        marginTop: 20,
+        padding: 15,
+        backgroundColor: documentoFirmado ? '#D4FEDD' : '#FFF3CD',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: documentoFirmado ? '#28A745' : '#FFC107'
+      }}>
+        <Text style={{
+          fontSize: 16,
+          fontWeight: 'bold',
+          color: documentoFirmado ? '#155724' : '#856404',
+          textAlign: 'center',
+          marginBottom: 10
+        }}>
+          {documentoFirmado ? '✅ DOCUMENTO FIRMADO' : '✍️ FIRMA DEL CLIENTE'}
+        </Text>
+        
+        {firmaCliente && (
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 8,
+            padding: 10,
+            marginBottom: 10,
+            borderWidth: 1,
+            borderColor: '#DDD'
+          }}>
+            <Text style={{
+              fontSize: 12,
+              color: '#666',
+              textAlign: 'center',
+              marginBottom: 5
+            }}>
+              Firma capturada:
+            </Text>
+            <Image
+              source={{ uri: firmaCliente }}
+              style={{
+                width: '100%',
+                height: 80,
+                resizeMode: 'contain'
+              }}
+            />
+          </View>
+        )}
+        
+        {!documentoFirmado ? (
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#2196F3',
+              paddingVertical: 12,
+              paddingHorizontal: 20,
+              borderRadius: 8,
+              alignItems: 'center'
+            }}
+            onPress={handleOpenFirma}
+          >
+            <Text style={{
+              color: 'white',
+              fontSize: 16,
+              fontWeight: '600'
+            }}>
+              📝 Capturar Firma del Cliente
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#DC3545',
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              alignItems: 'center'
+            }}
+            onPress={handleLimpiarFirma}
+          >
+            <Text style={{
+              color: 'white',
+              fontSize: 14,
+              fontWeight: '600'
+            }}>
+              🗑️ Limpiar Firma
+            </Text>
+          </TouchableOpacity>
+        )}
+        
+        <Text style={{
+          fontSize: 12,
+          color: '#666',
+          textAlign: 'center',
+          marginTop: 8,
+          fontStyle: 'italic'
+        }}>
+          {documentoFirmado 
+            ? 'El documento está bloqueado para modificaciones'
+            : 'La firma confirma la recepción conforme del trabajo realizado'
+          }
+        </Text>
+      </View>
+    );
+  };
+
   const renderReciboConformeSection = (componenteKey) => {
     // Para Recibo Conforme, solo usamos la sección 'ANTES' como sección única
     const seccionUnica = 'ANTES';
@@ -1415,6 +1564,9 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
             * Requerida para finalizar el informe
           </Text>
         )}
+        
+        {/* SECCIÓN DE FIRMA DIGITAL */}
+        {renderFirmaSection()}
       </View>
     );
   };
@@ -1926,6 +2078,76 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           })()}
         </View>
       )}
+      
+      {/* MODAL DE FIRMA DIGITAL */}
+      <Modal
+        visible={showFirmaModal}
+        animationType="slide"
+        presentationStyle="formSheet"
+        onRequestClose={() => setShowFirmaModal(false)}
+      >
+        <SafeAreaView style={styles.firmaModalContainer}>
+          <View style={styles.firmaModalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowFirmaModal(false)}
+              style={styles.firmaModalCloseButton}
+            >
+              <Text style={styles.firmaModalCloseText}>✕ Cancelar</Text>
+            </TouchableOpacity>
+            <Text style={styles.firmaModalTitle}>Firma del Cliente</Text>
+            <View style={styles.firmaModalHeaderSpace} />
+          </View>
+          
+          <View style={styles.firmaInstructions}>
+            <Text style={styles.firmaInstructionsText}>
+              Por favor, solicite al cliente que firme en el área de abajo para confirmar la recepción del trabajo realizado.
+            </Text>
+          </View>
+
+          <View style={styles.firmaCanvasContainer}>
+            <Signature
+              onOK={handleFirmaCompleted}
+              onEmpty={() => Alert.alert('Firma requerida', 'Por favor, capture la firma del cliente antes de continuar')}
+              descriptionText="Firme aquí"
+              clearText="Limpiar"
+              confirmText="Confirmar Firma"
+              webStyle={`
+                .m-signature-pad {
+                  box-shadow: none;
+                  border: 2px dashed #2196F3;
+                  border-radius: 10px;
+                  margin: 10px;
+                }
+                .m-signature-pad--body {
+                  border: none;
+                }
+                .m-signature-pad--footer {
+                  margin: 10px;
+                }
+                .description {
+                  color: #2196F3;
+                  font-size: 16px;
+                  margin: 10px;
+                  text-align: center;
+                }
+                .m-signature-pad--footer .button {
+                  background-color: #2196F3;
+                  color: white;
+                  border: none;
+                  border-radius: 8px;
+                  padding: 12px 24px;
+                  margin: 5px;
+                  font-size: 16px;
+                  font-weight: 600;
+                }
+                .m-signature-pad--footer .button.clear {
+                  background-color: #DC3545;
+                }
+              `}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 };
@@ -5081,8 +5303,6 @@ const FormularioDinamico = ({ order, onClose }) => {
           </TouchableOpacity>
         ) : null}
 
-
-
         <View style={{ height: 50 }} />
       </ScrollView>
     </SafeAreaView>
@@ -6162,6 +6382,72 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 4,
     marginLeft: 5,
+  },
+  
+  // ================== ESTILOS FIRMA DIGITAL ==================
+  firmaModalContainer: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  firmaModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E6ED',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  firmaModalCloseButton: {
+    padding: 8,
+  },
+  firmaModalCloseText: {
+    color: '#DC3545',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  firmaModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  firmaModalHeaderSpace: {
+    width: 80, // Espacio para balancear el header
+  },
+  firmaInstructions: {
+    padding: 20,
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  firmaInstructionsText: {
+    fontSize: 16,
+    color: '#2C3E50',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  firmaCanvasContainer: {
+    flex: 1,
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });
 
