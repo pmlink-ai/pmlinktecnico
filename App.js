@@ -1353,11 +1353,17 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   // Manejar firma completada
   const handleFirmaCompleted = (signatureBase64) => {
     console.log('✅ Firma capturada');
+    console.log('📊 Tamaño de firma (caracteres):', signatureBase64?.length || 0);
+    console.log('🔍 Tipo de firma:', typeof signatureBase64);
+    console.log('📝 Primeros 50 caracteres:', signatureBase64?.substring(0, 50));
+    
     setFirmaCliente(signatureBase64);
     setDocumentoFirmado(true);
     setShowFirmaModal(false);
-    Alert.alert('Firma guardada', 'La firma del cliente ha sido capturada correctamente');
+    Alert.alert('Firma guardada', 'La firma del cliente será incluida en el PDF del informe');
   };
+
+
 
   // Limpiar firma (permitir nueva firma)
   const handleLimpiarFirma = () => {
@@ -1372,6 +1378,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
             setFirmaCliente(null);
             setDocumentoFirmado(false);
             console.log('🧹 Firma limpiada - documento desbloqueado');
+            Alert.alert('Firma eliminada', 'La firma ha sido eliminada. Podrá capturar una nueva firma.');
           },
           style: 'destructive'
         }
@@ -2059,7 +2066,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                   <View style={styles.actionButtonsContainer}>
                     <TouchableOpacity 
                       style={[styles.actionButton, styles.pdfButton]}
-                      onPress={handleGeneratePDF}
+                      onPress={() => handleGeneratePDF(firmaCliente, documentoFirmado, orderId)}
                       disabled={generatingPDF}
                     >
                       {generatingPDF ? (
@@ -4584,43 +4591,86 @@ const FormularioDinamico = ({ order, onClose }) => {
 
   // ==================== FUNCIONES PARA PDF Y EMAIL ====================
   
-  const handleGeneratePDF = async () => {
+  const handleGeneratePDF = async (firmaClienteParam = null, documentoFirmadoParam = false, ordenIdParam = null) => {
+    console.log('\n🚀 ===== INICIANDO GENERACIÓN DE PDF =====');
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('📱 Estado actual de la aplicación:');
+    
+    // Usar parámetros recibidos o variables locales
+    const firmaCliente = firmaClienteParam;
+    const documentoFirmado = documentoFirmadoParam;
+    const orderId = ordenIdParam || order?.id;
+    
+    // Logs seguros uno por uno
     try {
+      console.log('   - orderId:', orderId || 'NO_DEFINIDO');
+      console.log('   - tableName:', tableName || 'NO_DEFINIDO');  
+      console.log('   - existingRecord presente:', !!existingRecord);
+      console.log('   - documentoFirmado:', documentoFirmado || false);
+      console.log('   - firmaCliente presente:', !!firmaCliente);
+      console.log('   - firmaCliente tamaño:', (firmaCliente?.length || 0));
+      console.log('   - order presente:', !!order);
+    } catch (error) {
+      console.error('❌ Error en logs de estado:', error.message);
+    }
+    
+    console.log('🔄 Entrando en try-catch principal...');
+    
+    try {
+      console.log('🔄 Estableciendo generatingPDF a true...');
       setGeneratingPDF(true);
+      console.log('✅ Estado generatingPDF establecido');
       
+      console.log('🔍 Verificando existingRecord...', !!existingRecord);
       if (!existingRecord) {
+        console.log('❌ No hay registro existente');
         Alert.alert(
           'Guardar primero',
           'Debes guardar el formulario antes de generar el PDF',
           [{ text: 'OK' }]
         );
+        setGeneratingPDF(false);
         return;
       }
+      console.log('✅ existingRecord verificado correctamente');
 
-      console.log('📄 Generando PDF para orden:', order.id);
+      console.log('📄 order.id:', order?.id || 'NO_DISPONIBLE');
       
       // Generar nombre de archivo basado en el tipo de formulario
+      console.log('🏷️ Determinando nombre de archivo para tableName:', tableName);
       let fileName;
       let tipoDocumento;
       if (tableName === 'informe_ansul_r102') {
         fileName = `FORMULARIO_INFORME_ANSUL_R102_${order.id?.substring(0, 8)}`;
         tipoDocumento = 'Informe ANSUL R-102';
+        console.log('📋 Tipo identificado: ANSUL R-102');
       } else if (tableName === 'informe_limpieza_ductos') {
         fileName = `FORMULARIO_INFORME_LIMPIEZA_DUCTOS_${order.id?.substring(0, 8)}`;
         tipoDocumento = 'Informe Limpieza Ductos';
+        console.log('📋 Tipo identificado: Limpieza Ductos');
       } else if (tableName === 'informe_electromecanico') {
         fileName = `FORMULARIO_INFORME_ELECTROMECANICO_${order.id?.substring(0, 8)}`;
         tipoDocumento = 'Informe Electromecánico';
+        console.log('📋 Tipo identificado: Electromecánico');
       } else {
         // Para otros formularios, usar el nombre de la tabla formateado
         fileName = `FORMULARIO_${tableName.replace(/_/g, '_').toUpperCase()}_${order.id?.substring(0, 8)}`;
         tipoDocumento = tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        console.log('📋 Tipo genérico identificado:', tipoDocumento);
       }
       
+      console.log('📁 Nombre de archivo final:', fileName);
+      console.log('🏷️ Tipo de documento final:', tipoDocumento);
+      
       console.log('📄 Verificando documento existente...', { fileName, tipoDocumento });
+      console.log('🔍 Estado firma antes de verificación:');
+      console.log('   - documentoFirmado:', documentoFirmado);
+      console.log('   - firmaCliente existe:', !!firmaCliente);
 
       // Verificar si ya existe un documento del mismo tipo
+      console.log('🔍 Llamando a DocumentStorageService.checkDocumentExists...');
       const existingDoc = await DocumentStorageService.checkDocumentExists(order.id, tipoDocumento);
+      console.log('📄 Resultado de checkDocumentExists:', existingDoc);
       
       if (existingDoc.existe) {
         console.log('⚠️ Documento ya existe, solicitando confirmación...');
@@ -4649,7 +4699,7 @@ const FormularioDinamico = ({ order, onClose }) => {
                 
                 if (eliminado) {
                   console.log('✅ Documento anterior eliminado, generando nuevo...');
-                  await generateNewPDF(fileName, tipoDocumento);
+                  await generateNewPDF(fileName, tipoDocumento, firmaClienteParam, documentoFirmadoParam);
                 } else {
                   Alert.alert('Error', 'No se pudo eliminar el archivo anterior');
                   setGeneratingPDF(false);
@@ -4663,19 +4713,38 @@ const FormularioDinamico = ({ order, onClose }) => {
 
       // Si no existe documento, generar directamente
       console.log('📄 No existe documento anterior, generando nuevo...');
-      await generateNewPDF(fileName, tipoDocumento);
+      await generateNewPDF(fileName, tipoDocumento, firmaClienteParam, documentoFirmadoParam);
 
     } catch (error) {
-      console.error('❌ Error en handleGeneratePDF:', error);
+      console.log('\n❌ ===== ERROR EN GENERACIÓN DE PDF =====');
+      console.error('💥 Error completo:', error);
+      console.error('📋 Mensaje de error:', error.message);
+      console.error('📍 Stack trace:', error.stack);
+      console.error('🏷️ Nombre del error:', error.name);
+      console.log('📊 Estado en el momento del error:');
+      console.log('   - orderId:', orderId);
+      console.log('   - tableName:', tableName);
+      console.log('   - firmaCliente:', !!firmaCliente);
+      console.log('=======================================\n');
+      
       Alert.alert('Error', 'No se pudo generar el PDF: ' + error.message);
+      setGeneratingPDF(false);
+    } finally {
+      console.log('🔄 Finalizando handleGeneratePDF - estableciendo generatingPDF a false');
       setGeneratingPDF(false);
     }
   };
 
   // Función auxiliar para generar el PDF
-  const generateNewPDF = async (fileName, tipoDocumento) => {
+  const generateNewPDF = async (fileName, tipoDocumento, firmaCliente, documentoFirmado) => {
     try {
-      console.log('🚀 Iniciando generación de PDF...', { fileName, tipoDocumento });
+      console.log('\n📄 ===== GENERANDO NUEVO PDF =====');
+      console.log('📁 Nombre de archivo:', fileName);
+      console.log('🏷️ Tipo de documento:', tipoDocumento);
+      console.log('📋 Tabla actual:', tableName);
+      console.log('🖊️ Estado de firma:');
+      console.log('   - Tiene firma:', !!firmaCliente);
+      console.log('   - Tamaño:', firmaCliente?.length || 0);
       
       // Validación específica para ANSUL R-102: verificar campos obligatorios
       if (tableName === 'informe_ansul_r102') {
@@ -4710,13 +4779,21 @@ const FormularioDinamico = ({ order, onClose }) => {
       }
       
       console.log('✅ Validaciones completadas, generando PDF...');
+      console.log('📝 Estado de firma antes de generar PDF:');
+      console.log('   - Tiene firma:', !!firmaCliente);
+      console.log('   - Documento firmado:', documentoFirmado);
+      console.log('   - Tamaño firma:', firmaCliente?.length || 0);
+      console.log('🚀 Llamando a PDFService.generateAndSharePDF...');
       
-      // Generar PDF usando PDFService
-      await PDFService.generateAndSharePDF(
+      // Generar PDF usando PDFService incluyendo la firma
+      const pdfResult = await PDFService.generateAndSharePDF(
         order.id, 
         tableName, 
-        fileName
+        fileName,
+        firmaCliente // Pasar la firma capturada
       );
+      
+      console.log('✅ PDF generado exitosamente:', pdfResult);
       
       Alert.alert('Éxito', `PDF generado: ${fileName}.pdf`);
       

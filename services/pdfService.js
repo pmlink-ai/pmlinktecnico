@@ -330,8 +330,13 @@ export class PDFService {
   }
 
   // Generar HTML del PDF
-  static generatePDFHTML(data, forceTimestamp = null) {
+  static generatePDFHTML(data, forceTimestamp = null, firmaCliente = null) {
     const { order, formData, service, photos, observaciones, tecnicos, tableName } = data;
+    
+    console.log('📋 generatePDFHTML recibido:');
+    console.log('   - tableName:', tableName);
+    console.log('   - Tiene firmaCliente:', !!firmaCliente);
+    console.log('   - Tipo firmaCliente:', typeof firmaCliente);
     
     // ID único para forzar regeneración
     const uniqueId = forceTimestamp || new Date().toISOString();
@@ -355,16 +360,16 @@ export class PDFService {
 
     // Generar contenido específico según el tipo de informe
     if (tableName === 'informe_ansul_r102') {
-      return this.generateAnsulR102PDF(order, formData, service, photos, observaciones, tecnicos, informeTitle);
+      return this.generateAnsulR102PDF(order, formData, service, photos, observaciones, tecnicos, informeTitle, firmaCliente);
     } else if (tableName === 'informe_electromecanico') {
-      return this.generateMttoElectromecanicosPDF(order, formData, service, photos, tecnicos, informeTitle);
+      return this.generateMttoElectromecanicosPDF(order, formData, service, photos, tecnicos, informeTitle, firmaCliente);
     } else {
-      return this.generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle, uniqueId);
+      return this.generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle, uniqueId, firmaCliente);
     }
   }
 
   // Generar PDF específico para Limpieza de Ductos
-  static generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle, uniqueId = null) {
+  static generateLimpiezaDuctosPDF(order, formData, service, photos, tecnicos, informeTitle, uniqueId = null, firmaCliente = null) {
     console.log('📄 DEBUG: Generando PDF de Limpieza de Ductos...');
     console.log('📄 DEBUG: formData completo:', JSON.stringify(formData, null, 2));
     console.log('📄 DEBUG: Valor específico campanas_estado:', formData?.campanas_estado);
@@ -388,13 +393,14 @@ export class PDFService {
           ${this.generateServiceDataSection(order, service, formData)}
           ${this.generateDiagnosticTable(formData)}
           ${this.generatePhotosSection(photos)}
+          ${this.generateFirmaSection(firmaCliente)}
         </body>
       </html>
     `;
   }
 
   // Generar PDF específico para Mantenimiento Electromecánico
-  static generateMttoElectromecanicosPDF(order, formData, service, photos, tecnicos, informeTitle) {
+  static generateMttoElectromecanicosPDF(order, formData, service, photos, tecnicos, informeTitle, firmaCliente = null) {
     return `
       <!DOCTYPE html>
       <html>
@@ -411,13 +417,14 @@ export class PDFService {
           ${this.generateServiceDataSection(order, service, formData)}
           ${this.generateElectromecanicosDiagnosticTable(formData)}
           ${this.generatePhotosSection(photos)}
+          ${this.generateFirmaSection(firmaCliente)}
         </body>
       </html>
     `;
   }
 
   // Generar PDF específico para ANSUL R-102
-  static generateAnsulR102PDF(order, formData, service, photos, observaciones, tecnicos, informeTitle) {
+  static generateAnsulR102PDF(order, formData, service, photos, observaciones, tecnicos, informeTitle, firmaCliente = null) {
     return `
       <!DOCTYPE html>
       <html>
@@ -434,6 +441,7 @@ export class PDFService {
           ${this.generateServiceDataSection(order, service, formData)}
           ${this.generateAnsulDiagnosticTable(formData)}
           ${this.generateAnsulPhotosSection(photos, observaciones)}
+          ${this.generateFirmaSection(firmaCliente)}
         </body>
       </html>
     `;
@@ -1370,10 +1378,14 @@ export class PDFService {
   }
 
   // Función principal para generar y compartir PDF
-  static async generateAndSharePDF(orderId, tableName, customFileName = 'Informe') {
+  static async generateAndSharePDF(orderId, tableName, customFileName = 'Informe', firmaCliente = null) {
     try {
       console.log('🔄 Iniciando generación de PDF...');
       console.log('📄 Nombre de archivo solicitado:', customFileName);
+      console.log('📝 Firma recibida:');
+      console.log('   - Tiene firma:', !!firmaCliente);
+      console.log('   - Tamaño:', firmaCliente?.length || 0);
+      console.log('   - Tipo:', typeof firmaCliente);
       
       // FORZAR RECARGA COMPLETA: Limpiar cualquier cache
       console.log('⏱️ Forzando regeneración completa...');
@@ -1391,7 +1403,9 @@ export class PDFService {
       
       // 2. Generar HTML con timestamp único para forzar nueva versión
       const timestamp = new Date().toISOString();
-      const htmlContent = this.generatePDFHTML(data, timestamp);
+      console.log('🔧 Generando HTML con firma incluida...');
+      console.log('   - Firma en data:', !!firmaCliente);
+      const htmlContent = this.generatePDFHTML(data, timestamp, firmaCliente);
       
       // 3. Generar PDF con nombre completamente único y timestamp
       const uniqueId = Math.random().toString(36).substr(2, 15);
@@ -1504,8 +1518,60 @@ export class PDFService {
 
     } catch (error) {
       console.error('❌ Error generando PDF:', error);
+      console.error('📊 Detalles del error:');
+      console.error('   - Mensaje:', error.message);
+      console.error('   - Stack:', error.stack);
+      console.error('   - Nombre:', error.name);
       throw error;
     }
+  }
+
+  // Generar sección de firma del cliente
+  static generateFirmaSection(firmaCliente) {
+    console.log('🖊️ Generando sección de firma...');
+    console.log('   - Tiene firma:', !!firmaCliente);
+    console.log('   - Tamaño firma:', firmaCliente?.length || 0);
+    
+    if (!firmaCliente) {
+      console.log('❌ No hay firma - omitiendo sección');
+      return ''; // No mostrar sección si no hay firma
+    }
+
+    console.log('✅ Generando sección de firma con imagen');
+    return `
+      <div class="section" style="margin-top: 30px; page-break-inside: avoid;">
+        <div class="section-title" style="background-color: #28A745; color: white; padding: 10px; text-align: center; font-weight: bold; margin-bottom: 20px;">
+          RECIBO CONFORME - FIRMA DEL CLIENTE
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px;">
+          <div style="flex: 1; margin-right: 30px;">
+            <p style="margin-bottom: 20px; line-height: 1.6; color: #333;">
+              <strong>DECLARO:</strong> Que he recibido conforme el servicio técnico realizado, 
+              el cual ha sido ejecutado según las especificaciones acordadas. El trabajo se ha 
+              completado satisfactoriamente y cumple con los estándares de calidad requeridos.
+            </p>
+            <div style="margin-top: 40px;">
+              <div style="border-bottom: 1px solid #333; width: 250px; margin-bottom: 5px;"></div>
+              <p style="font-size: 10px; color: #666; margin: 0;">Nombre y Firma del Cliente</p>
+              <p style="font-size: 9px; color: #888; margin-top: 10px;">
+                Fecha: ${new Date().toLocaleDateString('es-CL')}
+              </p>
+            </div>
+          </div>
+          <div style="flex: 0 0 200px; text-align: center;">
+            <p style="font-weight: bold; margin-bottom: 10px; color: #28A745;">Firma Digital Capturada:</p>
+            <div style="border: 2px solid #28A745; border-radius: 8px; padding: 10px; background-color: #f8f9fa;">
+              <img src="${firmaCliente}" 
+                   style="max-width: 180px; max-height: 80px; width: auto; height: auto; display: block; margin: 0 auto;" 
+                   alt="Firma del Cliente" />
+            </div>
+            <p style="font-size: 8px; color: #666; margin-top: 5px; font-style: italic;">
+              Firma capturada digitalmente
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
   }
 }
 
