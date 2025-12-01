@@ -345,9 +345,6 @@ export class DocumentStorageService {
    * @returns {string} - Nombre del archivo
    */
   static generateFileName(tipoDocumento, ordenId) {
-    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const timeWithSeconds = new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].substring(0, 8); // HH-MM-SS
-    
     // Normalizar el tipo de documento para nombre de archivo (sin espacios)
     let tipoNormalizado;
     if (tipoDocumento === 'Informe Limpieza Ductos') {
@@ -356,6 +353,10 @@ export class DocumentStorageService {
       tipoNormalizado = 'INFORME_ANSUL_R102';
     } else if (tipoDocumento === 'Informe Electromecánico') {
       tipoNormalizado = 'INFORME_ELECTROMECANICO';
+    } else if (tipoDocumento === 'Certificado' || tipoDocumento.includes('Certificado')) {
+      // Para certificados, NO agregar timestamp - nombre fijo para reemplazar
+      tipoNormalizado = 'CERTIFICADO_LIMPIEZA_DUCTOS';
+      return `FORMULARIO_${tipoNormalizado}_${ordenId.slice(0, 8)}.pdf`;
     } else {
       // Para otros tipos, convertir espacios y caracteres especiales
       tipoNormalizado = tipoDocumento.toUpperCase()
@@ -364,7 +365,9 @@ export class DocumentStorageService {
         .replace(/_+/g, '_');
     }
     
-    // Agregar timestamp con segundos para forzar nueva versión
+    // Para informes normales, agregar timestamp con segundos para forzar nueva versión
+    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeWithSeconds = new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].substring(0, 8); // HH-MM-SS
     return `FORMULARIO_${tipoNormalizado}_${ordenId.slice(0, 8)}_${timestamp}_${timeWithSeconds}.pdf`;
   }
 

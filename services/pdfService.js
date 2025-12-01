@@ -1377,6 +1377,520 @@ export class PDFService {
     return photosHTML;
   }
 
+  // Función para generar certificado de limpieza y desinfección
+  static async generateCertificadoLimpieza(orderId, tableName, firmaCliente = null) {
+    try {
+      console.log('🏆 Iniciando generación de CERTIFICADO...');
+      console.log('📄 Generando certificado para orden:', orderId);
+      
+      // ELIMINAR TODOS los certificados anteriores de manera más agresiva
+      console.log('🗑️ ELIMINANDO certificados anteriores...');
+      try {
+        // Obtener TODOS los documentos de la orden
+        const allDocs = await DocumentStorageService.getDocumentsByOrder(orderId);
+        console.log('📋 Total documentos en orden:', allDocs.length);
+        
+        // Filtrar y eliminar cualquier documento que sea certificado
+        for (const doc of allDocs) {
+          const esCertificado = 
+            doc.nombre_archivo.toUpperCase().includes('CERTIFICADO') ||
+            doc.tipo_documento.toUpperCase().includes('CERTIFICADO') ||
+            doc.nombre_archivo.toUpperCase().includes('CERT');
+            
+          if (esCertificado) {
+            console.log('🗑️ ELIMINANDO certificado:', doc.nombre_archivo);
+            console.log('🗑️ Tipo:', doc.tipo_documento);
+            console.log('🗑️ ID:', doc.id);
+            
+            const eliminado = await DocumentStorageService.deleteDocumentCompletely(doc);
+            if (eliminado) {
+              console.log('✅ Certificado eliminado exitosamente');
+            } else {
+              console.error('❌ No se pudo eliminar certificado:', doc.nombre_archivo);
+            }
+          }
+        }
+        
+        // Esperar para asegurar eliminación completa
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('✅ Proceso de eliminación completado');
+        
+      } catch (deleteError) {
+        console.error('❌ Error eliminando certificados:', deleteError);
+      }
+      
+      // Obtener datos completos
+      const data = await this.getCompleteOrderData(orderId, tableName);
+      
+      // Generar HTML del certificado
+      const htmlContent = this.generateCertificadoHTML(data, firmaCliente);
+      
+      // Generar PDF del certificado con nombre fijo
+      const certificadoFileName = `CERTIFICADO_LIMPIEZA_DUCTOS_${orderId.substring(0, 8)}.pdf`;
+      
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        width: 612,
+        height: 792,
+        margins: {
+          left: 30,
+          top: 30,
+          right: 30,
+          bottom: 30,
+        },
+      });
+
+      console.log('✅ Certificado generado en:', uri);
+      console.log('📄 Nombre del certificado:', certificadoFileName);
+
+      // Guardar certificado en Supabase Storage
+      console.log('☁️ Guardando certificado NUEVO en Storage...');
+      const storageResult = await DocumentStorageService.saveDocument(orderId, uri, 'Certificado');
+      
+      if (storageResult.success) {
+        console.log('✅ Certificado guardado en Storage:', {
+          url: storageResult.urlPublica,
+          nombreArchivo: storageResult.documento?.nombre_archivo
+        });
+      }
+
+      return { 
+        success: true, 
+        uri, 
+        fileName: certificadoFileName,
+        storage: storageResult
+      };
+
+    } catch (error) {
+      console.error('❌ Error generando certificado:', error);
+      throw error;
+    }
+  }
+
+  // Generar HTML del certificado
+  static generateCertificadoHTML(data, firmaCliente = null) {
+    const { order, formData, service, tecnicos } = data;
+    
+    const formatDate = (dateString) => {
+      return new Date(dateString).toLocaleDateString('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    };
+
+    const formatDateLong = (dateString) => {
+      const months = [
+        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+      ];
+      const date = new Date(dateString);
+      return `${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`;
+    };
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Certificado de Limpieza y Desinfección de Ductos</title>
+          <style>
+            ${this.getCertificadoStyles()}
+          </style>
+        </head>
+        <body>
+          <div class="page-container">
+            <!-- Header con logos y contacto -->
+            <div class="header">
+              <div class="header-left">
+                <img src="https://mwtdoidrjuahsejfctlm.supabase.co/storage/v1/object/public/fotos_informes/logos/pmduc-logo.png" class="logo" alt="PMDUC" />
+              </div>
+              <div class="header-center">
+                <div class="contact-info">
+                  <div class="phone">+56 9 5678 4321</div>
+                  <div class="email">contacto@pmduc.cl</div>
+                </div>
+              </div>
+              <div class="header-right">
+                <div class="logo-placeholder">LOGO</div>
+              </div>
+            </div>
+
+            <!-- Línea azul -->
+            <div class="blue-line"></div>
+
+            <!-- Título -->
+            <div class="title-container">
+              <h1 class="main-title">CERTIFICADO</h1>
+              <h2 class="sub-title">DE LIMPIEZA Y DESINFECCIÓN DE DUCTOS</h2>
+            </div>
+
+            <!-- Contenido principal -->
+            <div class="content">
+              <!-- Texto introductorio -->
+              <p class="intro-paragraph">
+                Por medio del presente documento, certificamos que se ha realizado el 
+                <strong>SERVICIO DE LIMPIEZA Y DESINFECCIÓN DE DUCTOS</strong> en las instalaciones de:
+              </p>
+
+              <!-- Tabla principal -->
+              <table class="main-table">
+                <tr>
+                  <td class="label">EMPRESA:</td>
+                  <td class="value">${service.local?.zona?.empresa?.nombre_empresa || 'BURGER KING'}</td>
+                  <td class="label">FECHA:</td>
+                  <td class="value">${formatDate(order.created_at)}</td>
+                </tr>
+                <tr>
+                  <td class="label">LOCAL:</td>
+                  <td class="value">${service.local?.nombre_local || 'LOCAL PLAZA EGAÑA'}</td>
+                  <td class="label">ORDEN N°:</td>
+                  <td class="value">${order.id?.substring(0, 8) || '2025-001'}</td>
+                </tr>
+                <tr>
+                  <td class="label">DIRECCIÓN:</td>
+                  <td class="value" colspan="3">${service.local?.direccion || 'AV. PLAZA EGAÑA 1245, ÑUÑOA'}</td>
+                </tr>
+              </table>
+
+              <!-- Descripción del servicio -->
+              <p class="service-description">
+                El servicio consistió en la limpieza integral y desinfección de los sistemas de extracción 
+                de ductos, incluyendo campanas extractoras, filtros, ductos de conducción y equipos asociados. 
+                Se utilizaron productos biodegradables y técnicas especializadas que garantizan la eliminación 
+                de grasas, residuos orgánicos y contaminantes, cumpliendo con las normativas sanitarias vigentes.
+              </p>
+
+              <!-- Técnicos -->
+              <div class="technicians">
+                <span class="tech-label">TÉCNICO(S) RESPONSABLE(S):</span>
+                <span class="tech-names">
+                  ${tecnicos && tecnicos.length > 0 ? 
+                    tecnicos.map(tecnico => `${tecnico.nombre} ${tecnico.apellido}`).join(', ')
+                    : 'TÉCNICO ESPECIALIZADO'
+                  }
+                </span>
+              </div>
+
+              <!-- Validez -->
+              <div class="validity">
+                <strong>VALIDEZ:</strong> Este certificado tiene una validez de <strong>6 (seis) meses</strong> 
+                a partir de la fecha del servicio realizado.
+              </div>
+
+              <!-- Área de firmas -->
+              <div class="signature-area">
+                <div class="signature-left">
+                  <div class="signature-line"></div>
+                  <div class="signature-text">TÉCNICO RESPONSABLE</div>
+                  <div class="company-text">PMDUC - Expertos en Ductos</div>
+                </div>
+                
+                <div class="stamp">
+                  <div class="stamp-circle">
+                    <div class="stamp-inner">SELLO<br/>EMPRESA</div>
+                  </div>
+                </div>
+                
+                <div class="signature-right">
+                  <div class="signature-line"></div>
+                  <div class="signature-text">CLIENTE CONFORME</div>
+                  <div class="company-text">${service.local?.zona?.empresa?.nombre_empresa || 'EMPRESA'}</div>
+                </div>
+              </div>
+
+              <!-- Fecha -->
+              <div class="date-location">
+                Santiago, ${formatDateLong(new Date())}
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  // Estilos CSS para el certificado
+  static getCertificadoStyles() {
+    return `
+      @page {
+        margin: 20mm;
+        size: A4;
+      }
+      
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        color: #000;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+
+      .page-container {
+        width: 100%;
+        max-width: 210mm;
+        margin: 0 auto;
+        background: white;
+        position: relative;
+      }
+
+      /* HEADER */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 0;
+        margin-bottom: 10px;
+      }
+
+      .header-left, .header-right {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .header-center {
+        flex: 1;
+        text-align: center;
+      }
+
+      .logo {
+        max-width: 120px;
+        height: auto;
+        max-height: 60px;
+      }
+
+      .logo-placeholder {
+        width: 100px;
+        height: 50px;
+        border: 1px solid #ccc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #999;
+        font-size: 10px;
+        background: #f9f9f9;
+      }
+
+      .contact-info {
+        font-size: 10px;
+        color: #333;
+      }
+
+      .phone, .email {
+        margin: 2px 0;
+        font-weight: bold;
+      }
+
+      /* LÍNEA AZUL */
+      .blue-line {
+        height: 3px;
+        background-color: #0066cc;
+        margin: 10px 0 20px 0;
+      }
+
+      /* TÍTULOS */
+      .title-container {
+        text-align: center;
+        margin: 20px 0 25px 0;
+      }
+
+      .main-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #0066cc;
+        letter-spacing: 6px;
+        margin: 0;
+        text-transform: uppercase;
+      }
+
+      .sub-title {
+        font-size: 14px;
+        font-weight: bold;
+        color: #0066cc;
+        letter-spacing: 2px;
+        margin: 5px 0 0 0;
+        text-transform: uppercase;
+      }
+
+      /* CONTENIDO */
+      .content {
+        padding: 0 20px;
+      }
+
+      .intro-paragraph {
+        font-size: 12px;
+        text-align: justify;
+        margin: 20px 0;
+        line-height: 1.5;
+      }
+
+      /* TABLA PRINCIPAL */
+      .main-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 11px;
+      }
+
+      .main-table td {
+        border: 1px solid #0066cc;
+        padding: 8px 10px;
+        vertical-align: middle;
+      }
+
+      .label {
+        background-color: #e6f2ff;
+        font-weight: bold;
+        color: #0066cc;
+        width: 15%;
+        text-align: left;
+      }
+
+      .value {
+        background-color: white;
+        color: #000;
+        text-align: left;
+      }
+
+      /* DESCRIPCIÓN DEL SERVICIO */
+      .service-description {
+        font-size: 11px;
+        text-align: justify;
+        margin: 20px 0;
+        line-height: 1.6;
+        padding: 15px;
+        background-color: #f8f8f8;
+        border-left: 4px solid #0066cc;
+      }
+
+      /* TÉCNICOS */
+      .technicians {
+        margin: 20px 0;
+        padding: 10px 0;
+        border-top: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+        font-size: 11px;
+      }
+
+      .tech-label {
+        font-weight: bold;
+        color: #0066cc;
+      }
+
+      .tech-names {
+        color: #000;
+        margin-left: 10px;
+      }
+
+      /* VALIDEZ */
+      .validity {
+        text-align: center;
+        background-color: #e6f2ff;
+        border: 1px solid #0066cc;
+        padding: 15px;
+        margin: 20px 0;
+        font-size: 11px;
+        color: #0066cc;
+        font-weight: bold;
+      }
+
+      /* ÁREA DE FIRMAS */
+      .signature-area {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin: 40px 0 20px 0;
+        padding-top: 30px;
+      }
+
+      .signature-left, .signature-right {
+        flex: 1;
+        text-align: center;
+        margin: 0 20px;
+      }
+
+      .signature-line {
+        border-bottom: 1px solid #000;
+        height: 40px;
+        margin-bottom: 8px;
+        width: 200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .signature-text {
+        font-size: 10px;
+        font-weight: bold;
+        color: #0066cc;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+      }
+
+      .company-text {
+        font-size: 9px;
+        color: #666;
+        font-style: italic;
+      }
+
+      .stamp {
+        flex: 0 0 120px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        padding-bottom: 20px;
+      }
+
+      .stamp-circle {
+        width: 90px;
+        height: 90px;
+        border: 2px solid #0066cc;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .stamp-inner {
+        text-align: center;
+        font-size: 9px;
+        font-weight: bold;
+        color: #0066cc;
+        line-height: 1.1;
+        text-transform: uppercase;
+      }
+
+      /* FECHA */
+      .date-location {
+        text-align: right;
+        margin-top: 30px;
+        font-size: 11px;
+        color: #666;
+        font-style: italic;
+        padding-top: 15px;
+        border-top: 1px solid #ddd;
+      }
+
+      /* RESPONSIVE */
+      @media print {
+        .page-container {
+          margin: 0;
+          padding: 0;
+        }
+        
+        .blue-line {
+          background-color: #0066cc !important;
+        }
+        
+        .main-title, .sub-title, .signature-text, .label {
+          color: #0066cc !important;
+        }
+      }
+    `;
+  }
+
   // Función principal para generar y compartir PDF
   static async generateAndSharePDF(orderId, tableName, customFileName = 'Informe', firmaCliente = null) {
     try {
@@ -1509,11 +2023,37 @@ export class PDFService {
       
       console.log('✅ PDF generado y guardado en storage (sin compartir):', finalFileName);
 
+      // INICIO CERTIFICADO - DEBUG INMEDIATO
+      console.log('🔍 DEBUG INMEDIATO: Verificando certificado...');
+      console.log('🔍 DEBUG INMEDIATO: tableName =', tableName);
+      console.log('🔍 DEBUG INMEDIATO: ¿Es limpieza ductos?', tableName === 'informe_limpieza_ductos');
+      console.log('🔍 DEBUG INMEDIATO: orderId =', orderId);
+      console.log('🔍 DEBUG INMEDIATO: Tiene firma =', !!firmaCliente);
+
+      // Generar certificado adicional SOLO para informe de limpieza de ductos
+      let certificadoResult = null;
+      if (tableName === 'informe_limpieza_ductos') {
+        console.log('✅ ENTRANDO a generar certificado...');
+        try {
+          console.log('🏆 Generando certificado adicional para limpieza de ductos...');
+          certificadoResult = await this.generateCertificadoLimpieza(orderId, tableName, firmaCliente);
+          console.log('✅ Certificado generado exitosamente:', certificadoResult.fileName);
+        } catch (certificadoError) {
+          console.error('⚠️ Error generando certificado (continuando):', certificadoError);
+          console.error('⚠️ Error completo:', certificadoError.message);
+          console.error('⚠️ Stack:', certificadoError.stack);
+          // No fallar todo el proceso si hay error en certificado
+        }
+      } else {
+        console.log('❌ NO es limpieza de ductos, omitiendo certificado');
+      }
+
       return { 
         success: true, 
         uri, 
         fileName: finalFileName,
-        storage: storageResult
+        storage: storageResult,
+        certificado: certificadoResult
       };
 
     } catch (error) {
