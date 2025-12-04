@@ -4081,7 +4081,7 @@ const FormularioDinamico = ({ order, onClose }) => {
   const areAllRequiredFieldsComplete = () => {
     // Lista de campos obligatorios para limpieza de ductos
     const requiredFields = [
-      'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo',
+      'fecha_inicio', 'encargado', 'asist_personal', 'horas_trabajo',
       'campanas_estado', 'filtros_estado', 'ductos_estado', 'damper_estado', 'drenajes_estado',
       'registros_local_estado', 'registros_techumbre_estado', 'rejillas_en_el_motor',
       'cantidad_de_motores', 'fuelle_extractor', 'correas_estado', 'rodamientos_estado', 'observaciones_adicionales'
@@ -4109,7 +4109,7 @@ const FormularioDinamico = ({ order, onClose }) => {
     // Lista de campos obligatorios para limpieza de ductos (nombres reales de la BD)
     // Nota: fecha_inicio se excluye porque se llena automáticamente
     const requiredFields = [
-      'cliente', 'nombre_local', 'encargado', 'asist_personal', 'horas_trabajo',
+      'encargado', 'asist_personal', 'horas_trabajo',
       'campanas_estado', 'filtros_estado', 'ductos_estado', 'damper_estado', 'drenajes_estado',
       'registros_local_estado', 'registros_techumbre_estado', 'rejillas_en_el_motor',
       'cantidad_de_motores', 'fuelle', 'correas', 'rodamientos', 'observaciones'
@@ -4445,6 +4445,12 @@ const FormularioDinamico = ({ order, onClose }) => {
       
       const dataToSave = { ...formData };
       
+      // ASEGURAR QUE orden_trabajo_id ESTÁ PRESENTE (OBLIGATORIO PARA BD)
+      if (!dataToSave.orden_trabajo_id) {
+        dataToSave.orden_trabajo_id = order.id;
+        console.log('🆔 Agregando orden_trabajo_id obligatorio:', order.id);
+      }
+      
       // Asegurar que fecha_inicio tenga un valor válido para limpieza de ductos
       if (tableName === 'informe_limpieza_ductos') {
         if (!dataToSave.fecha_inicio || dataToSave.fecha_inicio.trim() === '') {
@@ -4461,17 +4467,22 @@ const FormularioDinamico = ({ order, onClose }) => {
       const validColumns = campos.map(campo => campo.column_name);
       console.log('📋 Columnas válidas en la tabla:', validColumns);
       
-      // Campos que siempre pueden estar presentes
-      const alwaysAllowedFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal'];
+      // Campos especiales que pueden estar presentes si existen en la tabla
+      const potentialSpecialFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal'];
       
-      // Crear lista de todos los campos permitidos para esta tabla
-      const allowedFields = [...validColumns, ...alwaysAllowedFields];
-      console.log('✅ Campos permitidos:', allowedFields);
+      // Filtrar campos especiales para incluir solo los que existen en la tabla actual
+      const allowedSpecialFields = potentialSpecialFields.filter(field => validColumns.includes(field));
+      console.log('✅ Campos especiales permitidos en esta tabla:', allowedSpecialFields);
       
-      // Filtrar dataToSave para incluir solo campos válidos
+      // Crear lista de todos los campos permitidos para esta tabla (solo columnas que existen)
+      // IMPORTANTE: Siempre incluir orden_trabajo_id ya que es obligatorio para la BD aunque no aparezca en campos
+      const allowedFields = [...validColumns, 'orden_trabajo_id'];
+      console.log('✅ Campos permitidos finales:', allowedFields);
+      
+      // Filtrar dataToSave para incluir solo campos válidos que existen en la tabla
       Object.keys(dataToSave).forEach(key => {
         if (!allowedFields.includes(key)) {
-          console.log(`🗑️ Eliminando campo '${key}' - no permitido en tabla ${tableName}`);
+          console.log(`🗑️ Eliminando campo '${key}' - no existe en tabla ${tableName}`);
           delete dataToSave[key];
         }
       });
@@ -5437,7 +5448,8 @@ const FormularioDinamico = ({ order, onClose }) => {
 
         {/* BOTÓN GUARDAR FORMULARIO - Solo mostrar en condiciones específicas */}
         {(currentView === 'datos' && tableName !== 'informe_limpieza_ductos') || 
-         (currentView === 'fotografias' && tableName === 'informe_limpieza_ductos' && currentPhotoPage === (getComponentesParaFormulario(tableName).length - 1)) ? (
+         (currentView === 'fotografias' && tableName === 'informe_limpieza_ductos' && currentPhotoPage === (getComponentesParaFormulario(tableName).length - 1)) ||
+         (tableName === 'informe_limpieza_ductos' && currentPhotoPage === (getComponentesParaFormulario(tableName).length - 1)) ? (
           <TouchableOpacity 
             style={styles.saveButton}
             onPress={handleSubmit}

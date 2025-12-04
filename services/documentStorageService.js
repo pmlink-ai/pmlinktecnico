@@ -16,7 +16,7 @@ export class DocumentStorageService {
 
       // 1. Generar nombre de archivo y ruta
       const nombreArchivo = this.generateFileName(tipoDocumento, ordenId);
-      const rutaStorage = this.generateStoragePath(ordenId, nombreArchivo);
+      const rutaStorage = await this.generateStoragePath(ordenId, nombreArchivo);
       
       console.log('📋 Archivo a guardar:', { nombreArchivo, rutaStorage });
 
@@ -60,7 +60,10 @@ export class DocumentStorageService {
 
       // 6. Subir archivo a Supabase Storage
       console.log('☁️ Subiendo archivo actualizado a Supabase Storage...');
-      console.log('📁 Ruta de destino:', rutaStorage);
+      console.log('📁 Bucket: documentos-ordenes');
+      console.log('📁 Ruta interna:', rutaStorage);
+      console.log('📁 Ruta completa será: documentos-ordenes/' + rutaStorage);
+      console.log('📊 Tamaño del archivo (bytes):', byteArray.length);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documentos-ordenes')
@@ -71,10 +74,17 @@ export class DocumentStorageService {
 
       if (uploadError) {
         console.error('❌ Error subiendo archivo:', uploadError);
+        console.error('❌ Detalles del error:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError.error
+        });
         throw new Error(`Error subiendo archivo: ${uploadError.message}`);
       }
 
-      console.log('✅ Archivo subido exitosamente:', uploadData);
+      console.log('✅ Archivo subido exitosamente!');
+      console.log('📊 Datos de upload:', uploadData);
+      console.log('📁 Ruta final en storage:', uploadData?.path || 'No disponible');
 
       // 7. Registrar o actualizar en base de datos
       let dbResult;
@@ -372,13 +382,151 @@ export class DocumentStorageService {
   }
 
   /**
-   * Genera la ruta de almacenamiento en Storage
+   * Obtiene la información jerárquica de la orden para crear la estructura de carpetas
+   * @param {string} ordenId - ID de la orden de trabajo
+   * @returns {Object} - Información de empresa, zona, local y servicio
+   */
+  static async getOrderHierarchyInfo(ordenId) {
+    try {
+      console.log('🔍 Obteniendo información jerárquica para orden:', ordenId);
+      
+      // Enfoque paso a paso para evitar problemas de relaciones múltiples
+      
+      // 1. Obtener orden y servicio_id
+      const { data: ordenData, error: ordenError } = await supabase
+        .from('orden_trabajo')
+        .select('id, servicio_id')
+        .eq('id', ordenId)
+        .single();
+
+      if (ordenError) {
+        throw new Error(`Error obteniendo orden: ${ordenError.message}`);
+      }
+
+      console.log('📋 Datos de orden:', ordenData);
+
+      // 2. Obtener servicio y local_id
+      const { data: servicioData, error: servicioError } = await supabase
+        .from('servicios')
+        .select('servicio_id, local_id')
+        .eq('servicio_id', ordenData.servicio_id)
+        .single();
+
+      if (servicioError) {
+        throw new Error(`Error obteniendo servicio: ${servicioError.message}`);
+      }
+
+      console.log('📋 Datos de servicio:', servicioData);
+
+      // 3. Obtener local y zona_id
+      const { data: localData, error: localError } = await supabase
+        .from('local')
+        .select('local_id, zona_id')
+        .eq('local_id', servicioData.local_id)
+        .single();
+
+      if (localError) {
+        throw new Error(`Error obteniendo local: ${localError.message}`);
+      }
+
+      console.log('📋 Datos de local:', localData);
+
+      // 4. Obtener zona y empresa_id
+      const { data: zonaData, error: zonaError } = await supabase
+        .from('zona')
+        .select('zona_id, empresa_id')
+        .eq('zona_id', localData.zona_id)
+        .single();
+
+      if (zonaError) {
+        throw new Error(`Error obteniendo zona: ${zonaError.message}`);
+      }
+
+      console.log('📋 Datos de zona:', zonaData);
+
+      // 5. Obtener empresa
+      const { data: empresaData, error: empresaError } = await supabase
+        .from('empresa')
+        .select('empresa_id')
+        .eq('empresa_id', zonaData.empresa_id)
+        .single();
+
+      if (empresaError) {
+        throw new Error(`Error obteniendo empresa: ${empresaError.message}`);
+      }
+
+      console.log('📋 Datos de empresa:', empresaData);
+
+      const hierarchy = {
+        empresa_id: empresaData.empresa_id,
+        zona_id: zonaData.zona_id,
+        local_id: localData.local_id,
+        servicio_id: servicioData.servicio_id,
+        orden_trabajo_id: ordenId
+      };
+
+      console.log('✅ Jerarquía obtenida con consultas paso a paso:', hierarchy);
+      return hierarchy;
+
+    } catch (error) {
+      console.error('💥 Error obteniendo jerarquía:', error);
+      console.error('📊 Stack trace:', error.stack);
+      // Fallback a estructura simple si falla
+      console.log('⚠️ Usando estructura de carpeta simple como fallback');
+      return {
+        empresa_id: 'unknown',
+        zona_id: 'unknown', 
+        local_id: 'unknown',
+        servicio_id: 'unknown',
+        orden_trabajo_id: ordenId
+      };
+    }
+  }
+
+  /**
+   * Genera la ruta de almacenamiento en Storage con estructura jerárquica
    * @param {string} ordenId - ID de la orden
    * @param {string} nombreArchivo - Nombre del archivo
    * @returns {string} - Ruta completa
    */
-  static generateStoragePath(ordenId, nombreArchivo) {
-    return `${ordenId}/${nombreArchivo}`;
+  static async generateStoragePath(ordenId, nombreArchivo) {
+    try {
+      console.log('🔧 Generando ruta de storage para orden:', ordenId);
+      
+      // Obtener información jerárquica
+      const hierarchy = await this.getOrderHierarchyInfo(ordenId);
+      
+      // Construir ruta jerárquica: documentos-ordenes/empresa_id/zona_id/local_id/servicio_id/orden_trabajo_id/
+      const rutaJerarquica = [
+        hierarchy.empresa_id,
+        hierarchy.zona_id, 
+        hierarchy.local_id,
+        hierarchy.servicio_id,
+        hierarchy.orden_trabajo_id,
+        nombreArchivo
+      ].join('/');
+
+      console.log('📁 Ruta jerárquica generada (sin bucket):', rutaJerarquica);
+      console.log('📊 Componentes de la ruta:', {
+        empresa: hierarchy.empresa_id,
+        zona: hierarchy.zona_id,
+        local: hierarchy.local_id,
+        servicio: hierarchy.servicio_id,
+        orden: hierarchy.orden_trabajo_id,
+        archivo: nombreArchivo
+      });
+      
+      return rutaJerarquica;
+
+    } catch (error) {
+      console.error('💥 Error generando ruta jerárquica:', error);
+      console.error('📊 Stack del error:', error.stack);
+      
+      // Fallback a estructura simple
+      const rutaSimple = `${ordenId}/${nombreArchivo}`;
+      console.log('⚠️ Usando ruta simple como fallback:', rutaSimple);
+      return rutaSimple;
+    }
   }
 
   /**
