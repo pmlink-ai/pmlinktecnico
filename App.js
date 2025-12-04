@@ -2326,6 +2326,14 @@ const HomeScreen = ({ navigation }) => {
     loadOrders();
   }, []);
 
+  // Recargar órdenes cuando la pantalla se enfoque
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadOrders();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const loadOrders = async () => {
     try {
       setLoading(true);
@@ -2585,7 +2593,21 @@ const OrderDetailScreen = ({ route, navigation }) => {
     const formKey = formularioInfo.form_key;
     
     if (formKey === 'INFORME_LIMPIEZA_DUCTOS' || formKey === 'INFORME_ANSUL_R102' || formKey === 'INFORME_MTTO_ELECTROMECANICO') {
-      return <FormularioDinamico order={order} onClose={() => setShowFormModal(false)} />;
+      return <FormularioDinamico 
+        order={order} 
+        navigation={navigation}
+        onClose={() => {
+          setShowFormModal(false);
+          // Recargar órdenes cuando se cierre el formulario para mostrar cambios de estado
+          setTimeout(() => {
+            navigation.getParent()?.getState().routes.forEach(route => {
+              if (route.name === 'Home') {
+                navigation.getParent()?.navigate('Home', { reload: true });
+              }
+            });
+          }, 100);
+        }} 
+      />;
     }
     
     return (
@@ -2692,6 +2714,16 @@ const OrderDetailScreen = ({ route, navigation }) => {
                   <View style={styles.techLabelLine} />
                 </View>
                 <Text style={styles.techValue}>{empresaInfo.nombre_empresa}</Text>
+              </View>
+            )}
+
+            {zonaInfo && (
+              <View style={styles.techDataRow}>
+                <View style={styles.techLabelContainer}>
+                  <Text style={styles.techLabel}>ZONA</Text>
+                  <View style={styles.techLabelLine} />
+                </View>
+                <Text style={styles.techValue}>{zonaInfo.nombre_zona}</Text>
               </View>
             )}
 
@@ -2878,7 +2910,7 @@ const TecnicosAsignados = ({ orderId }) => {
 };
 
 // ================== FORMULARIO DINÁMICO ==================
-const FormularioDinamico = ({ order, onClose }) => {
+const FormularioDinamico = ({ order, onClose, navigation }) => {
   const [campos, setCampos] = useState([]);
   const [formData, setFormData] = useState({});
   const [showDatePicker, setShowDatePicker] = useState({});
@@ -4806,7 +4838,46 @@ const FormularioDinamico = ({ order, onClose }) => {
       
       console.log('✅ PDF generado exitosamente:', pdfResult);
       
-      Alert.alert('Éxito', `PDF generado: ${fileName}.pdf`);
+      // Actualizar estado de la orden a "Completada" después de generar PDF exitosamente
+      try {
+        console.log('🔄 Actualizando estado de orden a "Completada"...');
+        const { error: updateError } = await supabase
+          .from('orden_trabajo')
+          .update({ estado_id: 3 }) // 3 = Completada
+          .eq('id', order.id);
+          
+        if (updateError) {
+          console.error('❌ Error actualizando estado de orden:', updateError);
+        } else {
+          console.log('✅ Estado de orden actualizado a "Completada"');
+        }
+      } catch (updateErr) {
+        console.error('❌ Error en actualización de estado:', updateErr);
+      }
+      
+      Alert.alert(
+        'Éxito', 
+        `PDF generado: ${fileName}.pdf\n\n¡La orden ha sido marcada como completada!`,
+        [
+          { 
+            text: 'Continuar editando', 
+            style: 'default'
+          },
+          { 
+            text: 'Volver a órdenes', 
+            onPress: () => {
+              // Primero cerrar el modal, luego navegar
+              onClose(); // Esto cierra el modal
+              setTimeout(() => {
+                if (navigation) {
+                  navigation.navigate('Home');
+                }
+              }, 100); // Pequeño delay para asegurar que el modal se cierre
+            },
+            style: 'cancel'
+          }
+        ]
+      );
       
     } catch (error) {
       console.error('❌ Error generando PDF:', error);
