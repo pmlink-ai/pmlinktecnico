@@ -60,14 +60,14 @@ export class DocumentStorageService {
 
       // 6. Subir archivo a Supabase Storage
       console.log('☁️ Subiendo archivo actualizado a Supabase Storage...');
-      console.log('📁 Bucket: documentos-ordenes');
-      console.log('📁 Ruta interna:', rutaStorage);
-      console.log('📁 Ruta completa será: documentos-ordenes/' + rutaStorage);
+      console.log('📁 Bucket: documentos');
+      console.log('📁 Ruta interna: documentos-ordenes/', rutaStorage);
+      console.log('📁 Ruta completa será: documentos/documentos-ordenes/' + rutaStorage);
       console.log('📊 Tamaño del archivo (bytes):', byteArray.length);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documentos-ordenes')
-        .upload(rutaStorage, byteArray, {
+        .from('documentos')
+        .upload(`documentos-ordenes/${rutaStorage}`, byteArray, {
           contentType: 'application/pdf',
           upsert: true // Sobrescribir si existe
         });
@@ -251,10 +251,10 @@ export class DocumentStorageService {
     try {
       console.log('🗑️ Eliminando documento completamente...', documento.nombre_archivo);
       
-      // 1. Eliminar archivo de Storage
+      // Eliminar archivo de Storage
       const { error: storageError } = await supabase.storage
-        .from('documentos-ordenes')
-        .remove([documento.ruta_storage]);
+        .from('documentos')
+        .remove([`documentos-ordenes/${documento.ruta_storage}`]);
 
       if (storageError) {
         console.error('⚠️ Error eliminando archivo de Storage:', storageError);
@@ -290,8 +290,8 @@ export class DocumentStorageService {
   static async getPublicUrl(rutaStorage) {
     try {
       const { data } = supabase.storage
-        .from('documentos-ordenes')
-        .getPublicUrl(rutaStorage);
+        .from('documentos')
+        .getPublicUrl(`documentos-ordenes/${rutaStorage}`);
 
       return data.publicUrl;
     } catch (error) {
@@ -321,8 +321,8 @@ export class DocumentStorageService {
 
       // Eliminar archivo de Storage
       const { error: storageError } = await supabase.storage
-        .from('documentos-ordenes')
-        .remove([documento.ruta_storage]);
+        .from('documentos')
+        .remove([`documentos-ordenes/${documento.ruta_storage}`]);
 
       if (storageError) {
         console.error('Error eliminando archivo de Storage:', storageError);
@@ -485,6 +485,7 @@ export class DocumentStorageService {
 
   /**
    * Genera la ruta de almacenamiento en Storage con estructura jerárquica
+   * Estructura: empresa_id/zona_id/local_id/servicio_id/orden_trabajo_id/
    * @param {string} ordenId - ID de la orden
    * @param {string} nombreArchivo - Nombre del archivo
    * @returns {string} - Ruta completa
@@ -496,7 +497,7 @@ export class DocumentStorageService {
       // Obtener información jerárquica
       const hierarchy = await this.getOrderHierarchyInfo(ordenId);
       
-      // Construir ruta jerárquica: documentos-ordenes/empresa_id/zona_id/local_id/servicio_id/orden_trabajo_id/
+      // Construir ruta jerárquica: empresa_id/zona_id/local_id/servicio_id/orden_trabajo_id/
       const rutaJerarquica = [
         hierarchy.empresa_id,
         hierarchy.zona_id, 
@@ -551,4 +552,5 @@ export class DocumentStorageService {
       return false;
     }
   }
+
 }

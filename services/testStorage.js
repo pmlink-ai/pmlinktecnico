@@ -13,15 +13,15 @@ export const testStorageConnection = async () => {
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
     console.log('🪣 Buckets disponibles:', { buckets, error: bucketsError });
 
-    // 3. Verificar bucket documentos-ordenes
+    // 3. Verificar bucket documentos  
     const { data: bucketExists, error: bucketError } = await supabase.storage
-      .from('documentos-ordenes')
+      .from('documentos')
       .list('', { limit: 1 });
-    console.log('📁 Bucket documentos-ordenes:', { exists: !bucketError, error: bucketError });
+    console.log('📁 Bucket documentos:', { exists: !bucketError, error: bucketError });
 
-    // 4. Probar subida de archivo de prueba
+    // 4. Probar subida de archivo de prueba en carpeta test
     const testData = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]); // "PDF-1.4" en bytes
-    const testFileName = `test-${Date.now()}.pdf`;
+    const testFileName = `test/test-${Date.now()}.pdf`; // Usar carpeta test
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('documentos-ordenes')
       .upload(testFileName, testData, {
