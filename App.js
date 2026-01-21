@@ -2345,7 +2345,21 @@ const HomeScreen = ({ navigation }) => {
           *,
           estados_orden_trabajo(nombre),
           prioridades(nombre),
-          informe_limpieza_ductos(id)
+          informe_limpieza_ductos(id),
+          servicios!inner(
+            local_id,
+            local!inner(
+              nombre_local,
+              zona_id,
+              zona!inner(
+                nombre_zona,
+                empresa_id,
+                empresa!fk_zona_empresa(
+                  nombre_empresa
+                )
+              )
+            )
+          )
         `)
         .eq('activa', true)
         .order('created_at', { ascending: false });
@@ -2390,7 +2404,7 @@ const HomeScreen = ({ navigation }) => {
       onPress={() => navigation.navigate('OrderDetail', { order: item })}
     >
       <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>#{item.id.substring(0, 8)}</Text>
+        <Text style={styles.orderId}>{item.numero_orden_corto || `#${item.id.substring(0, 8)}`}</Text>
         <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(item.estado_id) }]}>
           <Text style={styles.estadoText}>
             {item.estados_orden_trabajo?.nombre || 'Sin estado'}
@@ -2407,6 +2421,25 @@ const HomeScreen = ({ navigation }) => {
       <Text style={styles.orderDescription} numberOfLines={2}>
         {item.descripcion_corta}
       </Text>
+      
+      {/* Información de empresa, zona y local */}
+      <View style={styles.locationInfo}>
+        {item.servicios?.local?.zona?.empresa?.nombre_empresa && (
+          <Text style={styles.locationText}>
+            🏢 {item.servicios.local.zona.empresa.nombre_empresa}
+          </Text>
+        )}
+        {item.servicios?.local?.zona?.nombre_zona && (
+          <Text style={styles.locationText}>
+            🗺️ {item.servicios.local.zona.nombre_zona}
+          </Text>
+        )}
+        {item.servicios?.local?.nombre_local && (
+          <Text style={styles.locationText}>
+            📍 {item.servicios.local.nombre_local}
+          </Text>
+        )}
+      </View>
       
       {item.informe_limpieza_ductos?.length > 0 && (
         <Text style={styles.reportIndicator}>📋 Informe completado</Text>
@@ -5800,6 +5833,21 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     lineHeight: 20,
     marginBottom: 10,
+  },
+  locationInfo: {
+    marginBottom: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3498DB',
+  },
+  locationText: {
+    fontSize: 12,
+    color: '#5D6D7E',
+    marginVertical: 1,
+    fontWeight: '500',
   },
   orderFooter: {
     flexDirection: 'row',
