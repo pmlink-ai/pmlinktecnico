@@ -23,6 +23,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 import * as Print from 'expo-print';
 import Signature from 'react-native-signature-canvas';
 import PDFService from './services/pdfService';
@@ -356,11 +358,15 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   };
 
   const openCamera = async (componente, seccion) => {
+    console.log('\ud83d\udcf7 DEBUG: Iniciando openCamera - componente:', componente, 'seccion:', seccion);
     try {
       // Verificar límite de fotos para informe_limpieza_ductos
+      console.log('\ud83d\udcf7 DEBUG: Verificando límite de fotos para:', informeTabla);
       if (informeTabla === 'informe_limpieza_ductos') {
         const currentImages = imagesByComponenteAndSeccion[componente]?.[seccion] || [];
+        console.log('\ud83d\udcf7 DEBUG: Imágenes actuales:', currentImages.length, '/ 4 máx');
         if (currentImages.length >= 4) {
+          console.log('\ud83d\udcf7 DEBUG: Límite alcanzado - cancelando');
           Alert.alert(
             'Límite alcanzado', 
             'Máximo 4 fotografías por sección en Informe Limpieza Ductos',
@@ -370,15 +376,20 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         }
       }
 
+      console.log('\ud83d\udcf7 DEBUG: Solicitando permisos de cámara...');
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('\ud83d\udcf7 DEBUG: Estado de permisos:', status);
       if (status !== 'granted') {
+        console.log('\ud83d\udcf7 DEBUG: Permisos denegados');
         Alert.alert('Permisos', 'Se necesitan permisos para usar la cámara');
         return;
       }
 
       // Configurar estado de carga
+      console.log('\ud83d\udcf7 DEBUG: Configurando estado de carga');
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: true }));
 
+      console.log('\ud83d\udcf7 DEBUG: Abriendo cámara con configuración...');
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -386,14 +397,34 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         quality: 0.8,
       });
 
+      console.log('\ud83d\udcf7 DEBUG: Resultado de la cámara:', {
+        canceled: result.canceled,
+        hasAssets: result.assets ? result.assets.length : 0,
+        firstAsset: result.assets?.[0] ? {
+          uri: result.assets[0].uri,
+          type: result.assets[0].type,
+          width: result.assets[0].width,
+          height: result.assets[0].height,
+          fileSize: result.assets[0].fileSize
+        } : null
+      });
+
       if (!result.canceled && result.assets[0]) {
+        console.log('\ud83d\udcf7 DEBUG: Imagen capturada exitosamente, iniciando subida...');
         uploadImage(result.assets[0], componente, seccion);
       } else {
+        console.log('\ud83d\udcf7 DEBUG: Captura cancelada o sin imagen');
         setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
       }
     } catch (error) {
-      console.error('Error abriendo cámara:', error);
-      Alert.alert('Error', 'Error al abrir la cámara');
+      console.error('\ud83d\udcf7 ERROR: Error en openCamera:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        componente,
+        seccion
+      });
+      Alert.alert('Error', `Error al abrir la cámara: ${error.message}`);
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
   };
@@ -435,75 +466,221 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     }
   };
 
+  // Función helper para reintentos de subida con network issues
+  const uploadWithRetry = async (bucket, path, formData, options, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`📍 DEBUG: Intento de subida ${attempt}/${maxRetries}`);
+      
+      try {
+        const result = await supabase.storage
+          .from(bucket)
+          .upload(path, formData, options);
+          
+        if (result.error && result.error.message === 'network request failed' && attempt < maxRetries) {
+          console.log(`🔄 DEBUG: Reintentando en 2 segundos... (intento ${attempt}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        
+        return result;
+      } catch (error) {
+        console.error(`❌ DEBUG: Error en intento ${attempt}:`, error);
+        if (attempt === maxRetries) {
+          return { error: { message: `Error después de ${maxRetries} intentos: ${error.message}` } };
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  };
+
   const uploadImage = async (asset, componente, seccion) => {
+    console.log('📋 DEBUG: Iniciando uploadImage - componente:', componente, 'sección:', seccion);
+    console.log('📋 DEBUG: Asset details:', {
+      uri: asset.uri,
+      type: asset.type,
+      width: asset.width,
+      height: asset.height,
+      fileSize: asset.fileSize
+    });
+    
     try {
-      console.log('🔥 Subiendo imagen:', { componente, seccion, asset: asset.uri });
+      console.log('📍 DEBUG: Obteniendo nombre de carpeta para componente:', componente, 'tabla:', informeTabla);
       
       // Obtener el nombre correcto de la carpeta usando el mapeo
       const folderName = getStorageFolderName(componente, informeTabla);
+      console.log('📍 DEBUG: Nombre de carpeta mapeado:', folderName);
       
       // Generar nombre único
-      const fileExtension = asset.uri.split('.').pop();
+      const fileExtension = asset.uri.split('.').pop() || 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
       const filePath = `public/${orderId}/${informeTabla}/${folderName}/${seccion}/${fileName}`;
       
-      console.log('📁 Ruta de archivo (con mapeo):', filePath);
-      console.log('📁 Carpeta mapeada:', `${componente} → ${folderName}`);
+      console.log('📍 DEBUG: Detalles del archivo:');
+      console.log('  - Extension:', fileExtension);
+      console.log('  - Nombre:', fileName);
+      console.log('  - Ruta completa:', filePath);
+      console.log('  - OrderID:', orderId);
+      console.log('  - InformeTabla:', informeTabla);
 
-      // Crear FormData
-      const formData = new FormData();
-      formData.append('file', {
-        uri: asset.uri,
-        type: asset.type || 'image/jpeg',
-        name: fileName,
-      });
-
-      // Subir a Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('fotos_informes')
-        .upload(filePath, formData, {
-          contentType: asset.type || 'image/jpeg',
-          upsert: false
+      // **NUEVA IMPLEMENTACIÓN CON BASE64-ARRAYBUFFER**
+      console.log('📍 DEBUG: Iniciando lectura segura (Fix String)...');
+      
+      let base64Data, arrayBuffer;
+      
+      try {
+        // 1. Leemos el archivo usando la API legacy de FileSystem
+        // Esto resuelve el error de deprecación en Expo v54
+        base64Data = await FileSystem.readAsStringAsync(asset.uri, {
+          encoding: FileSystem.EncodingType.Base64,
         });
+        console.log('📍 DEBUG: Lectura Base64 exitosa, tamaño:', base64Data.length, 'caracteres');
+      } catch (base64Error) {
+        console.error('🚫 DEBUG: Error leyendo archivo como Base64:', base64Error);
+        throw new Error(`Error leyendo archivo como Base64: ${base64Error.message}`);
+      }
+      
+      try {
+        // 2. Convertimos a ArrayBuffer usando la librería decode
+        arrayBuffer = decode(base64Data);
+        console.log('📍 DEBUG: ArrayBuffer creado exitosamente, tamaño:', arrayBuffer.byteLength, 'bytes');
+      } catch (decodeError) {
+        console.error('🚫 DEBUG: Error convirtiendo Base64 a ArrayBuffer:', decodeError);
+        throw new Error(`Error convirtiendo Base64 a ArrayBuffer: ${decodeError.message}`);
+      }
+      
+      // Determinar el tipo MIME correcto
+      let mimeType = 'image/jpeg'; // default
+      if (fileExtension.toLowerCase() === 'png') {
+        mimeType = 'image/png';
+      } else if (fileExtension.toLowerCase() === 'webp') {
+        mimeType = 'image/webp';
+      } else if (['jpg', 'jpeg'].includes(fileExtension.toLowerCase())) {
+        mimeType = 'image/jpeg';
+      }
+      console.log('📍 DEBUG: Tipo MIME determinado:', mimeType);
 
-      if (uploadError) {
-        console.error('Error subiendo imagen:', uploadError);
-        Alert.alert('Error', 'No se pudo subir la imagen');
-        return;
+      // Test de conectividad antes de subir
+      console.log('📍 DEBUG: Verificando conectividad con Supabase...');
+      try {
+        const connectivityTest = await supabase.from('orden_trabajo').select('id').limit(1);
+        console.log('🌐 DEBUG: Test de conectividad exitoso:', connectivityTest.data ? 'OK' : 'NO DATA');
+        
+        // Test específico del storage
+        console.log('📍 DEBUG: Verificando acceso al bucket de storage...');
+        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+        console.log('🗄️ DEBUG: Buckets disponibles:', buckets?.map(b => b.name) || []);
+        
+        if (bucketsError) {
+          console.error('🗄️ DEBUG: Error listando buckets:', bucketsError);
+        }
+        
+        // Verificar si el bucket fotos_informes existe
+        const documentosBucket = buckets?.find(b => b.name === 'fotos_informes');
+        console.log('📄 DEBUG: Bucket fotos_informes:', documentosBucket ? 'EXISTE' : 'NO EXISTE');
+        
+      } catch (connError) {
+        console.error('🌐 DEBUG: Error de conectividad:', connError);
+      }
+      
+      const uploadStartTime = Date.now();
+      console.log('📍 DEBUG: Iniciando upload a las:', new Date().toISOString());
+      console.log('📍 DEBUG: Subiendo con ArrayBuffer directamente a Supabase...');
+      
+      let uploadData, uploadError;
+      
+      try {
+        // Subir usando ArrayBuffer directamente
+        const uploadResult = await supabase.storage
+          .from('fotos_informes')
+          .upload(filePath, arrayBuffer, {
+            contentType: mimeType,
+            upsert: false
+          });
+        
+        uploadData = uploadResult.data;
+        uploadError = uploadResult.error;
+        
+        console.log('📍 DEBUG: Upload resultado:', {
+          data: uploadData ? 'EXISTE' : 'NULL',
+          error: uploadError ? uploadError.message : 'NO ERROR'
+        });
+        
+      } catch (uploadException) {
+        console.error('🚫 DEBUG: Excepción durante upload:', uploadException);
+        throw new Error(`Error durante upload: ${uploadException.message}`);
       }
 
+      const uploadEndTime = Date.now();
+      console.log('📍 DEBUG: Upload completado en:', (uploadEndTime - uploadStartTime), 'ms');
+
+      if (uploadError) {
+        console.error('🚫 DEBUG: Error en subida a storage:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError.error,
+          details: uploadError,
+          networkError: uploadError.message.includes('network') || uploadError.message.includes('fetch'),
+          isNetworkRequest: uploadError.message === 'network request failed',
+          timestamp: new Date().toISOString()
+        });
+        
+        // Información adicional para network errors
+        if (uploadError.message.includes('network') || uploadError.message.includes('fetch')) {
+          console.error('🌐 DEBUG: Diagnóstico de red:', {
+            userAgent: navigator?.userAgent || 'N/A',
+            online: navigator?.onLine || 'N/A',
+            connection: navigator?.connection?.effectiveType || 'N/A'
+          });
+        }
+        
+        Alert.alert('Error de Red', `No se pudo subir la imagen. Error de conectividad: ${uploadError.message}. Verifica tu conexión a internet.`);
+        return;
+      }
+      
+      console.log('🎉 DEBUG: Subida a storage exitosa:', uploadData);
+
       // Crear etiqueta descriptiva
+      console.log('📍 DEBUG: Creando etiqueta descriptiva...');
       const componenteTitle = getComponentesActuales().find(c => c.key === componente)?.title || componente;
       const cleanedSeccion = cleanSectionName(seccion, componente);
       const etiqueta = cleanedSeccion ? `${cleanedSeccion} - ${componenteTitle}` : componenteTitle;
+      console.log('📍 DEBUG: Etiqueta creada:', etiqueta);
 
       // Guardar referencia en base de datos
+      console.log('📍 DEBUG: Guardando referencia en BD...');
+      const insertData = {
+        orden_trabajo_id: orderId,
+        informe_tabla: informeTabla,
+        storage_path: filePath,
+        seccion: seccion,
+        etiqueta: etiqueta,
+        componente: componente
+      };
+      console.log('📍 DEBUG: Datos a insertar:', insertData);
+      
       const { error: dbError } = await supabase
         .from('informe_fotografias')
-        .insert({
-          orden_trabajo_id: orderId,
-          informe_tabla: informeTabla,
-          storage_path: filePath,
-          seccion: seccion,
-          etiqueta: etiqueta,
-          componente: componente
-        });
+        .insert(insertData);
 
       if (dbError) {
-        console.error('Error guardando en BD:', dbError);
-        Alert.alert('Error', 'Imagen subida pero no se pudo guardar la referencia');
+        console.error('🚫 DEBUG: Error guardando en BD:', {
+          message: dbError.message,
+          code: dbError.code,
+          details: dbError.details,
+          hint: dbError.hint,
+          insertData
+        });
+        Alert.alert('Error', `Imagen subida pero no se pudo guardar la referencia: ${dbError.message}`);
         return;
       }
 
-      console.log('✅ Imagen guardada exitosamente en BD:', { componente, seccion, etiqueta });
+      console.log('🎉 DEBUG: Referencia guardada exitosamente en BD');
+      console.log('📍 DEBUG: Recargando imágenes y observaciones...');
       
-      // Popup de éxito eliminado - no mostrar mensaje
-      // const successMessage = cleanedSeccion ? 
-      //   `Imagen agregada: ${componenteTitle} - ${cleanedSeccion}` : 
-      //   `Imagen agregada: ${componenteTitle}`;
-      // Alert.alert('Éxito', successMessage);
       await loadImages(); // Recargar lista
       await loadObservacionesSecciones(); // Recargar observaciones
+      
+      console.log('🎉 DEBUG: Proceso completo exitoso!');
       
       // Restaurar posición del scroll después de cargar las imágenes
       if (onScrollRestore) {
@@ -511,9 +688,26 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       }
 
     } catch (error) {
-      console.error('Error general:', error);
-      Alert.alert('Error', 'Error inesperado al subir la imagen');
+      // Imprime el mensaje de error ESPECÍFICO, no solo el objeto error
+      console.error("❌ ERROR CRÍTICO:", error.message); 
+      console.error("🔍 Detalle completo:", JSON.stringify(error, null, 2));
+      
+      // Si error.message no existe, forzamos que se muestre algo
+      if (!error.message) console.error("El error es: ", error);
+
+      console.error('🚫 DEBUG: Error general en uploadImage:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        componente,
+        seccion,
+        orderId,
+        informeTabla,
+        originalError: error
+      });
+      Alert.alert('Error', `Error inesperado al subir la imagen: ${error.message || 'Error desconocido'}`);
     } finally {
+      console.log('📍 DEBUG: Limpiando estado de carga...');
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
   };
