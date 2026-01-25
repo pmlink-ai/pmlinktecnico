@@ -19,7 +19,8 @@
         "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para tomar fotos de los informes de mantenimiento.",
         "NSPhotoLibraryUsageDescription": "Esta aplicación necesita acceso a la galería para seleccionar fotos para los informes de mantenimiento.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
