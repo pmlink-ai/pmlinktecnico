@@ -16,12 +16,22 @@ import {
 import { supabase } from '../lib/supabase';
 
 const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
+  // Función para obtener la fecha actual en formato DD/MM/AAAA
+  const getCurrentDate = () => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   // Estados para campos del formulario electromecánico (coincide con tabla BD)
   const [formData, setFormData] = useState({
     orden_trabajo_id: order.id,
-    fecha_inicio: '',
-    cliente: '',
-    nombre_local: '',
+    fecha_inicio: getCurrentDate(),
+    cliente: order.servicios?.local?.zona?.empresa?.nombre_empresa || '',
+    zona: order.servicios?.local?.zona?.nombre_zona || '',
+    nombre_local: order.servicios?.local?.nombre_local || '',
     asistencia_personal: '',
     horas_trabajo: '',
     
@@ -31,11 +41,6 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
     fuelle_estado: '',
     correas_modelo: '',
     rodamientos_estado: '',
-    
-    // Mediciones de consumo eléctrico
-    consumo_fase_r: '',
-    consumo_fase_s: '',
-    consumo_fase_t: '',
     
     // Observaciones
     observaciones_generales: ''
@@ -95,7 +100,7 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
     const requiredFields = [
       'fecha_inicio',
       'cliente',
-      'asistencia_personal', 
+      'asistencia_personal',
       'horas_trabajo',
       'rejillas_motor_estado',
       'rodamientos_estado',
@@ -191,26 +196,34 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
           
           <Text style={styles.inputLabel}>Fecha de Inicio *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.disabledInput]}
             value={formData.fecha_inicio}
-            onChangeText={(text) => handleInputChange('fecha_inicio', text)}
+            editable={false}
             placeholder="DD/MM/AAAA"
           />
 
           <Text style={styles.inputLabel}>Cliente *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.disabledInput]}
             value={formData.cliente}
-            onChangeText={(text) => handleInputChange('cliente', text)}
+            editable={false}
             placeholder="Nombre del cliente"
+          />
+
+          <Text style={styles.inputLabel}>Zona</Text>
+          <TextInput
+            style={[styles.input, styles.disabledInput]}
+            value={formData.zona}
+            editable={false}
+            placeholder="Zona del local"
           />
 
           <Text style={styles.inputLabel}>Nombre del Local</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.disabledInput]}
             value={formData.nombre_local}
-            onChangeText={(text) => handleInputChange('nombre_local', text)}
-            placeholder="Ingrese nombre del local"
+            editable={false}
+            placeholder="Nombre del local"
           />
 
           <Text style={styles.inputLabel}>Asistencia de Personal *</Text>
@@ -275,54 +288,6 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
             value={formData.rodamientos_estado}
             onChangeText={(text) => handleInputChange('rodamientos_estado', text)}
             placeholder="Describa el estado de los rodamientos"
-          />
-
-          <Text style={styles.inputLabel}>Estado de los Sensores</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.sensores_estado}
-            onChangeText={(text) => handleInputChange('sensores_estado', text)}
-            placeholder="Describa el estado de los sensores"
-          />
-        </View>
-
-        {/* MEDICIONES ELÉCTRICAS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚡ MEDICIONES DE CONSUMO ELÉCTRICO</Text>
-          
-          <Text style={styles.inputLabel}>Consumo Fase R (Amperes)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.consumo_fase_r?.toString()}
-            onChangeText={(text) => handleInputChange('consumo_fase_r', parseFloat(text) || '')}
-            placeholder="Ejemplo: 12.50"
-            keyboardType="decimal-pad"
-          />
-
-          <Text style={styles.inputLabel}>Consumo Fase S (Amperes)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.consumo_fase_s?.toString()}
-            onChangeText={(text) => handleInputChange('consumo_fase_s', parseFloat(text) || '')}
-            placeholder="Ejemplo: 11.75"
-            keyboardType="decimal-pad"
-          />
-
-          <Text style={styles.inputLabel}>Consumo Fase T (Amperes)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.consumo_fase_t?.toString()}
-            onChangeText={(text) => handleInputChange('consumo_fase_t', parseFloat(text) || '')}
-            placeholder="Ejemplo: 12.25"
-            keyboardType="decimal-pad"
-          />
-
-          <Text style={styles.inputLabel}>Temperatura del Motor</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.temperatura_motor}
-            onChangeText={(text) => handleInputChange('temperatura_motor', text)}
-            placeholder="Temperatura medida del motor"
           />
         </View>
 
@@ -437,6 +402,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'white',
     minHeight: 45
+  },
+  disabledInput: {
+    backgroundColor: '#f5f5f5',
+    color: '#666'
   },
   textArea: {
     minHeight: 100,
