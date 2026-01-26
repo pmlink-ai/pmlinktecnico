@@ -29,6 +29,7 @@ import * as Print from 'expo-print';
 import Signature from 'react-native-signature-canvas';
 import PDFService from './services/pdfService';
 import { DocumentStorageService } from './services/documentStorageService';
+import FormMttoElectromecanico from './forms/FormMttoElectromecanico';
 
 const { width } = Dimensions.get('window');
 
@@ -2819,7 +2820,27 @@ const OrderDetailScreen = ({ route, navigation }) => {
 
     const formKey = formularioInfo.form_key;
     
-    if (formKey === 'INFORME_LIMPIEZA_DUCTOS' || formKey === 'INFORME_ANSUL_R102' || formKey === 'INFORME_MTTO_ELECTROMECANICO') {
+    // Usar FormMttoElectromecanico específico para mantenimiento electromecánico
+    if (formKey === 'INFORME_MTTO_ELECTROMECANICO') {
+      return <FormMttoElectromecanico 
+        order={order} 
+        navigation={navigation}
+        onClose={() => {
+          setShowFormModal(false);
+          // Recargar órdenes cuando se cierre el formulario para mostrar cambios de estado
+          setTimeout(() => {
+            navigation.getParent()?.getState().routes.forEach(route => {
+              if (route.name === 'Home') {
+                navigation.getParent()?.navigate('Home', { reload: true });
+              }
+            });
+          }, 100);
+        }} 
+      />;
+    }
+    
+    // Usar FormularioDinamico para otros formularios
+    if (formKey === 'INFORME_LIMPIEZA_DUCTOS' || formKey === 'INFORME_ANSUL_R102') {
       return <FormularioDinamico 
         order={order} 
         navigation={navigation}
