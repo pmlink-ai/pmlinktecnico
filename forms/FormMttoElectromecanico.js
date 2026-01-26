@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 
-const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
+const FormMttoElectromecanico = ({ order, navigation, onClose, setCurrentView, setCurrentPhotoPage }) => {
   // Función para obtener la fecha actual en formato DD/MM/AAAA
   const getCurrentDate = () => {
     const today = new Date();
@@ -43,7 +43,7 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
     rodamientos_estado: '',
     
     // Observaciones
-    observaciones_generales: ''
+    observaciones_adicionales: ''
   });
   
   const [loading, setLoading] = useState(false);
@@ -95,7 +95,38 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
       [field]: value
     }));
   };
+  // Función para validar que todos los campos obligatorios estén completos
+  const isFormValid = () => {
+    const requiredFields = [
+      'fecha_inicio',
+      'cliente',
+      'asistencia_personal',
+      'horas_trabajo',
+      'rejillas_motor_estado',
+      'rodamientos_estado',
+      'observaciones_adicionales'
+    ];
 
+    console.log('🔍 Validando campos obligatorios:', {
+      fecha_inicio: formData.fecha_inicio,
+      cliente: formData.cliente,
+      asistencia_personal: formData.asistencia_personal,
+      horas_trabajo: formData.horas_trabajo,
+      rejillas_motor_estado: formData.rejillas_motor_estado,
+      rodamientos_estado: formData.rodamientos_estado,
+      observaciones_adicionales: formData.observaciones_adicionales
+    });
+
+    const isValid = requiredFields.every(field => {
+      const value = formData[field];
+      const fieldValid = value !== null && value !== undefined && value.toString().trim() !== '';
+      console.log(`Campo ${field}:`, value, 'Válido:', fieldValid);
+      return fieldValid;
+    });
+    
+    console.log('Resultado validación:', isValid);
+    return isValid;
+  };
   const validateForm = () => {
     const requiredFields = [
       'fecha_inicio',
@@ -104,7 +135,7 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
       'horas_trabajo',
       'rejillas_motor_estado',
       'rodamientos_estado',
-      'observaciones_generales'
+      'observaciones_adicionales'
     ];
 
     for (const field of requiredFields) {
@@ -240,6 +271,7 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
             value={formData.horas_trabajo}
             onChangeText={(text) => handleInputChange('horas_trabajo', text)}
             placeholder="Número de horas trabajadas"
+            keyboardType="numeric"
           />
         </View>
 
@@ -307,7 +339,50 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
           />
         </View>
 
-        {/* BOTÓN GUARDAR */}
+        {/* BOTÓN FOTOGRAFÍAS */}
+        <TouchableOpacity 
+          style={[
+            styles.photographyButton,
+            !isFormValid() && styles.photographyButtonDisabled
+          ]}
+          onPress={() => {
+            console.log('🔵 Botón fotografías presionado');
+            console.log('📝 Estado actual del formulario:', formData);
+            
+            if (!isFormValid()) {
+              console.log('❌ Validación falló');
+              Alert.alert(
+                'Campos Incompletos',
+                'Para acceder a las fotografías, primero debes completar todos los campos obligatorios del formulario.\n\n• Verifica que todos los campos estén llenos\n• Todos los campos son requeridos para continuar',
+                [{ text: 'Entendido', style: 'default' }]
+              );
+              return;
+            }
+            
+            console.log('✅ Validación pasó');
+            console.log('🔧 setCurrentView disponible:', typeof setCurrentView);
+            console.log('🔧 setCurrentPhotoPage disponible:', typeof setCurrentPhotoPage);
+            
+            if (setCurrentView && setCurrentPhotoPage) {
+              console.log('📸 Navegando a fotografías...');
+              setCurrentView('fotografias');
+              setCurrentPhotoPage(0); // Resetear a la primera página
+            } else {
+              console.log('⚠️ Funciones de navegación no disponibles');
+              Alert.alert('Fotografías', 'Funcionalidad de fotografías próximamente');
+            }
+          }}
+          disabled={!isFormValid()}
+        >
+          <Text style={[
+            styles.photographyButtonText,
+            !isFormValid() && styles.photographyButtonTextDisabled
+          ]}>
+            {isFormValid() ? '📸 Fotografías ➜' : '🔒 Completa Campos Obligatorios'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* BOTÓN GUARDAR - TEMPORALMENTE OCULTO
         <TouchableOpacity 
           style={styles.saveButton}
           onPress={handleSave}
@@ -321,6 +396,7 @@ const FormMttoElectromecanico = ({ order, navigation, onClose }) => {
             </>
           )}
         </TouchableOpacity>
+        */}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -429,6 +505,33 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold'
+  },
+  photographyButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  photographyButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold'
+  },
+  photographyButtonDisabled: {
+    backgroundColor: '#cccccc',
+    shadowOpacity: 0
+  },
+  photographyButtonTextDisabled: {
+    color: '#666666'
   },
   bottomSpacer: {
     height: 50

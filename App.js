@@ -2699,6 +2699,8 @@ const OrderDetailScreen = ({ route, navigation }) => {
   const [formularioInfo, setFormularioInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
+  const [currentView, setCurrentView] = useState('datos'); // 'datos' o 'fotografias'
+  const [currentPhotoPage, setCurrentPhotoPage] = useState(0); // Índice de la página actual de fotografías
 
   useEffect(() => {
     loadOrderDetails();
@@ -2825,6 +2827,8 @@ const OrderDetailScreen = ({ route, navigation }) => {
       return <FormMttoElectromecanico 
         order={order} 
         navigation={navigation}
+        setCurrentView={setCurrentView}
+        setCurrentPhotoPage={setCurrentPhotoPage}
         onClose={() => {
           setShowFormModal(false);
           // Recargar órdenes cuando se cierre el formulario para mostrar cambios de estado
