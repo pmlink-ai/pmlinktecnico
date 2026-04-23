@@ -346,11 +346,11 @@ const FormMttoElectromecanico = ({ order, navigation, onClose, setCurrentView, s
             !isFormValid() && styles.photographyButtonDisabled
           ]}
           onPress={() => {
-            console.log('🔵 Botón fotografías presionado');
+            console.log('🔵 Botón fotografías MTTO Electromecánico presionado');
             console.log('📝 Estado actual del formulario:', formData);
             
-            if (!isFormValid()) {
-              console.log('❌ Validación falló');
+            if (!validateForm()) {
+              console.log('❌ Validación falló - campos incompletos');
               Alert.alert(
                 'Campos Incompletos',
                 'Para acceder a las fotografías, primero debes completar todos los campos obligatorios del formulario.\n\n• Verifica que todos los campos estén llenos\n• Todos los campos son requeridos para continuar',
@@ -359,17 +359,20 @@ const FormMttoElectromecanico = ({ order, navigation, onClose, setCurrentView, s
               return;
             }
             
-            console.log('✅ Validación pasó');
+            console.log('✅ Validación pasó - navegando a fotografías');
             console.log('🔧 setCurrentView disponible:', typeof setCurrentView);
             console.log('🔧 setCurrentPhotoPage disponible:', typeof setCurrentPhotoPage);
             
-            if (setCurrentView && setCurrentPhotoPage) {
-              console.log('📸 Navegando a fotografías...');
+            if (setCurrentView && typeof setCurrentView === 'function') {
+              console.log('📸 Navegando a página 1 de 1 de observaciones fotográficas...');
               setCurrentView('fotografias');
-              setCurrentPhotoPage(0); // Resetear a la primera página
+              if (setCurrentPhotoPage && typeof setCurrentPhotoPage === 'function') {
+                setCurrentPhotoPage(0); // MTTO Electromecánico: página única (1 de 1)
+                console.log('📋 setCurrentPhotoPage(0) - Página 1 de 1');
+              }
             } else {
-              console.log('⚠️ Funciones de navegación no disponibles');
-              Alert.alert('Fotografías', 'Funcionalidad de fotografías próximamente');
+              console.log('❌ Error: setCurrentView no está disponible');
+              Alert.alert('Error', 'No se puede acceder a la sección de fotografías');
             }
           }}
           disabled={!isFormValid()}
@@ -382,17 +385,36 @@ const FormMttoElectromecanico = ({ order, navigation, onClose, setCurrentView, s
           </Text>
         </TouchableOpacity>
 
-        {/* BOTÓN GUARDAR - TEMPORALMENTE OCULTO
+        {/* BOTÓN GUARDAR - ESTARÁ EN LA PÁGINA DE FOTOGRAFÍAS */}
+        {/*
         <TouchableOpacity 
-          style={styles.saveButton}
-          onPress={handleSave}
-          disabled={saving}
+          style={[
+            styles.saveButton,
+            !isFormValid() && styles.saveButtonDisabled
+          ]}
+          onPress={() => {
+            console.log('🟢 Botón GUARDAR presionado');
+            console.log('📋 Estado del formulario:', formData);
+            console.log('✅ Formulario válido:', isFormValid());
+            if (isFormValid()) {
+              handleSave();
+            } else {
+              console.log('❌ Formulario inválido - no se puede guardar');
+              Alert.alert('Formulario Incompleto', 'Complete todos los campos obligatorios antes de guardar');
+            }
+          }}
+          disabled={saving || !isFormValid()}
         >
           {saving ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
             <>
-              <Text style={styles.saveButtonText}>💾 Guardar Formulario</Text>
+              <Text style={[
+                styles.saveButtonText,
+                !isFormValid() && styles.saveButtonTextDisabled
+              ]}>
+                {isFormValid() ? '💾 Guardar Formulario' : '🔒 Complete Campos Obligatorios'}
+              </Text>
             </>
           )}
         </TouchableOpacity>

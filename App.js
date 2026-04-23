@@ -2191,13 +2191,48 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           {/* MOSTRAR SOLO EL COMPONENTE ACTUAL */}
           {(() => {
             const componentes = getComponentesActuales();
+            
+            // CONFIGURACIÓN ESPECIAL PARA MTTO ELECTROMECÁNICO: solo mostrar "Observaciones Fotográficas"
+            if (informeTabla === 'INFORME_MTTO_ELECTROMECANICO') {
+              const observacionesFotograficas = componentes.find(c => c.key === 'Observaciones_Fotograficas');
+              if (!observacionesFotograficas) return null;
+              
+              return (
+                <View>
+                  {/* INDICADOR DE PÁGINA ESPECIAL PARA MTTO ELECTROMECÁNICO */}
+                  <View style={styles.pageIndicator}>
+                    <Text style={styles.pageText}>
+                      1 de 1
+                    </Text>
+                    <Text style={styles.componentPageTitle}>
+                      {observacionesFotograficas.title.toUpperCase()}
+                    </Text>
+                  </View>
+                  
+                  {/* SOLO COMPONENTE OBSERVACIONES FOTOGRÁFICAS */}
+                  {renderComponent(observacionesFotograficas)}
+                  
+                  {/* BOTÓN CONTINUAR PARA MTTO ELECTROMECÁNICO */}
+                  <View style={styles.photoNavigationContainer}>
+                    <TouchableOpacity 
+                      style={styles.photoNavButton}
+                      onPress={() => setCurrentView('datos')}
+                    >
+                      <Text style={styles.photoNavButtonText}>⬅ DATOS</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            }
+            
+            // CONFIGURACIÓN NORMAL PARA OTROS INFORMES (LIMPIEZA DUCTOS, ANSUL, etc.)
             const componenteActual = componentes[currentPhotoPage];
             
             if (!componenteActual) return null;
             
             return (
               <View>
-                {/* INDICADOR DE PÁGINA */}
+                {/* INDICADOR DE PÁGINA NORMAL */}
                 <View style={styles.pageIndicator}>
                   <Text style={styles.pageText}>
                     {currentPhotoPage + 1} de {componentes.length}
@@ -2210,7 +2245,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 {/* COMPONENTE ACTUAL */}
                 {renderComponent(componenteActual)}
                 
-                {/* BOTONES DE NAVEGACIÓN */}
+                {/* BOTONES DE NAVEGACIÓN NORMALES */}
                 <View style={styles.photoNavigationContainer}>
                   {currentPhotoPage > 0 && (
                     <TouchableOpacity 
@@ -2701,6 +2736,273 @@ const OrderDetailScreen = ({ route, navigation }) => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [currentView, setCurrentView] = useState('datos'); // 'datos' o 'fotografias'
   const [currentPhotoPage, setCurrentPhotoPage] = useState(0); // Índice de la página actual de fotografías
+  
+  // Estados para manejo de imágenes
+  const [imagesByComponenteAndSeccion, setImagesByComponenteAndSeccion] = useState({});
+  const [uploading, setUploading] = useState({});
+  const [expandedComponents, setExpandedComponents] = useState({});
+
+  // Funciones para manejo de imágenes - MTTO Electromecánico
+  const pickImage = async (componente, seccion) => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos', 'Se necesitan permisos para acceder a la galería');
+        return;
+      }
+
+      Alert.alert(
+        `Foto ${seccion} - ${componente}`,
+        'Elige una opción',
+        [
+          { text: 'Cámara', onPress: () => openCamera(componente, seccion) },
+          { text: 'Galería', onPress: () => openGallery(componente, seccion) },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      console.error('Error solicitando permisos:', error);
+      Alert.alert('Error', 'Error al solicitar permisos');
+    }
+  };
+
+  const openCamera = async (componente, seccion) => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos', 'Se necesitan permisos para usar la cámara');
+        return;
+      }
+
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: true }));
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        uploadImage(result.assets[0], componente, seccion);
+      } else {
+        setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
+      }
+    } catch (error) {
+      console.error('Error en openCamera:', error);
+      Alert.alert('Error', `Error al abrir la cámara: ${error.message}`);
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
+    }
+  };
+
+  const openGallery = async (componente, seccion) => {
+    try {
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: true }));
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        uploadImage(result.assets[0], componente, seccion);
+      } else {
+        setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
+      }
+    } catch (error) {
+      console.error('Error en openGallery:', error);
+      Alert.alert('Error', `Error al seleccionar imagen: ${error.message}`);
+      setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
+    }
+  };
+
+  const uploadImage = async (imageAsset, componenteKey, seccionKey) => {
+    try {
+      const currentOrderId = order.id;
+      const informeTabla = 'informe_electromecanico';
+      
+      const fileName = `${currentOrderId}_${componenteKey}_${seccionKey}_${Date.now()}.jpg`;
+      const folderName = getStorageFolderName(componenteKey, informeTabla);
+      const filePath = `${currentOrderId}/${folderName}/${fileName}`;
+
+      const response = await fetch(imageAsset.uri);
+      const blob = await response.blob();
+      const arrayBuffer = await new Response(blob).arrayBuffer();
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('fotos_informes')
+        .upload(filePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('fotos_informes')
+        .getPublicUrl(filePath);
+
+      const newImage = {
+        id: Date.now().toString(),
+        uri: urlData.publicUrl,
+        path: filePath,
+        componente: componenteKey,
+        seccion: seccionKey
+      };
+
+      setImagesByComponenteAndSeccion(prev => {
+        const updated = { ...prev };
+        if (!updated[componenteKey]) updated[componenteKey] = {};
+        if (!updated[componenteKey][seccionKey]) updated[componenteKey][seccionKey] = [];
+        updated[componenteKey][seccionKey] = [...updated[componenteKey][seccionKey], newImage];
+        return updated;
+      });
+
+      Alert.alert('Éxito', 'Imagen subida correctamente');
+    } catch (error) {
+      console.error('Error subiendo imagen:', error);
+      Alert.alert('Error', `Error al subir imagen: ${error.message}`);
+    } finally {
+      setUploading(prev => ({ ...prev, [`${componenteKey}_${seccionKey}`]: false }));
+    }
+  };
+
+  const getStorageFolderName = (componenteKey, informeTabla) => {
+    const mappings = {
+      'informe_electromecanico': {
+        'Observaciones_Fotograficas': 'OBSERVACIONES_FOTOGRAFICAS'
+      }
+    };
+    return mappings[informeTabla]?.[componenteKey] || componenteKey;
+  };
+
+  const deleteImage = async (image, componenteKey, seccionKey) => {
+    try {
+      Alert.alert(
+        'Eliminar imagen',
+        '¿Estás seguro de que quieres eliminar esta imagen?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              const { error } = await supabase.storage
+                .from('fotos_informes')
+                .remove([image.path]);
+
+              if (error) {
+                console.error('Error eliminando imagen del storage:', error);
+                Alert.alert('Error', 'Error al eliminar la imagen');
+                return;
+              }
+
+              setImagesByComponenteAndSeccion(prev => {
+                const updated = { ...prev };
+                if (updated[componenteKey]?.[seccionKey]) {
+                  updated[componenteKey][seccionKey] = updated[componenteKey][seccionKey].filter(img => img.id !== image.id);
+                }
+                return updated;
+              });
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error en deleteImage:', error);
+      Alert.alert('Error', 'Error al eliminar la imagen');
+    }
+  };
+
+  const renderImage = ({ item }) => {
+    console.log('🖼️ renderImage MTTO:', item);
+    
+    return (
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: item.uri }} style={styles.sectionImage} />
+        <TouchableOpacity 
+          style={styles.deleteImageButton}
+          onPress={() => deleteImage(item, item.componente, item.seccion)}
+        >
+          <Text style={styles.deleteImageText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const formatComponentTitle = (title) => {
+    return title.toUpperCase();
+  };
+
+  const canAddMorePhotos = (componenteKey, seccionKey) => {
+    const currentImages = imagesByComponenteAndSeccion[componenteKey]?.[seccionKey] || [];
+    return currentImages.length < 10; // Máximo 10 fotos por sección para MTTO
+  };
+
+  const getAddPhotoButtonText = (componenteKey, seccionKey, defaultText) => {
+    const currentImages = imagesByComponenteAndSeccion[componenteKey]?.[seccionKey] || [];
+    if (currentImages.length === 0) {
+      return `Agregar foto ${defaultText}`;
+    }
+    return `Agregar foto (${currentImages.length}/10)`;
+  };
+
+  const renderObservacionesFotograficasSimpleSection = (componenteKey) => {
+    const seccionUnica = 'ANTES';
+    const images = imagesByComponenteAndSeccion[componenteKey]?.[seccionUnica] || [];
+    const uploadingKey = `${componenteKey}_${seccionUnica}`;
+    const isUploading = uploading[uploadingKey];
+
+    console.log('🖼️ renderObservacionesFotograficasSimpleSection:', {
+      componenteKey,
+      seccionUnica,
+      images,
+      imagesCount: images.length,
+      imagesByComponenteAndSeccion
+    });
+
+    return (
+      <View style={styles.componentSection}>
+        {images.length > 0 && (
+          <FlatList
+            data={images}
+            renderItem={renderImage}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sectionImagesList}
+          />
+        )}
+        
+        <TouchableOpacity 
+          style={[
+            styles.addSectionPhotoButton, 
+            { 
+              borderColor: canAddMorePhotos(componenteKey, seccionUnica) ? '#FF6B6B' : '#ccc',
+              opacity: canAddMorePhotos(componenteKey, seccionUnica) ? 1 : 0.5
+            }
+          ]}
+          onPress={() => pickImage(componenteKey, seccionUnica)}
+          disabled={isUploading || !canAddMorePhotos(componenteKey, seccionUnica)}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color="#FF6B6B" />
+          ) : (
+            <>
+              <Text style={[styles.addPhotoIcon, { color: canAddMorePhotos(componenteKey, seccionUnica) ? '#FF6B6B' : '#ccc' }]}>📷</Text>
+              <Text style={[styles.addSectionPhotoText, { color: canAddMorePhotos(componenteKey, seccionUnica) ? '#FF6B6B' : '#ccc' }]}>
+                {getAddPhotoButtonText(componenteKey, seccionUnica, 'Observaciones')}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   useEffect(() => {
     loadOrderDetails();
@@ -2815,6 +3117,58 @@ const OrderDetailScreen = ({ route, navigation }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderPhotoView = () => {
+    // Componente específico para MTTO Electromecánico - "Observaciones Fotográficas"
+    const componenteObservaciones = {
+      key: 'Observaciones_Fotograficas',
+      title: 'OBSERVACIONES FOTOGRÁFICAS',
+      icon: '📸'
+    };
+
+    // Calcular total de imágenes para Observaciones Fotográficas
+    const totalImages = imagesByComponenteAndSeccion[componenteObservaciones.key]?.['ANTES']?.length || 0;
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.photoHeader}>
+          <TouchableOpacity 
+            style={styles.photoCloseButton}
+            onPress={() => setCurrentView('datos')}
+          >
+            <Text style={styles.photoCloseText}>⬅ DATOS</Text>
+          </TouchableOpacity>
+          <Text style={styles.photoHeaderTitle}>OBSERVACIONES FOTOGRÁFICAS</Text>
+          <View style={styles.photoHeaderSpacer} />
+        </View>
+        
+        <ScrollView style={styles.sectionsContainer}>
+          <View style={styles.pageIndicator}>
+            <Text style={styles.pageText}>1 de 1</Text>
+            <Text style={styles.componentPageTitle}>OBSERVACIONES FOTOGRÁFICAS</Text>
+          </View>
+          
+          {/* COMPONENTE OBSERVACIONES FOTOGRÁFICAS */}
+          <View style={styles.componentContainer}>
+            <View style={styles.componentHeader}>
+              <View style={styles.componentHeaderLeft}>
+                <Text style={styles.componentIcon}>{componenteObservaciones.icon}</Text>
+                <Text style={styles.componentTitle}>{formatComponentTitle(componenteObservaciones.title)}</Text>
+                {totalImages > 0 && (
+                  <Text style={styles.componentCount}>({totalImages} fotos)</Text>
+                )}
+              </View>
+            </View>
+            
+            <View style={styles.componentContent}>
+              {renderObservacionesFotograficasSimpleSection(componenteObservaciones.key)}
+              {console.log('🔍 Llamando renderObservacionesFotograficasSimpleSection con key:', componenteObservaciones.key)}
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
   };
 
   const getFormComponent = () => {
@@ -3036,7 +3390,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
         animationType="slide"
         presentationStyle="formSheet"
       >
-        {getFormComponent()}
+        {currentView === 'fotografias' ? renderPhotoView() : getFormComponent()}
       </Modal>
     </SafeAreaView>
   );
@@ -6774,6 +7128,76 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     textAlign: 'center',
     marginVertical: 20,
+  },
+  
+  // ================== ESTILOS FOTOGRAFÍAS ==================
+  photoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E6ED',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  photoCloseButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  photoCloseText: {
+    color: '#2C3E50',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  photoHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    textAlign: 'center',
+    flex: 1,
+  },
+  photoHeaderSpacer: {
+    width: 80, // Para balancear el header
+  },
+  sectionsContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  sectionsScrollView: {
+    flex: 1,
+  },
+  pageIndicator: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  pageText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  componentPageTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   separator: {
     marginVertical: 20,
