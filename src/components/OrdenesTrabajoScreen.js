@@ -22,18 +22,33 @@ export default function OrdenesTrabajoScreen({ navigation }) {
     try {
       console.log('🔍 Obteniendo órdenes de trabajo...');
       
-      const { data, error } = await supabase
+      // Intentar con joins (requiere FK constraints en Supabase)
+      let { data, error } = await supabase
         .from('orden_trabajo')
         .select(`
           *,
-          estados_orden_trabajo(nombre),
-          prioridades(nombre)
+          estados_orden_trabajo!estado_id(nombre),
+          prioridades!prioridad_id(nombre)
         `)
         .order('created_at', { ascending: false });
 
+      // Si el join falla (FK no configurada), intentar sin joins
+      if (error && (error.code === 'PGRST200' || error.message?.includes('relationship'))) {
+        console.warn('⚠️ Join falló, intentando sin relaciones...');
+        const fallback = await supabase
+          .from('orden_trabajo')
+          .select('*')
+          .order('created_at', { ascending: false });
+        data = fallback.data;
+        error = fallback.error;
+      }
+
       if (error) {
         console.error('❌ Error obteniendo órdenes:', error);
-        Alert.alert('Error', 'No se pudieron cargar las órdenes de trabajo: ' + error.message);
+        Alert.alert(
+          'Error al cargar órdenes',
+          `Código: ${error.code || 'N/A'}\n\nDetalle: ${error.message}`,
+        );
         return;
       }
 

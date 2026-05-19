@@ -11,7 +11,7 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
-import { supabase, testConnection } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 // Importar el logo
 const logoImage = require('../../assets/logo.png');
@@ -29,25 +29,8 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     console.log('🔐 Iniciando proceso de login...');
-    console.log('Email:', email);
     
     try {
-      // Primero verificar conexión a Supabase
-      console.log('🔄 Verificando conexión a Supabase...');
-      const connectionTest = await testConnection();
-      
-      if (!connectionTest.success) {
-        console.error('❌ Error de conexión:', connectionTest.error);
-        Alert.alert('Error de Conexión', 
-          'No se puede conectar al servidor. Verifica tu conexión a internet.\n\nDetalle: ' + connectionTest.error);
-        setLoading(false);
-        return;
-      }
-      
-      console.log('✅ Conexión a Supabase exitosa');
-
-      // Intentar login
-      console.log('🔑 Intentando autenticación...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password,
@@ -56,11 +39,13 @@ export default function LoginScreen({ navigation }) {
       if (error) {
         console.error('❌ Error de autenticación:', error);
         
-        let errorMessage = 'Error de autenticación';
+        let errorMessage;
         if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Email o contraseña incorrectos. \n\nCredenciales válidas:\n• Email: admin@pmlink.com\n• Password: admin123456';
+          errorMessage = 'Email o contraseña incorrectos.';
         } else if (error.message.includes('Email not confirmed')) {
           errorMessage = 'Email no confirmado. Verifica tu bandeja de entrada.';
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          errorMessage = 'Sin conexión a internet. Verifica tu red e intenta nuevamente.';
         } else {
           errorMessage = error.message;
         }
@@ -72,7 +57,7 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (error) {
       console.error('❌ Error inesperado:', error);
-      Alert.alert('Error', 'Ocurrió un error durante el login: ' + error.message);
+      Alert.alert('Error', 'Sin conexión al servidor. Verifica tu internet.');
     } finally {
       setLoading(false);
     }
@@ -137,13 +122,13 @@ export default function LoginScreen({ navigation }) {
             {/* Credenciales de prueba - Solo para desarrollo */}
             <View style={styles.testCredentialsContainer}>
               <Text style={styles.testCredentialsTitle}>🔑 Credenciales de Prueba:</Text>
-              <Text style={styles.testCredentialsText}>Email: admin@pmlink.com</Text>
-              <Text style={styles.testCredentialsText}>Password: admin123456</Text>
+              <Text style={styles.testCredentialsText}>Email: grace.cidsap@gmail.com</Text>
+              <Text style={styles.testCredentialsText}>Password: tecnico123</Text>
               <TouchableOpacity 
                 style={styles.autoFillButton}
                 onPress={() => {
-                  setEmail('admin@pmlink.com');
-                  setPassword('admin123456');
+                  setEmail('grace.cidsap@gmail.com');
+                  setPassword('tecnico123');
                 }}
               >
                 <Text style={styles.autoFillButtonText}>Auto-completar</Text>
