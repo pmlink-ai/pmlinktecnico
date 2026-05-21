@@ -31,8 +31,8 @@ async function testAuth() {
   
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: 'superadmin@pmlink.co',
-      password: 'superadmin123'
+      email: process.env.TEST_EMAIL || '',
+      password: process.env.TEST_PASSWORD || ''
     });
     
     if (error) {

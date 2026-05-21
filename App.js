@@ -33,9 +33,9 @@ import FormMttoElectromecanico from './forms/FormMttoElectromecanico';
 
 const { width } = Dimensions.get('window');
 
-// Configuración de Supabase
-const supabaseUrl = 'https://mwtdoidrjuahsejfctlm.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13dGRvaWRyanVhaHNlamZjdGxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1NTczNDQsImV4cCI6MjA2NjEzMzM0NH0.QtKVhvZiY-ehpJlRMusUsjS6V7ZbyHtpMnvr60x9xEM';
+// Configuración de Supabase (lee del .env.development / .env.production)
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -45,6 +45,14 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+// Logger seguro: solo activo en desarrollo, silenciado en producción
+const isDev = process.env.NODE_ENV !== 'production';
+const logger = {
+  log: (...args) => isDev && logger.log(...args),
+  error: (...args) => isDev && logger.error(...args),
+  warn: (...args) => isDev && logger.warn(...args),
+};
 
 const Stack = createStackNavigator();
 
@@ -190,7 +198,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         .order('uploaded_at', { ascending: false });
 
       if (error) {
-        console.error('Error cargando imágenes:', error);
+        logger.error('Error cargando imágenes:', error);
         Alert.alert('Error', 'No se pudieron cargar las imágenes');
         return;
       }
@@ -234,10 +242,10 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       });
 
       setImagesByComponenteAndSeccion(organizedImages);
-      console.log('📸 Imágenes organizadas:', organizedImages);
+      logger.log('📸 Imágenes organizadas:', organizedImages);
 
     } catch (error) {
-      console.error('Error:', error);
+      logger.error('Error:', error);
       Alert.alert('Error', 'Error inesperado al cargar imágenes');
     } finally {
       setLoading(false);
@@ -253,7 +261,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         .eq('informe_tabla', informeTabla);
 
       if (error) {
-        console.error('Error cargando observaciones:', error);
+        logger.error('Error cargando observaciones:', error);
         return;
       }
 
@@ -266,7 +274,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
       setObservacionesSecciones(observacionesOrganizadas);
     } catch (error) {
-      console.error('Error cargando observaciones:', error);
+      logger.error('Error cargando observaciones:', error);
     }
   };
 
@@ -285,7 +293,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         });
 
       if (error) {
-        console.error('Error guardando observación:', error);
+        logger.error('Error guardando observación:', error);
         Alert.alert('Error', 'No se pudo guardar la observación');
         return;
       }
@@ -296,7 +304,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         [`${componenteKey}_${seccion}`]: texto
       }));
     } catch (error) {
-      console.error('Error:', error);
+      logger.error('Error:', error);
       Alert.alert('Error', 'Error inesperado al guardar observación');
     }
   };
@@ -353,21 +361,21 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         ]
       );
     } catch (error) {
-      console.error('Error solicitando permisos:', error);
+      logger.error('Error solicitando permisos:', error);
       Alert.alert('Error', 'Error al solicitar permisos');
     }
   };
 
   const openCamera = async (componente, seccion) => {
-    console.log('\ud83d\udcf7 DEBUG: Iniciando openCamera - componente:', componente, 'seccion:', seccion);
+    logger.log('\ud83d\udcf7 DEBUG: Iniciando openCamera - componente:', componente, 'seccion:', seccion);
     try {
       // Verificar límite de fotos para informe_limpieza_ductos
-      console.log('\ud83d\udcf7 DEBUG: Verificando límite de fotos para:', informeTabla);
+      logger.log('\ud83d\udcf7 DEBUG: Verificando límite de fotos para:', informeTabla);
       if (informeTabla === 'informe_limpieza_ductos') {
         const currentImages = imagesByComponenteAndSeccion[componente]?.[seccion] || [];
-        console.log('\ud83d\udcf7 DEBUG: Imágenes actuales:', currentImages.length, '/ 4 máx');
+        logger.log('\ud83d\udcf7 DEBUG: Imágenes actuales:', currentImages.length, '/ 4 máx');
         if (currentImages.length >= 4) {
-          console.log('\ud83d\udcf7 DEBUG: Límite alcanzado - cancelando');
+          logger.log('\ud83d\udcf7 DEBUG: Límite alcanzado - cancelando');
           Alert.alert(
             'Límite alcanzado', 
             'Máximo 4 fotografías por sección en Informe Limpieza Ductos',
@@ -377,20 +385,20 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         }
       }
 
-      console.log('\ud83d\udcf7 DEBUG: Solicitando permisos de cámara...');
+      logger.log('\ud83d\udcf7 DEBUG: Solicitando permisos de cámara...');
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      console.log('\ud83d\udcf7 DEBUG: Estado de permisos:', status);
+      logger.log('\ud83d\udcf7 DEBUG: Estado de permisos:', status);
       if (status !== 'granted') {
-        console.log('\ud83d\udcf7 DEBUG: Permisos denegados');
+        logger.log('\ud83d\udcf7 DEBUG: Permisos denegados');
         Alert.alert('Permisos', 'Se necesitan permisos para usar la cámara');
         return;
       }
 
       // Configurar estado de carga
-      console.log('\ud83d\udcf7 DEBUG: Configurando estado de carga');
+      logger.log('\ud83d\udcf7 DEBUG: Configurando estado de carga');
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: true }));
 
-      console.log('\ud83d\udcf7 DEBUG: Abriendo cámara con configuración...');
+      logger.log('\ud83d\udcf7 DEBUG: Abriendo cámara con configuración...');
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -398,7 +406,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         quality: 0.8,
       });
 
-      console.log('\ud83d\udcf7 DEBUG: Resultado de la cámara:', {
+      logger.log('\ud83d\udcf7 DEBUG: Resultado de la cámara:', {
         canceled: result.canceled,
         hasAssets: result.assets ? result.assets.length : 0,
         firstAsset: result.assets?.[0] ? {
@@ -411,14 +419,14 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       });
 
       if (!result.canceled && result.assets[0]) {
-        console.log('\ud83d\udcf7 DEBUG: Imagen capturada exitosamente, iniciando subida...');
+        logger.log('\ud83d\udcf7 DEBUG: Imagen capturada exitosamente, iniciando subida...');
         uploadImage(result.assets[0], componente, seccion);
       } else {
-        console.log('\ud83d\udcf7 DEBUG: Captura cancelada o sin imagen');
+        logger.log('\ud83d\udcf7 DEBUG: Captura cancelada o sin imagen');
         setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
       }
     } catch (error) {
-      console.error('\ud83d\udcf7 ERROR: Error en openCamera:', {
+      logger.error('\ud83d\udcf7 ERROR: Error en openCamera:', {
         message: error.message,
         stack: error.stack,
         name: error.name,
@@ -461,7 +469,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
       }
     } catch (error) {
-      console.error('Error abriendo galería:', error);
+      logger.error('Error abriendo galería:', error);
       Alert.alert('Error', 'Error al abrir la galería');
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
@@ -470,7 +478,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   // Función helper para reintentos de subida con network issues
   const uploadWithRetry = async (bucket, path, formData, options, maxRetries = 3) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`📍 DEBUG: Intento de subida ${attempt}/${maxRetries}`);
+      logger.log(`📍 DEBUG: Intento de subida ${attempt}/${maxRetries}`);
       
       try {
         const result = await supabase.storage
@@ -478,14 +486,14 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           .upload(path, formData, options);
           
         if (result.error && result.error.message === 'network request failed' && attempt < maxRetries) {
-          console.log(`🔄 DEBUG: Reintentando en 2 segundos... (intento ${attempt}/${maxRetries})`);
+          logger.log(`🔄 DEBUG: Reintentando en 2 segundos... (intento ${attempt}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, 2000));
           continue;
         }
         
         return result;
       } catch (error) {
-        console.error(`❌ DEBUG: Error en intento ${attempt}:`, error);
+        logger.error(`❌ DEBUG: Error en intento ${attempt}:`, error);
         if (attempt === maxRetries) {
           return { error: { message: `Error después de ${maxRetries} intentos: ${error.message}` } };
         }
@@ -495,8 +503,8 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
   };
 
   const uploadImage = async (asset, componente, seccion) => {
-    console.log('📋 DEBUG: Iniciando uploadImage - componente:', componente, 'sección:', seccion);
-    console.log('📋 DEBUG: Asset details:', {
+    logger.log('📋 DEBUG: Iniciando uploadImage - componente:', componente, 'sección:', seccion);
+    logger.log('📋 DEBUG: Asset details:', {
       uri: asset.uri,
       type: asset.type,
       width: asset.width,
@@ -505,26 +513,26 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     });
     
     try {
-      console.log('📍 DEBUG: Obteniendo nombre de carpeta para componente:', componente, 'tabla:', informeTabla);
+      logger.log('📍 DEBUG: Obteniendo nombre de carpeta para componente:', componente, 'tabla:', informeTabla);
       
       // Obtener el nombre correcto de la carpeta usando el mapeo
       const folderName = getStorageFolderName(componente, informeTabla);
-      console.log('📍 DEBUG: Nombre de carpeta mapeado:', folderName);
+      logger.log('📍 DEBUG: Nombre de carpeta mapeado:', folderName);
       
       // Generar nombre único
       const fileExtension = asset.uri.split('.').pop() || 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
       const filePath = `public/${orderId}/${informeTabla}/${folderName}/${seccion}/${fileName}`;
       
-      console.log('📍 DEBUG: Detalles del archivo:');
-      console.log('  - Extension:', fileExtension);
-      console.log('  - Nombre:', fileName);
-      console.log('  - Ruta completa:', filePath);
-      console.log('  - OrderID:', orderId);
-      console.log('  - InformeTabla:', informeTabla);
+      logger.log('📍 DEBUG: Detalles del archivo:');
+      logger.log('  - Extension:', fileExtension);
+      logger.log('  - Nombre:', fileName);
+      logger.log('  - Ruta completa:', filePath);
+      logger.log('  - OrderID:', orderId);
+      logger.log('  - InformeTabla:', informeTabla);
 
       // **NUEVA IMPLEMENTACIÓN CON BASE64-ARRAYBUFFER**
-      console.log('📍 DEBUG: Iniciando lectura segura (Fix String)...');
+      logger.log('📍 DEBUG: Iniciando lectura segura (Fix String)...');
       
       let base64Data, arrayBuffer;
       
@@ -534,18 +542,18 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         base64Data = await FileSystem.readAsStringAsync(asset.uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        console.log('📍 DEBUG: Lectura Base64 exitosa, tamaño:', base64Data.length, 'caracteres');
+        logger.log('📍 DEBUG: Lectura Base64 exitosa, tamaño:', base64Data.length, 'caracteres');
       } catch (base64Error) {
-        console.error('🚫 DEBUG: Error leyendo archivo como Base64:', base64Error);
+        logger.error('🚫 DEBUG: Error leyendo archivo como Base64:', base64Error);
         throw new Error(`Error leyendo archivo como Base64: ${base64Error.message}`);
       }
       
       try {
         // 2. Convertimos a ArrayBuffer usando la librería decode
         arrayBuffer = decode(base64Data);
-        console.log('📍 DEBUG: ArrayBuffer creado exitosamente, tamaño:', arrayBuffer.byteLength, 'bytes');
+        logger.log('📍 DEBUG: ArrayBuffer creado exitosamente, tamaño:', arrayBuffer.byteLength, 'bytes');
       } catch (decodeError) {
-        console.error('🚫 DEBUG: Error convirtiendo Base64 a ArrayBuffer:', decodeError);
+        logger.error('🚫 DEBUG: Error convirtiendo Base64 a ArrayBuffer:', decodeError);
         throw new Error(`Error convirtiendo Base64 a ArrayBuffer: ${decodeError.message}`);
       }
       
@@ -558,34 +566,34 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       } else if (['jpg', 'jpeg'].includes(fileExtension.toLowerCase())) {
         mimeType = 'image/jpeg';
       }
-      console.log('📍 DEBUG: Tipo MIME determinado:', mimeType);
+      logger.log('📍 DEBUG: Tipo MIME determinado:', mimeType);
 
       // Test de conectividad antes de subir
-      console.log('📍 DEBUG: Verificando conectividad con Supabase...');
+      logger.log('📍 DEBUG: Verificando conectividad con Supabase...');
       try {
         const connectivityTest = await supabase.from('orden_trabajo').select('id').limit(1);
-        console.log('🌐 DEBUG: Test de conectividad exitoso:', connectivityTest.data ? 'OK' : 'NO DATA');
+        logger.log('🌐 DEBUG: Test de conectividad exitoso:', connectivityTest.data ? 'OK' : 'NO DATA');
         
         // Test específico del storage
-        console.log('📍 DEBUG: Verificando acceso al bucket de storage...');
+        logger.log('📍 DEBUG: Verificando acceso al bucket de storage...');
         const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-        console.log('🗄️ DEBUG: Buckets disponibles:', buckets?.map(b => b.name) || []);
+        logger.log('🗄️ DEBUG: Buckets disponibles:', buckets?.map(b => b.name) || []);
         
         if (bucketsError) {
-          console.error('🗄️ DEBUG: Error listando buckets:', bucketsError);
+          logger.error('🗄️ DEBUG: Error listando buckets:', bucketsError);
         }
         
         // Verificar si el bucket fotos_informes existe
         const documentosBucket = buckets?.find(b => b.name === 'fotos_informes');
-        console.log('📄 DEBUG: Bucket fotos_informes:', documentosBucket ? 'EXISTE' : 'NO EXISTE');
+        logger.log('📄 DEBUG: Bucket fotos_informes:', documentosBucket ? 'EXISTE' : 'NO EXISTE');
         
       } catch (connError) {
-        console.error('🌐 DEBUG: Error de conectividad:', connError);
+        logger.error('🌐 DEBUG: Error de conectividad:', connError);
       }
       
       const uploadStartTime = Date.now();
-      console.log('📍 DEBUG: Iniciando upload a las:', new Date().toISOString());
-      console.log('📍 DEBUG: Subiendo con ArrayBuffer directamente a Supabase...');
+      logger.log('📍 DEBUG: Iniciando upload a las:', new Date().toISOString());
+      logger.log('📍 DEBUG: Subiendo con ArrayBuffer directamente a Supabase...');
       
       let uploadData, uploadError;
       
@@ -601,21 +609,21 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         uploadData = uploadResult.data;
         uploadError = uploadResult.error;
         
-        console.log('📍 DEBUG: Upload resultado:', {
+        logger.log('📍 DEBUG: Upload resultado:', {
           data: uploadData ? 'EXISTE' : 'NULL',
           error: uploadError ? uploadError.message : 'NO ERROR'
         });
         
       } catch (uploadException) {
-        console.error('🚫 DEBUG: Excepción durante upload:', uploadException);
+        logger.error('🚫 DEBUG: Excepción durante upload:', uploadException);
         throw new Error(`Error durante upload: ${uploadException.message}`);
       }
 
       const uploadEndTime = Date.now();
-      console.log('📍 DEBUG: Upload completado en:', (uploadEndTime - uploadStartTime), 'ms');
+      logger.log('📍 DEBUG: Upload completado en:', (uploadEndTime - uploadStartTime), 'ms');
 
       if (uploadError) {
-        console.error('🚫 DEBUG: Error en subida a storage:', {
+        logger.error('🚫 DEBUG: Error en subida a storage:', {
           message: uploadError.message,
           statusCode: uploadError.statusCode,
           error: uploadError.error,
@@ -627,7 +635,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         
         // Información adicional para network errors
         if (uploadError.message.includes('network') || uploadError.message.includes('fetch')) {
-          console.error('🌐 DEBUG: Diagnóstico de red:', {
+          logger.error('🌐 DEBUG: Diagnóstico de red:', {
             userAgent: navigator?.userAgent || 'N/A',
             online: navigator?.onLine || 'N/A',
             connection: navigator?.connection?.effectiveType || 'N/A'
@@ -638,17 +646,17 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         return;
       }
       
-      console.log('🎉 DEBUG: Subida a storage exitosa:', uploadData);
+      logger.log('🎉 DEBUG: Subida a storage exitosa:', uploadData);
 
       // Crear etiqueta descriptiva
-      console.log('📍 DEBUG: Creando etiqueta descriptiva...');
+      logger.log('📍 DEBUG: Creando etiqueta descriptiva...');
       const componenteTitle = getComponentesActuales().find(c => c.key === componente)?.title || componente;
       const cleanedSeccion = cleanSectionName(seccion, componente);
       const etiqueta = cleanedSeccion ? `${cleanedSeccion} - ${componenteTitle}` : componenteTitle;
-      console.log('📍 DEBUG: Etiqueta creada:', etiqueta);
+      logger.log('📍 DEBUG: Etiqueta creada:', etiqueta);
 
       // Guardar referencia en base de datos
-      console.log('📍 DEBUG: Guardando referencia en BD...');
+      logger.log('📍 DEBUG: Guardando referencia en BD...');
       const insertData = {
         orden_trabajo_id: orderId,
         informe_tabla: informeTabla,
@@ -657,14 +665,14 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         etiqueta: etiqueta,
         componente: componente
       };
-      console.log('📍 DEBUG: Datos a insertar:', insertData);
+      logger.log('📍 DEBUG: Datos a insertar:', insertData);
       
       const { error: dbError } = await supabase
         .from('informe_fotografias')
         .insert(insertData);
 
       if (dbError) {
-        console.error('🚫 DEBUG: Error guardando en BD:', {
+        logger.error('🚫 DEBUG: Error guardando en BD:', {
           message: dbError.message,
           code: dbError.code,
           details: dbError.details,
@@ -675,13 +683,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
         return;
       }
 
-      console.log('🎉 DEBUG: Referencia guardada exitosamente en BD');
-      console.log('📍 DEBUG: Recargando imágenes y observaciones...');
+      logger.log('🎉 DEBUG: Referencia guardada exitosamente en BD');
+      logger.log('📍 DEBUG: Recargando imágenes y observaciones...');
       
       await loadImages(); // Recargar lista
       await loadObservacionesSecciones(); // Recargar observaciones
       
-      console.log('🎉 DEBUG: Proceso completo exitoso!');
+      logger.log('🎉 DEBUG: Proceso completo exitoso!');
       
       // Restaurar posición del scroll después de cargar las imágenes
       if (onScrollRestore) {
@@ -690,13 +698,13 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
     } catch (error) {
       // Imprime el mensaje de error ESPECÍFICO, no solo el objeto error
-      console.error("❌ ERROR CRÍTICO:", error.message); 
-      console.error("🔍 Detalle completo:", JSON.stringify(error, null, 2));
+      logger.error("❌ ERROR CRÍTICO:", error.message); 
+      logger.error("🔍 Detalle completo:", JSON.stringify(error, null, 2));
       
       // Si error.message no existe, forzamos que se muestre algo
-      if (!error.message) console.error("El error es: ", error);
+      if (!error.message) logger.error("El error es: ", error);
 
-      console.error('🚫 DEBUG: Error general en uploadImage:', {
+      logger.error('🚫 DEBUG: Error general en uploadImage:', {
         message: error.message,
         stack: error.stack,
         name: error.name,
@@ -708,7 +716,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       });
       Alert.alert('Error', `Error inesperado al subir la imagen: ${error.message || 'Error desconocido'}`);
     } finally {
-      console.log('📍 DEBUG: Limpiando estado de carga...');
+      logger.log('📍 DEBUG: Limpiando estado de carga...');
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
   };
@@ -736,7 +744,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 .eq('id', imageId);
 
               if (error) {
-                console.error('Error eliminando:', error);
+                logger.error('Error eliminando:', error);
                 Alert.alert('Error', 'No se pudo eliminar la imagen');
                 return;
               }
@@ -751,7 +759,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
                 onScrollRestore();
               }
             } catch (error) {
-              console.error('Error:', error);
+              logger.error('Error:', error);
               Alert.alert('Error', 'Error inesperado al eliminar');
             }
           }
@@ -773,17 +781,17 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
     
     // CAMPANA 2 es opcional - sin validaciones de fotos requeridas
     if (componenteKey === 'Campana_2') {
-      console.log('✅ CAMPANA 2 es opcional - no requiere validación de fotografías');
+      logger.log('✅ CAMPANA 2 es opcional - no requiere validación de fotografías');
       return true;
     }
     
     // Validación específica para CAMPANA 1: requiere al menos una foto en cada sección
     if (componenteKey === 'Campana_1') {
-      console.log('🔍 Validación especial para CAMPANA 1 - requiere fotos en todas las secciones');
+      logger.log('🔍 Validación especial para CAMPANA 1 - requiere fotos en todas las secciones');
       const componenteImages = imagesByComponenteAndSeccion[componenteKey];
       
       if (!componenteImages) {
-        console.log('❌ No hay estructura de imágenes para CAMPANA 1');
+        logger.log('❌ No hay estructura de imágenes para CAMPANA 1');
         return false;
       }
       
@@ -792,20 +800,20 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       for (const seccion of seccionesObligatorias) {
         const images = componenteImages[seccion] || [];
         if (images.length === 0) {
-          console.log(`❌ CAMPANA 1 falta fotografía en sección: ${seccion}`);
+          logger.log(`❌ CAMPANA 1 falta fotografía en sección: ${seccion}`);
           return false;
         }
-        console.log(`✅ CAMPANA 1 sección ${seccion} tiene ${images.length} fotos`);
+        logger.log(`✅ CAMPANA 1 sección ${seccion} tiene ${images.length} fotos`);
       }
       
-      console.log('✅ CAMPANA 1 validación completa - todas las secciones tienen fotos');
+      logger.log('✅ CAMPANA 1 validación completa - todas las secciones tienen fotos');
       return true;
     }
     
     // Verificar si el componente tiene datos de imágenes (validación estándar para otros componentes)
     const componenteImages = imagesByComponenteAndSeccion[componenteKey];
     if (!componenteImages) {
-      console.log(`❌ No hay estructura de imágenes para componente ${componenteKey}`);
+      logger.log(`❌ No hay estructura de imágenes para componente ${componenteKey}`);
       return false; // No hay estructura, considerar como falta de fotos
     }
     
@@ -818,18 +826,18 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
       const images = componenteImages[seccion] || [];
       if (images.length > 0) {
         tieneFotoEnAlgunaSeccion = true;
-        console.log(`✅ Componente ${componenteKey}, sección ${seccion} tiene ${images.length} fotos`);
+        logger.log(`✅ Componente ${componenteKey}, sección ${seccion} tiene ${images.length} fotos`);
       } else {
-        console.log(`⚠️ Componente ${componenteKey}, sección ${seccion} sin fotos`);
+        logger.log(`⚠️ Componente ${componenteKey}, sección ${seccion} sin fotos`);
       }
     }
     
     if (!tieneFotoEnAlgunaSeccion) {
-      console.log(`❌ Componente ${componenteKey} no tiene fotos en ninguna sección`);
+      logger.log(`❌ Componente ${componenteKey} no tiene fotos en ninguna sección`);
       return false; // Necesita al menos una foto en alguna sección
     }
     
-    console.log(`✅ Componente ${componenteKey} validado correctamente`);
+    logger.log(`✅ Componente ${componenteKey} validado correctamente`);
     return true; // Tiene al menos una foto
   };
 
@@ -1547,10 +1555,10 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
   // Manejar firma completada
   const handleFirmaCompleted = (signatureBase64) => {
-    console.log('✅ Firma capturada');
-    console.log('📊 Tamaño de firma (caracteres):', signatureBase64?.length || 0);
-    console.log('🔍 Tipo de firma:', typeof signatureBase64);
-    console.log('📝 Primeros 50 caracteres:', signatureBase64?.substring(0, 50));
+    logger.log('✅ Firma capturada');
+    logger.log('📊 Tamaño de firma (caracteres):', signatureBase64?.length || 0);
+    logger.log('🔍 Tipo de firma:', typeof signatureBase64);
+    logger.log('📝 Primeros 50 caracteres:', signatureBase64?.substring(0, 50));
     
     setFirmaCliente(signatureBase64);
     setDocumentoFirmado(true);
@@ -1572,7 +1580,7 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
           onPress: () => {
             setFirmaCliente(null);
             setDocumentoFirmado(false);
-            console.log('🧹 Firma limpiada - documento desbloqueado');
+            logger.log('🧹 Firma limpiada - documento desbloqueado');
             Alert.alert('Firma eliminada', 'La firma ha sido eliminada. Podrá capturar una nueva firma.');
           },
           style: 'destructive'
@@ -2464,8 +2472,8 @@ const ImageUploader = ({ orderId, informeTabla, onScrollRestore, currentPhotoPag
 
 // ================== LOGIN SCREEN ==================
 const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('admin@pmlink.com');
-  const [password, setPassword] = useState('admin123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -2516,7 +2524,7 @@ const LoginScreen = ({ navigation }) => {
             style={styles.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="admin@pmlink.com"
+            placeholder="correo@ejemplo.com"
             keyboardType="email-address"
             autoCapitalize="none"
           />
@@ -2526,7 +2534,7 @@ const LoginScreen = ({ navigation }) => {
             style={styles.input}
             value={password}
             onChangeText={setPassword}
-            placeholder="admin123456"
+            placeholder="Contraseña"
             secureTextEntry
           />
 
@@ -2566,44 +2574,70 @@ const HomeScreen = ({ navigation }) => {
 
   const loadOrders = async () => {
     try {
+      // Guard: getUser() valida el JWT contra el servidor (más confiable que getSession)
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user?.id) {
+        logger.log('⚠️ loadOrders: sin usuario autenticado, abortando consulta');
+        return;
+      }
+
       setLoading(true);
-      console.log('🔍 Obteniendo órdenes de trabajo...');
-      
-      const { data, error } = await supabase
-        .from('orden_trabajo')
-        .select(`
-          *,
-          estados_orden_trabajo(nombre),
-          prioridades(nombre),
-          informe_limpieza_ductos(id),
-          servicios!inner(
-            local_id,
-            local!inner(
-              nombre_local,
-              zona_id,
-              zona!inner(
-                nombre_zona,
-                empresa_id,
-                empresa!fk_zona_empresa(
-                  nombre_empresa
-                )
-              )
-            )
-          )
-        `)
-        .eq('activa', true)
-        .order('created_at', { ascending: false });
+      logger.log('🔍 Obteniendo órdenes de trabajo...');
+
+      // Query via RPC (SECURITY DEFINER) - evita el problema de permisos en RLS
+      const { data: ordersData, error } = await supabase
+        .rpc('get_ordenes_activas');
 
       if (error) {
-        console.error('Error cargando órdenes:', error);
+        logger.error('Error cargando órdenes:', error);
         Alert.alert('Error', 'No se pudieron cargar las órdenes de trabajo');
         return;
       }
 
-      console.log('✅ Órdenes obtenidas:', data?.length || 0);
-      setOrders(data || []);
+      // Cargar todos los catálogos en paralelo
+      const [
+        { data: prioridades },
+        { data: estados },
+        { data: servicios },
+        { data: locales },
+        { data: zonas },
+        { data: empresas },
+      ] = await Promise.all([
+        supabase.from('prioridades').select('id, nombre'),
+        supabase.from('estados_orden_trabajo').select('id, nombre'),
+        supabase.from('servicios').select('servicio_id, local_id, formulario_id'),
+        supabase.from('local').select('local_id, nombre_local, zona_id'),
+        supabase.from('zona').select('zona_id, nombre_zona, empresa_id'),
+        supabase.from('empresa').select('empresa_id, nombre_empresa'),
+      ]);
+
+      // Construir mapas de lookup
+      const prioridadMap = Object.fromEntries((prioridades || []).map(p => [p.id, p]));
+      const estadoMap = Object.fromEntries((estados || []).map(e => [e.id, e]));
+      const localMap = Object.fromEntries((locales || []).map(l => [l.local_id, l]));
+      const zonaMap = Object.fromEntries((zonas || []).map(z => [z.zona_id, z]));
+      const empresaMap = Object.fromEntries((empresas || []).map(e => [e.empresa_id, e]));
+      const servicioMap = Object.fromEntries((servicios || []).map(s => {
+        const local = localMap[s.local_id] || null;
+        const zona = local ? zonaMap[local.zona_id] || null : null;
+        const empresa = zona ? empresaMap[zona.empresa_id] || null : null;
+        return [s.servicio_id, {
+          ...s,
+          local: local ? { ...local, zona: zona ? { ...zona, empresa } : null } : null,
+        }];
+      }));
+
+      const data = (ordersData || []).map(order => ({
+        ...order,
+        prioridades: prioridadMap[order.prioridad_id] || null,
+        estados_orden_trabajo: estadoMap[order.estado_id] || null,
+        servicios: servicioMap[order.servicio_id] || null,
+      }));
+
+      logger.log('✅ Órdenes obtenidas:', data.length);
+      setOrders(data);
     } catch (error) {
-      console.error('Error:', error);
+      logger.error('Error:', error);
       Alert.alert('Error', 'Error inesperado');
     } finally {
       setLoading(false);
@@ -2761,7 +2795,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('Error solicitando permisos:', error);
+      logger.error('Error solicitando permisos:', error);
       Alert.alert('Error', 'Error al solicitar permisos');
     }
   };
@@ -2789,7 +2823,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
         setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
       }
     } catch (error) {
-      console.error('Error en openCamera:', error);
+      logger.error('Error en openCamera:', error);
       Alert.alert('Error', `Error al abrir la cámara: ${error.message}`);
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
@@ -2812,7 +2846,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
         setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
       }
     } catch (error) {
-      console.error('Error en openGallery:', error);
+      logger.error('Error en openGallery:', error);
       Alert.alert('Error', `Error al seleccionar imagen: ${error.message}`);
       setUploading(prev => ({ ...prev, [`${componente}_${seccion}`]: false }));
     }
@@ -2864,7 +2898,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
 
       Alert.alert('Éxito', 'Imagen subida correctamente');
     } catch (error) {
-      console.error('Error subiendo imagen:', error);
+      logger.error('Error subiendo imagen:', error);
       Alert.alert('Error', `Error al subir imagen: ${error.message}`);
     } finally {
       setUploading(prev => ({ ...prev, [`${componenteKey}_${seccionKey}`]: false }));
@@ -2896,7 +2930,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
                 .remove([image.path]);
 
               if (error) {
-                console.error('Error eliminando imagen del storage:', error);
+                logger.error('Error eliminando imagen del storage:', error);
                 Alert.alert('Error', 'Error al eliminar la imagen');
                 return;
               }
@@ -2913,13 +2947,13 @@ const OrderDetailScreen = ({ route, navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('Error en deleteImage:', error);
+      logger.error('Error en deleteImage:', error);
       Alert.alert('Error', 'Error al eliminar la imagen');
     }
   };
 
   const renderImage = ({ item }) => {
-    console.log('🖼️ renderImage MTTO:', item);
+    logger.log('🖼️ renderImage MTTO:', item);
     
     return (
       <View style={styles.imageContainer}>
@@ -2957,7 +2991,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
     const uploadingKey = `${componenteKey}_${seccionUnica}`;
     const isUploading = uploading[uploadingKey];
 
-    console.log('🖼️ renderObservacionesFotograficasSimpleSection:', {
+    logger.log('🖼️ renderObservacionesFotograficasSimpleSection:', {
       componenteKey,
       seccionUnica,
       images,
@@ -3010,8 +3044,8 @@ const OrderDetailScreen = ({ route, navigation }) => {
 
   const loadOrderDetails = async () => {
     try {
-      console.log('🔍 Iniciando cadena de consultas para orden:', order.id);
-      console.log('📋 Servicio ID:', order.servicio_id);
+      logger.log('🔍 Iniciando cadena de consultas para orden:', order.id);
+      logger.log('📋 Servicio ID:', order.servicio_id);
 
       if (!order.servicio_id) {
         setLoading(false);
@@ -3019,7 +3053,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
       }
 
       // Paso 1: Obtener local_id desde servicios
-      console.log('🔗 Paso 1: Obteniendo local_id desde servicios...');
+      logger.log('🔗 Paso 1: Obteniendo local_id desde servicios...');
       const { data: servicioData, error: servicioError } = await supabase
         .from('servicios')
         .select('formulario_id, local_id')
@@ -3027,20 +3061,20 @@ const OrderDetailScreen = ({ route, navigation }) => {
         .single();
 
       if (servicioError) {
-        console.error('❌ Error obteniendo servicio:', servicioError);
+        logger.error('❌ Error obteniendo servicio:', servicioError);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Datos del servicio obtenidos:', servicioData);
+      logger.log('✅ Datos del servicio obtenidos:', servicioData);
       setServicioInfo(servicioData);
 
       // Obtener información del local
       if (servicioData?.local_id) {
-        console.log('🔗 Obteniendo información del local...');
+        logger.log('🔗 Obteniendo información del local...');
         
         // Primero, verificar qué columnas tiene la tabla 'local'
-        console.log('🔍 Diagnosticando estructura de tabla local...');
+        logger.log('🔍 Diagnosticando estructura de tabla local...');
         const { data: localDataAll, error: localErrorAll } = await supabase
           .from('local')
           .select('*')
@@ -3048,16 +3082,16 @@ const OrderDetailScreen = ({ route, navigation }) => {
           .single();
 
         if (localErrorAll) {
-          console.error('❌ Error obteniendo local completo:', localErrorAll);
+          logger.error('❌ Error obteniendo local completo:', localErrorAll);
         } else {
-          console.log('✅ Estructura completa del local:', localDataAll);
-          console.log('✅ Columnas disponibles:', Object.keys(localDataAll || {}));
+          logger.log('✅ Estructura completa del local:', localDataAll);
+          logger.log('✅ Columnas disponibles:', Object.keys(localDataAll || {}));
           setLocalInfo(localDataAll);
 
           // Nueva lógica: Local → Zona → Empresa
           const zonaId = localDataAll?.zona_id;
           if (zonaId) {
-            console.log('🔗 Obteniendo información de la zona con ID:', zonaId);
+            logger.log('🔗 Obteniendo información de la zona con ID:', zonaId);
             const { data: zonaData, error: zonaError } = await supabase
               .from('zona')
               .select('*')
@@ -3065,15 +3099,15 @@ const OrderDetailScreen = ({ route, navigation }) => {
               .single();
 
             if (zonaError) {
-              console.error('❌ Error obteniendo zona:', zonaError);
+              logger.error('❌ Error obteniendo zona:', zonaError);
             } else {
-              console.log('✅ Información de la zona obtenida:', zonaData);
+              logger.log('✅ Información de la zona obtenida:', zonaData);
               setZonaInfo(zonaData); // Guardar la información de la zona
               
               // Ahora obtener la empresa usando zona.empresa_id
               const empresaId = zonaData?.empresa_id;
               if (empresaId) {
-                console.log('🔗 Obteniendo información de la empresa con ID:', empresaId);
+                logger.log('🔗 Obteniendo información de la empresa con ID:', empresaId);
                 const { data: empresaData, error: empresaError } = await supabase
                   .from('empresa')
                   .select('*')
@@ -3081,24 +3115,24 @@ const OrderDetailScreen = ({ route, navigation }) => {
                   .single();
 
                 if (empresaError) {
-                  console.error('❌ Error obteniendo empresa:', empresaError);
+                  logger.error('❌ Error obteniendo empresa:', empresaError);
                 } else {
-                  console.log('✅ Información de la empresa obtenida:', empresaData);
+                  logger.log('✅ Información de la empresa obtenida:', empresaData);
                   setEmpresaInfo(empresaData);
                 }
               } else {
-                console.log('⚠️ La zona no tiene empresa_id asociado');
+                logger.log('⚠️ La zona no tiene empresa_id asociado');
               }
             }
           } else {
-            console.log('⚠️ El local no tiene zona_id asociado');
+            logger.log('⚠️ El local no tiene zona_id asociado');
           }
         }
       }
 
       // Paso 2: Obtener form_key desde formularios
       if (servicioData?.formulario_id) {
-        console.log('🔗 Paso 2: Obteniendo form_key desde formularios...');
+        logger.log('🔗 Paso 2: Obteniendo form_key desde formularios...');
         const { data: formularioData, error: formularioError } = await supabase
           .from('formularios')
           .select('form_key, nombre, descripcion')
@@ -3106,14 +3140,14 @@ const OrderDetailScreen = ({ route, navigation }) => {
           .single();
 
         if (formularioError) {
-          console.error('❌ Error obteniendo formulario:', formularioError);
+          logger.error('❌ Error obteniendo formulario:', formularioError);
         } else {
-          console.log('✅ Form key obtenido:', formularioData.form_key);
+          logger.log('✅ Form key obtenido:', formularioData.form_key);
           setFormularioInfo(formularioData);
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando detalles:', error);
+      logger.error('❌ Error cargando detalles:', error);
     } finally {
       setLoading(false);
     }
@@ -3163,7 +3197,7 @@ const OrderDetailScreen = ({ route, navigation }) => {
             
             <View style={styles.componentContent}>
               {renderObservacionesFotograficasSimpleSection(componenteObservaciones.key)}
-              {console.log('🔍 Llamando renderObservacionesFotograficasSimpleSection con key:', componenteObservaciones.key)}
+              {logger.log('🔍 Llamando renderObservacionesFotograficasSimpleSection con key:', componenteObservaciones.key)}
             </View>
           </View>
         </ScrollView>
@@ -3407,28 +3441,28 @@ const TecnicosAsignados = ({ orderId }) => {
 
   const cargarTecnicosAsignados = async () => {
     try {
-      console.log('🔍 Buscando técnicos asignados para orden:', orderId);
-      console.log('🔍 Tipo de orderId:', typeof orderId);
-      console.log('🔍 Valor exacto de orderId:', JSON.stringify(orderId));
+      logger.log('🔍 Buscando técnicos asignados para orden:', orderId);
+      logger.log('🔍 Tipo de orderId:', typeof orderId);
+      logger.log('🔍 Valor exacto de orderId:', JSON.stringify(orderId));
       
       // Paso 1: Obtener asignaciones usando la relación correcta
       // orden_trabajo.id = asignaciones_ot.orden_id
-      console.log('🔍 Consultando: asignaciones_ot WHERE orden_id =', orderId);
+      logger.log('🔍 Consultando: asignaciones_ot WHERE orden_id =', orderId);
       const { data: asignaciones, error: asignacionesError } = await supabase
         .from('asignaciones_ot')
         .select('tecnico_id')  // Solo necesitamos el tecnico_id
         .eq('orden_id', orderId);  // orden_trabajo.id = asignaciones_ot.orden_id
 
-      console.log('📋 Asignaciones encontradas:', asignaciones);
+      logger.log('📋 Asignaciones encontradas:', asignaciones);
 
       if (asignacionesError) {
-        console.error('❌ Error obteniendo asignaciones:', asignacionesError);
+        logger.error('❌ Error obteniendo asignaciones:', asignacionesError);
         setLoading(false);
         return;
       }
 
       if (!asignaciones || asignaciones.length === 0) {
-        console.log('� No hay técnicos asignados a esta orden');
+        logger.log('� No hay técnicos asignados a esta orden');
         setTecnicos([]);
         setLoading(false);
         return;
@@ -3437,27 +3471,27 @@ const TecnicosAsignados = ({ orderId }) => {
       // Paso 2: Obtener información de los técnicos usando la relación correcta
       // asignaciones_ot.tecnico_id = usuario.usuario_id
       const tecnicoIds = asignaciones.map(asig => asig.tecnico_id);
-      console.log('👥 IDs de técnicos extraídos:', tecnicoIds);
+      logger.log('👥 IDs de técnicos extraídos:', tecnicoIds);
 
-      console.log('🔍 Consultando: usuario WHERE usuario_id IN', tecnicoIds);
+      logger.log('🔍 Consultando: usuario WHERE usuario_id IN', tecnicoIds);
       const { data: usuariosTecnicos, error: usuariosError } = await supabase
         .from('usuario')
         .select('usuario_id, nombre, apellido')
         .in('usuario_id', tecnicoIds);  // asignaciones_ot.tecnico_id = usuario.usuario_id
 
-      console.log('📋 Usuarios técnicos encontrados:', usuariosTecnicos);
+      logger.log('📋 Usuarios técnicos encontrados:', usuariosTecnicos);
 
       if (usuariosError) {
-        console.error('❌ Error obteniendo datos de técnicos:', usuariosError);
+        logger.error('❌ Error obteniendo datos de técnicos:', usuariosError);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Técnicos obtenidos exitosamente:', usuariosTecnicos?.length || 0);
+      logger.log('✅ Técnicos obtenidos exitosamente:', usuariosTecnicos?.length || 0);
       setTecnicos(usuariosTecnicos || []);
       
     } catch (error) {
-      console.error('❌ Error general cargando técnicos:', error);
+      logger.error('❌ Error general cargando técnicos:', error);
     } finally {
       setLoading(false);
     }
@@ -3577,26 +3611,26 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
   // Validación específica para Cartuchos_Gas (Recambio de fusibles térmicos)
   const isCartuchosGasCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN CARTUCHOS_GAS');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN CARTUCHOS_GAS');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
+      logger.log('📋 Orden ID:', order.id);
       
       // Debug: Mostrar todas las fotos para esta orden
       const { data: todasLasFotos } = await supabase
         .from('informe_fotografias')
         .select('*')
         .eq('orden_trabajo_id', order.id);
-      console.log('📸 TODAS las fotos en la orden:', todasLasFotos);
+      logger.log('📸 TODAS las fotos en la orden:', todasLasFotos);
       
       // Debug: Mostrar todas las observaciones para esta orden
       const { data: todasLasObs } = await supabase
         .from('observaciones_fotografias')
         .select('*')
         .eq('orden_trabajo_id', order.id);
-      console.log('📝 TODAS las observaciones en la orden:', todasLasObs);
+      logger.log('📝 TODAS las observaciones en la orden:', todasLasObs);
       
       // Verificar que tenga al menos 1 foto ANTES
       const { data: fotosAntes, error: errorAntes } = await supabase
@@ -3606,8 +3640,8 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Cartuchos_Gas')
         .eq('seccion', 'ANTES');
 
-      console.log('📷 Fotos ANTES encontradas:', fotosAntes?.length || 0, fotosAntes);
-      if (errorAntes) console.error('❌ Error buscando fotos ANTES:', errorAntes);
+      logger.log('📷 Fotos ANTES encontradas:', fotosAntes?.length || 0, fotosAntes);
+      if (errorAntes) logger.error('❌ Error buscando fotos ANTES:', errorAntes);
 
       // Verificar que tenga al menos 1 foto DESPUES
       const { data: fotosDespues, error: errorDespues } = await supabase
@@ -3617,8 +3651,8 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Cartuchos_Gas')
         .eq('seccion', 'DESPUES');
 
-      console.log('📷 Fotos DESPUÉS encontradas:', fotosDespues?.length || 0, fotosDespues);
-      if (errorDespues) console.error('❌ Error buscando fotos DESPUÉS:', errorDespues);
+      logger.log('📷 Fotos DESPUÉS encontradas:', fotosDespues?.length || 0, fotosDespues);
+      if (errorDespues) logger.error('❌ Error buscando fotos DESPUÉS:', errorDespues);
 
       // Verificar que tenga observaciones en la sección DESPUES
       const { data: observaciones, error: errorObs } = await supabase
@@ -3628,7 +3662,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Cartuchos_Gas')
         .eq('seccion', 'DESPUES');
 
-      console.log('📝 Observaciones encontradas:', observaciones, 'Error:', errorObs);
+      logger.log('📝 Observaciones encontradas:', observaciones, 'Error:', errorObs);
 
       // Evaluar condiciones
       const hasPhotosAntes = fotosAntes && fotosAntes.length > 0;
@@ -3637,36 +3671,36 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                               observaciones[0]?.observaciones && 
                               observaciones[0].observaciones.trim() !== '';
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotos ANTES:', hasPhotosAntes);
-      console.log('  - Fotos DESPUÉS:', hasPhotosDespues);
-      console.log('  - Observaciones:', hasObservaciones);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotos ANTES:', hasPhotosAntes);
+      logger.log('  - Fotos DESPUÉS:', hasPhotosDespues);
+      logger.log('  - Observaciones:', hasObservaciones);
       
       const isComplete = hasPhotosAntes && hasPhotosDespues && hasObservaciones;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Boquillas_Sistema (Valvula de Gas)
   const isBoquillasSistemaCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN BOQUILLAS_SISTEMA (VALVULA DE GAS)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN BOQUILLAS_SISTEMA (VALVULA DE GAS)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
+      logger.log('📋 Orden ID:', order.id);
       
       // Verificar que tenga al menos 1 foto
       const { data: fotos, error: errorFotos } = await supabase
@@ -3676,8 +3710,8 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Boquillas_Sistema')
         .eq('seccion', 'FOTO');
 
-      console.log('📷 Fotos encontradas:', fotos?.length || 0, fotos);
-      if (errorFotos) console.error('❌ Error buscando fotos:', errorFotos);
+      logger.log('📷 Fotos encontradas:', fotos?.length || 0, fotos);
+      if (errorFotos) logger.error('❌ Error buscando fotos:', errorFotos);
 
       // Verificar que tenga observaciones
       const { data: observaciones, error: errorObs } = await supabase
@@ -3687,7 +3721,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Boquillas_Sistema')
         .eq('seccion', 'FOTO');
 
-      console.log('📝 Observaciones encontradas:', observaciones, 'Error:', errorObs);
+      logger.log('📝 Observaciones encontradas:', observaciones, 'Error:', errorObs);
 
       // Evaluar condiciones
       const hasFotos = fotos && fotos.length > 0;
@@ -3695,35 +3729,35 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                               observaciones[0]?.observaciones && 
                               observaciones[0].observaciones.trim() !== '';
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografías:', hasFotos);
-      console.log('  - Observaciones:', hasObservaciones);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografías:', hasFotos);
+      logger.log('  - Observaciones:', hasObservaciones);
       
       const isComplete = hasFotos && hasObservaciones;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Panel_Control (Alimentación Eléctrica)
   const isPanelControlCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN PANEL_CONTROL (ALIMENTACIÓN ELÉCTRICA)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN PANEL_CONTROL (ALIMENTACIÓN ELÉCTRICA)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
+      logger.log('📋 Orden ID:', order.id);
       
       // Verificar que tenga al menos 1 foto
       const { data: fotos, error: errorFotos } = await supabase
@@ -3733,8 +3767,8 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Panel_Control')
         .eq('seccion', 'FOTO');
 
-      console.log('📷 Fotos encontradas:', fotos?.length || 0, fotos);
-      if (errorFotos) console.error('❌ Error buscando fotos:', errorFotos);
+      logger.log('📷 Fotos encontradas:', fotos?.length || 0, fotos);
+      if (errorFotos) logger.error('❌ Error buscando fotos:', errorFotos);
 
       // Verificar que tenga estado (observaciones)
       const { data: observaciones, error: errorObs } = await supabase
@@ -3744,7 +3778,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Panel_Control')
         .eq('seccion', 'FOTO');
 
-      console.log('📝 Estado encontrado:', observaciones, 'Error:', errorObs);
+      logger.log('📝 Estado encontrado:', observaciones, 'Error:', errorObs);
 
       // Evaluar condiciones
       const hasFotos = fotos && fotos.length > 0;
@@ -3752,35 +3786,35 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                        observaciones[0]?.observaciones && 
                        observaciones[0].observaciones.trim() !== '';
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografías:', hasFotos);
-      console.log('  - Estado:', hasEstado);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografías:', hasFotos);
+      logger.log('  - Estado:', hasEstado);
       
       const isComplete = hasFotos && hasEstado;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Pruebas_Sistema (Panel de Alarma)
   const isPruebasSistemaCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN PRUEBAS_SISTEMA (PANEL DE ALARMA)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN PRUEBAS_SISTEMA (PANEL DE ALARMA)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
+      logger.log('📋 Orden ID:', order.id);
       
       // Verificar que tenga fotografía
       const { data: fotografias, error: errorFoto } = await supabase
@@ -3790,7 +3824,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Pruebas_Sistema')
         .eq('seccion', 'FOTO');
 
-      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+      logger.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
       
       // Verificar que tenga estado y observaciones
       const { data: observaciones, error: errorObs } = await supabase
@@ -3800,7 +3834,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Pruebas_Sistema')
         .eq('seccion', 'FOTO');
 
-      console.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
+      logger.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
 
       // Evaluar condiciones
       const hasFotografia = fotografias && fotografias.length > 0;
@@ -3808,35 +3842,35 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                                     observaciones[0]?.observaciones && 
                                     observaciones[0].observaciones.trim() !== '';
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografía:', hasFotografia);
-      console.log('  - Estado y Observaciones:', hasEstadoObservaciones);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografía:', hasFotografia);
+      logger.log('  - Estado y Observaciones:', hasEstadoObservaciones);
       
       const isComplete = hasFotografia && hasEstadoObservaciones;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Prueba_Neumatica (Prueba neumática a cañerías de distribución)
   const isPruebaNeumaticaCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN PRUEBA_NEUMATICA (CAÑERÍAS DE DISTRIBUCIÓN)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN PRUEBA_NEUMATICA (CAÑERÍAS DE DISTRIBUCIÓN)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
+      logger.log('📋 Orden ID:', order.id);
       
       // Verificar que tenga fotografía
       const { data: fotografias, error: errorFoto } = await supabase
@@ -3846,7 +3880,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Prueba_Neumatica')
         .eq('seccion', 'PROCESO');
 
-      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+      logger.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
       
       // Verificar que tenga estado y observaciones
       const { data: observaciones, error: errorObs } = await supabase
@@ -3856,7 +3890,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Prueba_Neumatica')
         .eq('seccion', 'PROCESO');
 
-      console.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
+      logger.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
 
       // Evaluar condiciones
       const hasFotografia = fotografias && fotografias.length > 0;
@@ -3864,35 +3898,35 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                                     observaciones[0]?.observaciones && 
                                     observaciones[0].observaciones.trim() !== '';
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografía:', hasFotografia);
-      console.log('  - Estado y Observaciones:', hasEstadoObservaciones);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografía:', hasFotografia);
+      logger.log('  - Estado y Observaciones:', hasEstadoObservaciones);
       
       const isComplete = hasFotografia && hasEstadoObservaciones;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Tipo_Cartucho (Tipo de cartucho expulsor, cantidad y su peso)
   const isTipoCartuchoCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN TIPO_CARTUCHO (CARTUCHO EXPULSOR)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN TIPO_CARTUCHO (CARTUCHO EXPULSOR)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
+      logger.log('📋 Orden ID:', order.id);
       
       // Verificar que tenga fotografía
       const { data: fotografias, error: errorFoto } = await supabase
@@ -3902,7 +3936,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Tipo_Cartucho')
         .eq('seccion', 'PROCESO');
 
-      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+      logger.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
       
       // Verificar que tenga estado y observaciones
       const { data: observaciones, error: errorObs } = await supabase
@@ -3912,7 +3946,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Tipo_Cartucho')
         .eq('seccion', 'PROCESO');
 
-      console.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
+      logger.log('📝 Estado y Observaciones encontradas:', observaciones, 'Error:', errorObs);
 
       // Evaluar condiciones
       const hasFotografia = fotografias && fotografias.length > 0;
@@ -3920,35 +3954,35 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                                     observaciones[0]?.observaciones && 
                                     observaciones[0].observaciones.trim() !== '';
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografía:', hasFotografia);
-      console.log('  - Estado y Observaciones:', hasEstadoObservaciones);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografía:', hasFotografia);
+      logger.log('  - Estado y Observaciones:', hasEstadoObservaciones);
       
       const isComplete = hasFotografia && hasEstadoObservaciones;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Recibo_Conforme (Recibo Conforme)
   const isReciboConformeCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN RECIBO_CONFORME (FOTOGRAFÍA DE CONFORMIDAD)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN RECIBO_CONFORME (FOTOGRAFÍA DE CONFORMIDAD)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
+      logger.log('📋 Orden ID:', order.id);
       
       // Verificar que tenga fotografía
       const { data: fotografias, error: errorFoto } = await supabase
@@ -3958,57 +3992,57 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Recibo_Conforme')
         .eq('seccion', 'ANTES');
 
-      console.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
+      logger.log('📸 Fotografías encontradas:', fotografias, 'Error:', errorFoto);
 
       // Evaluar condiciones
       const hasFotografia = fotografias && fotografias.length > 0;
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografía de Conformidad:', hasFotografia);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografía de Conformidad:', hasFotografia);
       
       const isComplete = hasFotografia;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Campana_1 (Limpieza de ductos)
   const isCampana1CompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN CAMPANA_1 (TODAS LAS FOTOGRAFÍAS)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN CAMPANA_1 (TODAS LAS FOTOGRAFÍAS)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
-      console.log('🔧 Tabla actual:', tableName);
+      logger.log('📋 Orden ID:', order.id);
+      logger.log('🔧 Tabla actual:', tableName);
       
       // Verificar si estamos en el formulario correcto
       if (tableName !== 'informe_limpieza_ductos') {
-        console.log('⚠️ No es formulario de ductos, saltando validación');
+        logger.log('⚠️ No es formulario de ductos, saltando validación');
         return true;
       }
       
       // Primero verificar todas las fotografías de Campana_1 disponibles
-      console.log('🔍 Verificando TODAS las fotografías de Campana_1...');
+      logger.log('🔍 Verificando TODAS las fotografías de Campana_1...');
       const { data: todasFotosCampana1, error: errorGeneral } = await supabase
         .from('informe_fotografias')
         .select('id, componente, seccion, url')
         .eq('orden_trabajo_id', order.id)
         .eq('componente', 'Campana_1');
 
-      console.log('📸 TODAS las fotografías Campana_1:', todasFotosCampana1);
-      console.log('❌ Error general:', errorGeneral);
+      logger.log('📸 TODAS las fotografías Campana_1:', todasFotosCampana1);
+      logger.log('❌ Error general:', errorGeneral);
       
       // Verificar fotografías ANTES
       const { data: fotosAntes, error: errorAntes } = await supabase
@@ -4018,7 +4052,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Campana_1')
         .eq('seccion', 'ANTES');
 
-      console.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
+      logger.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
       
       // Verificar fotografías PROCESO
       const { data: fotosProceso, error: errorProceso } = await supabase
@@ -4028,7 +4062,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Campana_1')
         .eq('seccion', 'PROCESO');
 
-      console.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
+      logger.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
       
       // Verificar fotografías DESPUÉS
       const { data: fotosDespues, error: errorDespues } = await supabase
@@ -4038,61 +4072,61 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Campana_1')
         .eq('seccion', 'DESPUES');
 
-      console.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
+      logger.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
 
       // Evaluar condiciones
       const hasFotosAntes = fotosAntes && fotosAntes.length > 0;
       const hasFotosProceso = fotosProceso && fotosProceso.length > 0;
       const hasFotosDespues = fotosDespues && fotosDespues.length > 0;
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
-      console.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
-      console.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
+      logger.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
+      logger.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
       
       const isComplete = hasFotosAntes && hasFotosProceso && hasFotosDespues;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Ductos_y_Registros (Limpieza de ductos)
   const isDuctosYRegistrosCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN DUCTOS_Y_REGISTROS (TODAS LAS FOTOGRAFÍAS)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN DUCTOS_Y_REGISTROS (TODAS LAS FOTOGRAFÍAS)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
-      console.log('🔧 Tabla actual:', tableName);
+      logger.log('📋 Orden ID:', order.id);
+      logger.log('🔧 Tabla actual:', tableName);
       
       // Verificar si estamos en el formulario correcto
       if (tableName !== 'informe_limpieza_ductos') {
-        console.log('⚠️ No es formulario de ductos, saltando validación');
+        logger.log('⚠️ No es formulario de ductos, saltando validación');
         return true;
       }
       
       // Primero verificar todas las fotografías de Ductos_y_Registros disponibles
-      console.log('🔍 Verificando TODAS las fotografías de Ductos_y_Registros...');
+      logger.log('🔍 Verificando TODAS las fotografías de Ductos_y_Registros...');
       const { data: todasFotosDuctos, error: errorGeneral } = await supabase
         .from('informe_fotografias')
         .select('id, componente, seccion, url')
         .eq('orden_trabajo_id', order.id)
         .eq('componente', 'Ductos_y_Registros');
 
-      console.log('📸 TODAS las fotografías Ductos_y_Registros:', todasFotosDuctos);
-      console.log('❌ Error general:', errorGeneral);
+      logger.log('📸 TODAS las fotografías Ductos_y_Registros:', todasFotosDuctos);
+      logger.log('❌ Error general:', errorGeneral);
       
       // Verificar fotografías ANTES
       const { data: fotosAntes, error: errorAntes } = await supabase
@@ -4102,7 +4136,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Ductos_y_Registros')
         .eq('seccion', 'ANTES');
 
-      console.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
+      logger.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
       
       // Verificar fotografías PROCESO
       const { data: fotosProceso, error: errorProceso } = await supabase
@@ -4112,7 +4146,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Ductos_y_Registros')
         .eq('seccion', 'PROCESO');
 
-      console.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
+      logger.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
       
       // Verificar fotografías DESPUÉS
       const { data: fotosDespues, error: errorDespues } = await supabase
@@ -4122,61 +4156,61 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Ductos_y_Registros')
         .eq('seccion', 'DESPUES');
 
-      console.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
+      logger.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
 
       // Evaluar condiciones
       const hasFotosAntes = fotosAntes && fotosAntes.length > 0;
       const hasFotosProceso = fotosProceso && fotosProceso.length > 0;
       const hasFotosDespues = fotosDespues && fotosDespues.length > 0;
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
-      console.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
-      console.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
+      logger.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
+      logger.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
       
       const isComplete = hasFotosAntes && hasFotosProceso && hasFotosDespues;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Motores_y_Cubierta (Limpieza de ductos)
   const isMotoresYCubiertaCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN MOTORES_Y_CUBIERTA (TODAS LAS FOTOGRAFÍAS)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN MOTORES_Y_CUBIERTA (TODAS LAS FOTOGRAFÍAS)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
-      console.log('🔧 Tabla actual:', tableName);
+      logger.log('📋 Orden ID:', order.id);
+      logger.log('🔧 Tabla actual:', tableName);
       
       // Verificar si estamos en el formulario correcto
       if (tableName !== 'informe_limpieza_ductos') {
-        console.log('⚠️ No es formulario de ductos, saltando validación');
+        logger.log('⚠️ No es formulario de ductos, saltando validación');
         return true;
       }
       
       // Primero verificar todas las fotografías de Motores_y_Cubierta disponibles
-      console.log('🔍 Verificando TODAS las fotografías de Motores_y_Cubierta...');
+      logger.log('🔍 Verificando TODAS las fotografías de Motores_y_Cubierta...');
       const { data: todasFotosMotores, error: errorGeneral } = await supabase
         .from('informe_fotografias')
         .select('id, componente, seccion, url')
         .eq('orden_trabajo_id', order.id)
         .eq('componente', 'Motores_y_Cubierta');
 
-      console.log('📸 TODAS las fotografías Motores_y_Cubierta:', todasFotosMotores);
-      console.log('❌ Error general:', errorGeneral);
+      logger.log('📸 TODAS las fotografías Motores_y_Cubierta:', todasFotosMotores);
+      logger.log('❌ Error general:', errorGeneral);
       
       // Verificar fotografías ANTES
       const { data: fotosAntes, error: errorAntes } = await supabase
@@ -4186,7 +4220,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Motores_y_Cubierta')
         .eq('seccion', 'ANTES');
 
-      console.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
+      logger.log('📸 Fotografías ANTES encontradas:', fotosAntes, 'Error:', errorAntes);
       
       // Verificar fotografías PROCESO
       const { data: fotosProceso, error: errorProceso } = await supabase
@@ -4196,7 +4230,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Motores_y_Cubierta')
         .eq('seccion', 'PROCESO');
 
-      console.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
+      logger.log('📸 Fotografías PROCESO encontradas:', fotosProceso, 'Error:', errorProceso);
       
       // Verificar fotografías DESPUÉS
       const { data: fotosDespues, error: errorDespues } = await supabase
@@ -4206,53 +4240,53 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Motores_y_Cubierta')
         .eq('seccion', 'DESPUES');
 
-      console.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
+      logger.log('📸 Fotografías DESPUÉS encontradas:', fotosDespues, 'Error:', errorDespues);
 
       // Evaluar condiciones
       const hasFotosAntes = fotosAntes && fotosAntes.length > 0;
       const hasFotosProceso = fotosProceso && fotosProceso.length > 0;
       const hasFotosDespues = fotosDespues && fotosDespues.length > 0;
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
-      console.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
-      console.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografías ANTES:', hasFotosAntes, `(${fotosAntes?.length || 0})`);
+      logger.log('  - Fotografías PROCESO:', hasFotosProceso, `(${fotosProceso?.length || 0})`);
+      logger.log('  - Fotografías DESPUÉS:', hasFotosDespues, `(${fotosDespues?.length || 0})`);
       
       const isComplete = hasFotosAntes && hasFotosProceso && hasFotosDespues;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
 
   // Validación específica para Panoramica_y_Sector (Limpieza de ductos)
   const isPanoramicaYSectorCompleteForm = async () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log('🔍 VALIDACIÓN PANORAMICA_Y_SECTOR (FOTOGRAFÍA Y CAMPO OBLIGATORIOS)');
-    console.log('═══════════════════════════════════════');
+    logger.log('');
+    logger.log('═══════════════════════════════════════');
+    logger.log('🔍 VALIDACIÓN PANORAMICA_Y_SECTOR (FOTOGRAFÍA Y CAMPO OBLIGATORIOS)');
+    logger.log('═══════════════════════════════════════');
     try {
-      console.log('📋 Orden ID:', order.id);
-      console.log('🔧 Tabla actual:', tableName);
+      logger.log('📋 Orden ID:', order.id);
+      logger.log('🔧 Tabla actual:', tableName);
       
       // Verificar si estamos en el formulario correcto
       if (tableName !== 'informe_limpieza_ductos') {
-        console.log('⚠️ No es formulario de ductos, saltando validación');
+        logger.log('⚠️ No es formulario de ductos, saltando validación');
         return true;
       }
       
       // Verificar fotografías de Panoramica_y_Sector (solo sección ANTES)
-      console.log('🔍 Verificando fotografías de Panoramica_y_Sector...');
+      logger.log('🔍 Verificando fotografías de Panoramica_y_Sector...');
       const { data: fotosPanoramica, error: errorFotos } = await supabase
         .from('informe_fotografias')
         .select('id, componente, seccion')
@@ -4260,11 +4294,11 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Panoramica_y_Sector')
         .eq('seccion', 'ANTES');
 
-      console.log('📸 Fotografías Panoramica_y_Sector encontradas:', fotosPanoramica);
-      console.log('❌ Error fotografías:', errorFotos);
+      logger.log('📸 Fotografías Panoramica_y_Sector encontradas:', fotosPanoramica);
+      logger.log('❌ Error fotografías:', errorFotos);
       
       // Verificar campo obligatorio en observaciones_fotografias
-      console.log('🔍 Verificando campo observación de Panoramica_y_Sector...');
+      logger.log('🔍 Verificando campo observación de Panoramica_y_Sector...');
       const { data: observacionData, error: errorObservacion } = await supabase
         .from('observaciones_fotografias')
         .select('observaciones')
@@ -4272,32 +4306,32 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('componente', 'Panoramica_y_Sector')
         .single();
 
-      console.log('📝 Observación Panoramica_y_Sector encontrada:', observacionData);
-      console.log('❌ Error observación:', errorObservacion);
+      logger.log('📝 Observación Panoramica_y_Sector encontrada:', observacionData);
+      logger.log('❌ Error observación:', errorObservacion);
 
       // Evaluar condiciones
       const hasFotoPanoramica = fotosPanoramica && fotosPanoramica.length > 0;
       const hasObservacionPanoramica = observacionData && observacionData.observaciones && 
                                       observacionData.observaciones.trim() !== '';
 
-      console.log('✅ Validación resultados:');
-      console.log('  - Fotografía ANTES:', hasFotoPanoramica, `(${fotosPanoramica?.length || 0})`);
-      console.log('  - Campo observación:', hasObservacionPanoramica);
-      console.log('  - Contenido observación:', observacionData?.observaciones || 'VACÍO');
+      logger.log('✅ Validación resultados:');
+      logger.log('  - Fotografía ANTES:', hasFotoPanoramica, `(${fotosPanoramica?.length || 0})`);
+      logger.log('  - Campo observación:', hasObservacionPanoramica);
+      logger.log('  - Contenido observación:', observacionData?.observaciones || 'VACÍO');
       
       const isComplete = hasFotoPanoramica && hasObservacionPanoramica;
-      console.log('');
-      console.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('🎯 RESULTADO FINAL:', isComplete ? '✅ COMPLETO' : '❌ INCOMPLETO');
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       
       return isComplete;
     } catch (error) {
-      console.log('');
-      console.log('❌ ERROR EN VALIDACIÓN:', error.message);
-      console.log('   Stack:', error.stack);
-      console.log('═══════════════════════════════════════');
-      console.log('');
+      logger.log('');
+      logger.log('❌ ERROR EN VALIDACIÓN:', error.message);
+      logger.log('   Stack:', error.stack);
+      logger.log('═══════════════════════════════════════');
+      logger.log('');
       return false;
     }
   };
@@ -4308,9 +4342,9 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
   // Debug useEffect para monitorear cambios en formData
   useEffect(() => {
-    console.log('📊 FormData actualizado:', formData);
+    logger.log('📊 FormData actualizado:', formData);
     if (formData.cantidad_de_motores !== undefined) {
-      console.log('🔍 cantidad_de_motores en formData:', formData.cantidad_de_motores);
+      logger.log('🔍 cantidad_de_motores en formData:', formData.cantidad_de_motores);
     }
   }, [formData]);
 
@@ -4328,31 +4362,31 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
   const cargarEstructuraFormulario = async () => {
     try {
-      console.log('🔗 Paso 1: Obteniendo información de la orden y servicio');
-      console.log('🔍 Orden recibida:', order.id);
+      logger.log('🔗 Paso 1: Obteniendo información de la orden y servicio');
+      logger.log('🔍 Orden recibida:', order.id);
 
       // Paso 1: Obtener el servicio_id de la orden de trabajo
-      console.log('📋 Consultando orden_trabajo para ID:', order.id);
+      logger.log('📋 Consultando orden_trabajo para ID:', order.id);
       const { data: ordenData, error: ordenError } = await supabase
         .from('orden_trabajo')
         .select('servicio_id')
         .eq('id', order.id)
         .single();
 
-      console.log('📋 Datos de orden obtenidos:', ordenData);
-      console.log('❌ Error de orden:', ordenError);
+      logger.log('📋 Datos de orden obtenidos:', ordenData);
+      logger.log('❌ Error de orden:', ordenError);
 
       if (ordenError || !ordenData?.servicio_id) {
-        console.error('❌ Error obteniendo servicio de la orden:', ordenError);
+        logger.error('❌ Error obteniendo servicio de la orden:', ordenError);
         Alert.alert('Error', `No se pudo obtener el servicio de la orden: ${ordenError?.message || 'Servicio ID no encontrado'}`);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Servicio ID obtenido:', ordenData.servicio_id);
+      logger.log('✅ Servicio ID obtenido:', ordenData.servicio_id);
 
       // Paso 2: Obtener el formulario_id desde la tabla servicios
-      console.log('🔍 Buscando formulario para servicio:', ordenData.servicio_id);
+      logger.log('🔍 Buscando formulario para servicio:', ordenData.servicio_id);
       
       const { data: servicioData, error: servicioError } = await supabase
         .from('servicios')
@@ -4360,34 +4394,34 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('servicio_id', ordenData.servicio_id)
         .single();
 
-      console.log('📋 Respuesta de servicios:', servicioData);
-      console.log('❌ Error de servicios:', servicioError);
+      logger.log('📋 Respuesta de servicios:', servicioData);
+      logger.log('❌ Error de servicios:', servicioError);
 
       if (servicioError) {
-        console.error('❌ Error obteniendo formulario del servicio:', servicioError);
+        logger.error('❌ Error obteniendo formulario del servicio:', servicioError);
         Alert.alert('Error', `Error consultando servicio: ${servicioError.message}`);
         setLoading(false);
         return;
       }
 
       if (!servicioData) {
-        console.error('❌ No se encontró el servicio:', ordenData.servicio_id);
+        logger.error('❌ No se encontró el servicio:', ordenData.servicio_id);
         Alert.alert('Error', `No se encontró el servicio con ID: ${ordenData.servicio_id}`);
         setLoading(false);
         return;
       }
 
       if (!servicioData.formulario_id) {
-        console.error('❌ El servicio no tiene formulario_id configurado');
+        logger.error('❌ El servicio no tiene formulario_id configurado');
         Alert.alert('Error', `El servicio "${servicioData.nombre_servicio}" no tiene formulario configurado`);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Formulario ID obtenido:', servicioData.formulario_id);
+      logger.log('✅ Formulario ID obtenido:', servicioData.formulario_id);
 
       // Paso 3: Obtener el form_key desde la tabla formularios
-      console.log('🔍 Buscando form_key para formulario:', servicioData.formulario_id);
+      logger.log('🔍 Buscando form_key para formulario:', servicioData.formulario_id);
       
       const { data: formularioData, error: formularioError } = await supabase
         .from('formularios')
@@ -4395,24 +4429,24 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .eq('id', servicioData.formulario_id)
         .single();
 
-      console.log('📋 Respuesta de formularios:', formularioData);
-      console.log('❌ Error de formularios:', formularioError);
+      logger.log('📋 Respuesta de formularios:', formularioData);
+      logger.log('❌ Error de formularios:', formularioError);
 
       if (formularioError) {
-        console.error('❌ Error obteniendo form_key:', formularioError);
+        logger.error('❌ Error obteniendo form_key:', formularioError);
         Alert.alert('Error', `Error consultando formulario: ${formularioError.message}`);
         setLoading(false);
         return;
       }
 
       if (!formularioData?.form_key) {
-        console.error('❌ No se encontró form_key en el formulario');
+        logger.error('❌ No se encontró form_key en el formulario');
         Alert.alert('Error', `El formulario no tiene form_key configurado`);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Form Key obtenido:', formularioData.form_key);
+      logger.log('✅ Form Key obtenido:', formularioData.form_key);
 
       // Cargar información adicional del servicio (zona, empresa, local)
       await cargarInformacionServicio(ordenData.servicio_id);
@@ -4429,8 +4463,8 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       
       setTableName(tableNameLower);
 
-      console.log('🔍 Verificando acceso a tabla:', tableNameLower);
-      console.log('🔍 Query de tabla en mayúsculas:', tableNameQuery);
+      logger.log('🔍 Verificando acceso a tabla:', tableNameLower);
+      logger.log('🔍 Query de tabla en mayúsculas:', tableNameQuery);
 
       // Verificar si la tabla es accesible
       const { data: testData, error: testError } = await supabase
@@ -4439,30 +4473,30 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .limit(1);
 
       if (testError) {
-        console.error('❌ Error accediendo a la tabla:', testError);
+        logger.error('❌ Error accediendo a la tabla:', testError);
         Alert.alert('Error', `No se pudo acceder a la tabla ${tableNameLower}: ${testError.message}`);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Tabla accesible:', tableNameQuery);
+      logger.log('✅ Tabla accesible:', tableNameQuery);
 
       // Obtener estructura de la tabla
-      console.log('🔍 Llamando a get_table_structure con:', tableNameLower);
+      logger.log('🔍 Llamando a get_table_structure con:', tableNameLower);
       
       let estructura;
       try {
         const { data: estructuraData, error: estructuraError } = await supabase
           .rpc('get_table_structure', { input_table_name: tableNameLower });
 
-        console.log('📨 Respuesta de get_table_structure recibida');
-        console.log('📊 Data:', estructuraData);
-        console.log('❌ Error:', estructuraError);
+        logger.log('📨 Respuesta de get_table_structure recibida');
+        logger.log('📊 Data:', estructuraData);
+        logger.log('❌ Error:', estructuraError);
 
         if (estructuraError) {
-          console.error('❌ Error obteniendo estructura:', estructuraError);
-          console.error('🔍 Tipo de error:', typeof estructuraError);
-          console.error('🔍 Propiedades del error:', Object.keys(estructuraError));
+          logger.error('❌ Error obteniendo estructura:', estructuraError);
+          logger.error('🔍 Tipo de error:', typeof estructuraError);
+          logger.error('🔍 Propiedades del error:', Object.keys(estructuraError));
           Alert.alert('Error', `No se pudo obtener la estructura del formulario: ${estructuraError.message}`);
           setLoading(false);
           return;
@@ -4470,17 +4504,17 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
         estructura = estructuraData;
       } catch (rpcError) {
-        console.error('💥 Error ejecutando RPC get_table_structure:', rpcError);
+        logger.error('💥 Error ejecutando RPC get_table_structure:', rpcError);
         Alert.alert('Error', `Error de conexión al obtener estructura: ${rpcError.message}`);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Estructura de tabla obtenida:', estructura);
-      console.log('📊 Número de campos encontrados:', estructura?.length || 0);
+      logger.log('✅ Estructura de tabla obtenida:', estructura);
+      logger.log('📊 Número de campos encontrados:', estructura?.length || 0);
 
       if (!estructura || estructura.length === 0) {
-        console.error('❌ No se encontraron campos en la tabla');
+        logger.error('❌ No se encontraron campos en la tabla');
         Alert.alert('Error', `La tabla ${tableNameLower} no tiene campos configurados`);
         setLoading(false);
         return;
@@ -4492,8 +4526,8 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         !camposExcluidos.includes(campo.column_name.toLowerCase())
       );
 
-      console.log('📋 Campos filtrados:', camposFiltrados);
-      console.log('📈 Número de campos después del filtro:', camposFiltrados.length);
+      logger.log('📋 Campos filtrados:', camposFiltrados);
+      logger.log('📈 Número de campos después del filtro:', camposFiltrados.length);
 
       setCampos(camposFiltrados);
 
@@ -4509,10 +4543,10 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         
         // Debug específico para cantidad_de_motores
         if (campo.column_name === 'cantidad_de_motores') {
-          console.log('🔍 Inicializando cantidad_de_motores:');
-          console.log('  - Nombre del campo:', campo.column_name);
-          console.log('  - Tipo de dato:', campo.data_type);
-          console.log('  - Valor inicial asignado:', initialData[campo.column_name]);
+          logger.log('🔍 Inicializando cantidad_de_motores:');
+          logger.log('  - Nombre del campo:', campo.column_name);
+          logger.log('  - Tipo de dato:', campo.data_type);
+          logger.log('  - Valor inicial asignado:', initialData[campo.column_name]);
         }
       });
       
@@ -4531,14 +4565,14 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       specialFields.forEach(field => {
         if (!initialData.hasOwnProperty(field.key)) {
           initialData[field.key] = field.defaultValue;
-          console.log(`🔧 Campo especial agregado: ${field.key} = "${field.defaultValue}"`);
+          logger.log(`🔧 Campo especial agregado: ${field.key} = "${field.defaultValue}"`);
         }
       });
       
-      console.log('💾 FormData inicial básico:', initialData);
+      logger.log('💾 FormData inicial básico:', initialData);
 
       // Buscar datos existentes DESPUÉS de configurar tableName
-      console.log('� Buscando datos existentes en tabla:', tableNameLower);
+      logger.log('� Buscando datos existentes en tabla:', tableNameLower);
       
       const { data: existingData, error: existingError } = await supabase
         .from(tableNameLower)
@@ -4547,8 +4581,8 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .single();
 
       if (existingData && !existingError) {
-        console.log('✅ Datos existentes encontrados:', existingData);
-        console.log('🔍 Valor de cantidad_de_motores:', existingData.cantidad_de_motores);
+        logger.log('✅ Datos existentes encontrados:', existingData);
+        logger.log('🔍 Valor de cantidad_de_motores:', existingData.cantidad_de_motores);
         
         // Procesar datos existentes para manejar valores null/undefined
         const processedData = {};
@@ -4561,28 +4595,28 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         // Limpiar valores "N/A" heredados de correcciones anteriores
         if (processedData.encargado === 'N/A') {
           processedData.encargado = '';
-          console.log('🧹 Limpiando valor N/A del campo encargado');
+          logger.log('🧹 Limpiando valor N/A del campo encargado');
         }
         if (processedData.asist_personal === 'N/A') {
           processedData.asist_personal = '';
-          console.log('🧹 Limpiando valor N/A del campo asist_personal');
+          logger.log('🧹 Limpiando valor N/A del campo asist_personal');
         }
         
         // Si no hay fecha_inicio en los datos existentes, usar la fecha actual
         if (!processedData.fecha_inicio || processedData.fecha_inicio.trim() === '') {
           processedData.fecha_inicio = todayDate;
-          console.log('📅 Fecha inicio establecida a fecha actual:', todayDate);
+          logger.log('📅 Fecha inicio establecida a fecha actual:', todayDate);
         }
         
-        console.log('🔍 Datos procesados:', processedData);
-        console.log('🔍 cantidad_de_motores procesado:', processedData.cantidad_de_motores);
+        logger.log('🔍 Datos procesados:', processedData);
+        logger.log('🔍 cantidad_de_motores procesado:', processedData.cantidad_de_motores);
         
         setExistingRecord(existingData);
         setFormData(processedData);
       } else {
-        console.log('ℹ️ No se encontraron datos existentes, usando datos iniciales');
-        console.log('📅 Fecha inicio en datos iniciales:', initialData.fecha_inicio);
-        console.log('🔍 FormData inicial:', initialData);
+        logger.log('ℹ️ No se encontraron datos existentes, usando datos iniciales');
+        logger.log('📅 Fecha inicio en datos iniciales:', initialData.fecha_inicio);
+        logger.log('🔍 FormData inicial:', initialData);
         setFormData(initialData);
       }
 
@@ -4590,7 +4624,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       await cargarInformacionServicio(ordenData.servicio_id);
 
     } catch (error) {
-      console.error('❌ Error general:', error);
+      logger.error('❌ Error general:', error);
       Alert.alert('Error', `Error inesperado al cargar el formulario: ${error.message}`);
     } finally {
       setLoading(false);
@@ -4600,7 +4634,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
   // Función para cargar información adicional del servicio (zona, empresa, local)
   const cargarInformacionServicio = async (servicioId) => {
     try {
-      console.log('🔍 Cargando información del servicio ID:', servicioId);
+      logger.log('🔍 Cargando información del servicio ID:', servicioId);
       
       // Obtener información del servicio con local
       const { data: servicioData, error: servicioError } = await supabase
@@ -4617,11 +4651,11 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .single();
 
       if (servicioError) {
-        console.error('❌ Error obteniendo servicio:', servicioError);
+        logger.error('❌ Error obteniendo servicio:', servicioError);
         return;
       }
 
-      console.log('✅ Información del servicio obtenida:', servicioData);
+      logger.log('✅ Información del servicio obtenida:', servicioData);
       setServicioInfo(servicioData);
       setLocalInfo(servicioData?.local);
 
@@ -4634,9 +4668,9 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           .single();
 
         if (zonaError) {
-          console.error('❌ Error obteniendo zona:', zonaError);
+          logger.error('❌ Error obteniendo zona:', zonaError);
         } else {
-          console.log('✅ Información de la zona obtenida:', zonaData);
+          logger.log('✅ Información de la zona obtenida:', zonaData);
           setZonaInfo(zonaData);
 
           // Obtener información de la empresa
@@ -4648,9 +4682,9 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               .single();
 
             if (empresaError) {
-              console.error('❌ Error obteniendo empresa:', empresaError);
+              logger.error('❌ Error obteniendo empresa:', empresaError);
             } else {
-              console.log('✅ Información de la empresa obtenida:', empresaData);
+              logger.log('✅ Información de la empresa obtenida:', empresaData);
               setEmpresaInfo(empresaData);
             }
           }
@@ -4658,18 +4692,18 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       }
 
     } catch (error) {
-      console.error('❌ Error general cargando información del servicio:', error);
+      logger.error('❌ Error general cargando información del servicio:', error);
     }
   };
 
   const buscarDatosExistentes = async () => {
     try {
       if (!tableName) {
-        console.log('ℹ️ No hay tabla definida aún');
+        logger.log('ℹ️ No hay tabla definida aún');
         return;
       }
 
-      console.log('🔍 Buscando datos existentes en tabla:', tableName);
+      logger.log('🔍 Buscando datos existentes en tabla:', tableName);
       
       const { data, error } = await supabase
         .from(tableName)
@@ -4678,23 +4712,23 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         .single();
 
       if (data) {
-        console.log('✅ Datos existentes encontrados:', data);
+        logger.log('✅ Datos existentes encontrados:', data);
         setExistingRecord(data);
         setFormData(data);
       } else {
-        console.log('ℹ️ No se encontraron datos existentes');
+        logger.log('ℹ️ No se encontraron datos existentes');
       }
     } catch (error) {
-      console.log('ℹ️ No hay datos existentes para esta orden');
+      logger.log('ℹ️ No hay datos existentes para esta orden');
     }
   };
 
   const handleInputChange = (fieldName, value) => {
     // Debug para cantidad_de_motores
     if (fieldName === 'cantidad_de_motores') {
-      console.log('🔍 handleInputChange para cantidad_de_motores:');
-      console.log('  - Campo:', fieldName);
-      console.log('  - Valor recibido:', value);
+      logger.log('🔍 handleInputChange para cantidad_de_motores:');
+      logger.log('  - Campo:', fieldName);
+      logger.log('  - Valor recibido:', value);
     }
 
     // Para campos numéricos, mantener el valor original sin convertir a mayúsculas
@@ -4711,7 +4745,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
     // Debug adicional
     if (fieldName === 'cantidad_de_motores') {
-      console.log('  - Valor final guardado:', finalValue);
+      logger.log('  - Valor final guardado:', finalValue);
     }
   };
 
@@ -4725,20 +4759,20 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       'cantidad_de_motores', 'fuelle_extractor', 'correas_estado', 'rodamientos_estado', 'observaciones_adicionales'
     ];
 
-    console.log('🔍 Validando campos obligatorios...');
-    console.log('📋 FormData actual:', formData);
+    logger.log('🔍 Validando campos obligatorios...');
+    logger.log('📋 FormData actual:', formData);
     
     for (const field of requiredFields) {
       const value = formData[field];
       const isEmpty = !value || value.toString().trim() === '';
       
       if (isEmpty) {
-        console.log(`❌ Campo faltante: ${field}`);
+        logger.log(`❌ Campo faltante: ${field}`);
         return false;
       }
     }
     
-    console.log('✅ Todos los campos obligatorios están completos');
+    logger.log('✅ Todos los campos obligatorios están completos');
     return true;
   };
 
@@ -4753,20 +4787,20 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       'cantidad_de_motores', 'fuelle', 'correas', 'rodamientos', 'observaciones'
     ];
 
-    console.log('🔍 Validando campos obligatorios...');
-    console.log('📋 FormData actual:', formData);
+    logger.log('🔍 Validando campos obligatorios...');
+    logger.log('📋 FormData actual:', formData);
     
     for (const field of requiredFields) {
       const value = formData[field];
       const isEmpty = !value || value.toString().trim() === '';
       
       if (isEmpty) {
-        console.log(`❌ Campo faltante: ${field}`);
+        logger.log(`❌ Campo faltante: ${field}`);
         return false;
       }
     }
     
-    console.log('✅ Todos los campos obligatorios están completos');
+    logger.log('✅ Todos los campos obligatorios están completos');
     return true;
   };
 
@@ -4850,31 +4884,31 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
   const handleSubmit = async () => {
     try {
-      console.log('');
-      console.log('🚀 ===== INICIO HANDLESUBMIT =====');
-      console.log('📋 Tabla:', tableName);
-      console.log('📊 FormData actual:', formData);
-      console.log('🔍 ExistingRecord:', existingRecord);
-      console.log('⚙️ Campos disponibles:', campos.map(c => c.column_name));
+      logger.log('');
+      logger.log('🚀 ===== INICIO HANDLESUBMIT =====');
+      logger.log('📋 Tabla:', tableName);
+      logger.log('📊 FormData actual:', formData);
+      logger.log('🔍 ExistingRecord:', existingRecord);
+      logger.log('⚙️ Campos disponibles:', campos.map(c => c.column_name));
       
       setSaving(true);
 
       if (!tableName) {
-        console.log('❌ ERROR: No hay tableName configurado');
+        logger.log('❌ ERROR: No hay tableName configurado');
         Alert.alert('Error', 'No se ha configurado la tabla del formulario');
         return;
       }
 
-      console.log('✅ Saltando validación de campos - usuario llegó a página final');
+      logger.log('✅ Saltando validación de campos - usuario llegó a página final');
 
       // Validación específica para RECAMBIO DE FUSIBLES TÉRMICOS (solo para informe ANSUL)
       if (tableName === 'informe_ansul_r102') {
-        console.log('🧪 Ejecutando validación Cartuchos_Gas...');
+        logger.log('🧪 Ejecutando validación Cartuchos_Gas...');
         const cartuchosGasComplete = await isCartuchosGasCompleteForm();
-        console.log('🔍 Resultado validación:', cartuchosGasComplete);
+        logger.log('🔍 Resultado validación:', cartuchosGasComplete);
         
         if (!cartuchosGasComplete) {
-          console.log('❌ Validación falló - mostrando alerta');
+          logger.log('❌ Validación falló - mostrando alerta');
           Alert.alert(
             'RECAMBIO DE FUSIBLES TÉRMICOS Incompleto',
             'Para actualizar los datos debes completar la sección "RECAMBIO DE FUSIBLES TÉRMICOS":\n\n• Al menos 1 foto ANTES\n• Al menos 1 foto DESPUÉS\n• Observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
@@ -4882,7 +4916,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               { 
                 text: 'Saltar validación (temporal)', 
                 onPress: () => {
-                  console.log('⚠️ Usuario saltó validación - continuando guardado');
+                  logger.log('⚠️ Usuario saltó validación - continuando guardado');
                   // Continuar con el guardado sin validación
                 }, 
                 style: 'destructive' 
@@ -4892,16 +4926,16 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           );
           return;
         } else {
-          console.log('✅ Validación Cartuchos_Gas pasó - continuando con guardado');
+          logger.log('✅ Validación Cartuchos_Gas pasó - continuando con guardado');
         }
 
         // Validación específica para VALVULA DE GAS (solo para informe ANSUL)
-        console.log('🧪 Ejecutando validación Boquillas_Sistema...');
+        logger.log('🧪 Ejecutando validación Boquillas_Sistema...');
         const boquillasSistemaComplete = await isBoquillasSistemaCompleteForm();
-        console.log('🔍 Resultado validación Boquillas_Sistema:', boquillasSistemaComplete);
+        logger.log('🔍 Resultado validación Boquillas_Sistema:', boquillasSistemaComplete);
         
         if (!boquillasSistemaComplete) {
-          console.log('❌ Validación Boquillas_Sistema falló - mostrando alerta');
+          logger.log('❌ Validación Boquillas_Sistema falló - mostrando alerta');
           Alert.alert(
             'VALVULA DE GAS Incompleta',
             'Para actualizar los datos debes completar la sección "VALVULA DE GAS":\n\n• Al menos 1 fotografía\n• Medida de toma de válvula (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
@@ -4909,7 +4943,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               { 
                 text: 'Saltar validación (temporal)', 
                 onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Boquillas_Sistema - continuando guardado');
+                  logger.log('⚠️ Usuario saltó validación Boquillas_Sistema - continuando guardado');
                   // Continuar con el guardado sin validación
                 }, 
                 style: 'destructive' 
@@ -4919,16 +4953,16 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           );
           return;
         } else {
-          console.log('✅ Validación Boquillas_Sistema pasó - continuando con guardado');
+          logger.log('✅ Validación Boquillas_Sistema pasó - continuando con guardado');
         }
 
         // Validación específica para ALIMENTACIÓN ELÉCTRICA (solo para informe ANSUL)
-        console.log('🧪 Ejecutando validación Panel_Control...');
+        logger.log('🧪 Ejecutando validación Panel_Control...');
         const panelControlComplete = await isPanelControlCompleteForm();
-        console.log('🔍 Resultado validación Panel_Control:', panelControlComplete);
+        logger.log('🔍 Resultado validación Panel_Control:', panelControlComplete);
         
         if (!panelControlComplete) {
-          console.log('❌ Validación Panel_Control falló - mostrando alerta');
+          logger.log('❌ Validación Panel_Control falló - mostrando alerta');
           Alert.alert(
             'ALIMENTACIÓN ELÉCTRICA Incompleta',
             'Para actualizar los datos debes completar la sección "ALIMENTACIÓN ELÉCTRICA / SI APLICARA":\n\n• Al menos 1 fotografía\n• Estado (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
@@ -4936,7 +4970,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               { 
                 text: 'Saltar validación (temporal)', 
                 onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Panel_Control - continuando guardado');
+                  logger.log('⚠️ Usuario saltó validación Panel_Control - continuando guardado');
                   // Continuar con el guardado sin validación
                 }, 
                 style: 'destructive' 
@@ -4946,16 +4980,16 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           );
           return;
         } else {
-          console.log('✅ Validación Panel_Control pasó - continuando con guardado');
+          logger.log('✅ Validación Panel_Control pasó - continuando con guardado');
         }
 
         // Validación específica para PANEL DE ALARMA (solo para informe ANSUL)
-        console.log('🧪 Ejecutando validación Pruebas_Sistema...');
+        logger.log('🧪 Ejecutando validación Pruebas_Sistema...');
         const pruebasSistemaComplete = await isPruebasSistemaCompleteForm();
-        console.log('🔍 Resultado validación Pruebas_Sistema:', pruebasSistemaComplete);
+        logger.log('🔍 Resultado validación Pruebas_Sistema:', pruebasSistemaComplete);
         
         if (!pruebasSistemaComplete) {
-          console.log('❌ Validación Pruebas_Sistema falló - mostrando alerta');
+          logger.log('❌ Validación Pruebas_Sistema falló - mostrando alerta');
           Alert.alert(
             'PANEL DE ALARMA Incompleto',
             'Para actualizar los datos debes completar la sección "PANEL DE ALARMA / SI APLICARA":\n\n• Fotografía (obligatoria)\n• Estado y observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
@@ -4963,7 +4997,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               { 
                 text: 'Saltar validación (temporal)', 
                 onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Pruebas_Sistema - continuando guardado');
+                  logger.log('⚠️ Usuario saltó validación Pruebas_Sistema - continuando guardado');
                   // Continuar con el guardado sin validación
                 }, 
                 style: 'destructive' 
@@ -4973,16 +5007,16 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           );
           return;
         } else {
-          console.log('✅ Validación Pruebas_Sistema pasó - continuando con guardado');
+          logger.log('✅ Validación Pruebas_Sistema pasó - continuando con guardado');
         }
 
         // Validación específica para PRUEBA NEUMÁTICA A CAÑERÍAS (solo para informe ANSUL)
-        console.log('🧪 Ejecutando validación Prueba_Neumatica...');
+        logger.log('🧪 Ejecutando validación Prueba_Neumatica...');
         const pruebaNeumaticaComplete = await isPruebaNeumaticaCompleteForm();
-        console.log('🔍 Resultado validación Prueba_Neumatica:', pruebaNeumaticaComplete);
+        logger.log('🔍 Resultado validación Prueba_Neumatica:', pruebaNeumaticaComplete);
         
         if (!pruebaNeumaticaComplete) {
-          console.log('❌ Validación Prueba_Neumatica falló - mostrando alerta');
+          logger.log('❌ Validación Prueba_Neumatica falló - mostrando alerta');
           Alert.alert(
             'PRUEBA NEUMÁTICA Incompleta',
             'Para actualizar los datos debes completar la sección "PRUEBA NEUMÁTICA A CAÑERÍAS DE DISTRIBUCIÓN":\n\n• Fotografía (obligatoria)\n• Estado y observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
@@ -4990,7 +5024,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               { 
                 text: 'Saltar validación (temporal)', 
                 onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Prueba_Neumatica - continuando guardado');
+                  logger.log('⚠️ Usuario saltó validación Prueba_Neumatica - continuando guardado');
                   // Continuar con el guardado sin validación
                 }, 
                 style: 'destructive' 
@@ -5000,16 +5034,16 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           );
           return;
         } else {
-          console.log('✅ Validación Prueba_Neumatica pasó - continuando con guardado');
+          logger.log('✅ Validación Prueba_Neumatica pasó - continuando con guardado');
         }
 
         // Validación específica para TIPO DE CARTUCHO EXPULSOR (solo para informe ANSUL)
-        console.log('📦 Ejecutando validación Tipo_Cartucho...');
+        logger.log('📦 Ejecutando validación Tipo_Cartucho...');
         const tipoCartuchoComplete = await isTipoCartuchoCompleteForm();
-        console.log('🔍 Resultado validación Tipo_Cartucho:', tipoCartuchoComplete);
+        logger.log('🔍 Resultado validación Tipo_Cartucho:', tipoCartuchoComplete);
         
         if (!tipoCartuchoComplete) {
-          console.log('❌ Validación Tipo_Cartucho falló - mostrando alerta');
+          logger.log('❌ Validación Tipo_Cartucho falló - mostrando alerta');
           Alert.alert(
             'TIPO DE CARTUCHO EXPULSOR Incompleto',
             'Para actualizar los datos debes completar la sección "TIPO DE CARTUCHO EXPULSOR, CANTIDAD Y SU PESO":\n\n• Fotografía (obligatoria)\n• Estado y observaciones (campo obligatorio)\n\nVe a la sección FOTOGRAFÍAS para completar estos campos.',
@@ -5017,7 +5051,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               { 
                 text: 'Saltar validación (temporal)', 
                 onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Tipo_Cartucho - continuando guardado');
+                  logger.log('⚠️ Usuario saltó validación Tipo_Cartucho - continuando guardado');
                   // Continuar con el guardado sin validación
                 }, 
                 style: 'destructive' 
@@ -5027,16 +5061,16 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           );
           return;
         } else {
-          console.log('✅ Validación Tipo_Cartucho pasó - continuando con guardado');
+          logger.log('✅ Validación Tipo_Cartucho pasó - continuando con guardado');
         }
 
         // Validación específica para RECIBO CONFORME (solo para informe ANSUL)
-        console.log('✅ Ejecutando validación Recibo_Conforme...');
+        logger.log('✅ Ejecutando validación Recibo_Conforme...');
         const reciboConformeComplete = await isReciboConformeCompleteForm();
-        console.log('🔍 Resultado validación Recibo_Conforme:', reciboConformeComplete);
+        logger.log('🔍 Resultado validación Recibo_Conforme:', reciboConformeComplete);
         
         if (!reciboConformeComplete) {
-          console.log('❌ Validación Recibo_Conforme falló - mostrando alerta');
+          logger.log('❌ Validación Recibo_Conforme falló - mostrando alerta');
           Alert.alert(
             'RECIBO CONFORME Incompleto',
             'Para actualizar los datos debes completar la sección "RECIBO CONFORME":\n\n• Fotografía de Conformidad (obligatoria)\n\nVe a la sección FOTOGRAFÍAS para completar este campo.',
@@ -5044,7 +5078,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               { 
                 text: 'Saltar validación (temporal)', 
                 onPress: () => {
-                  console.log('⚠️ Usuario saltó validación Recibo_Conforme - continuando guardado');
+                  logger.log('⚠️ Usuario saltó validación Recibo_Conforme - continuando guardado');
                   // Continuar con el guardado sin validación
                 }, 
                 style: 'destructive' 
@@ -5054,39 +5088,39 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
           );
           return;
         } else {
-          console.log('✅ Validación Recibo_Conforme pasó - continuando con guardado');
+          logger.log('✅ Validación Recibo_Conforme pasó - continuando con guardado');
         }
       }
 
       // 🚀 Validaciones específicas para LIMPIEZA DE DUCTOS - DESHABILITADAS
       if (tableName === 'informe_limpieza_ductos') {
-        console.log('');
-        console.log('🔧 ===== VALIDACIONES LIMPIEZA DE DUCTOS - SALTADAS =====');
-        console.log('ℹ️ Validaciones saltadas - usuario llegó a página final');
+        logger.log('');
+        logger.log('🔧 ===== VALIDACIONES LIMPIEZA DE DUCTOS - SALTADAS =====');
+        logger.log('ℹ️ Validaciones saltadas - usuario llegó a página final');
       }
 
       // 🚀 Validaciones específicas para MTTO ELECTROMECANICO
       if (tableName === 'informe_electromecanico') {
-        console.log('');
-        console.log('🔧 ===== VALIDACIONES MTTO ELECTROMECANICO =====');
-        console.log('ℹ️ Validaciones específicas para mantenimiento electromecánico implementadas');
+        logger.log('');
+        logger.log('🔧 ===== VALIDACIONES MTTO ELECTROMECANICO =====');
+        logger.log('ℹ️ Validaciones específicas para mantenimiento electromecánico implementadas');
         
         // Aquí se pueden agregar validaciones específicas para componentes electromecánicos
         // Por ahora, solo se registra que se ejecutaron las validaciones
-        console.log('✅ Validaciones Mtto Electromecánico completadas');
+        logger.log('✅ Validaciones Mtto Electromecánico completadas');
       }
 
       // Preparar datos para guardar, transformando campos numéricos vacíos a null
-      console.log('');
-      console.log('🔄 ===== PREPARACIÓN DE DATOS =====');
-      console.log('📝 Datos originales:', formData);
+      logger.log('');
+      logger.log('🔄 ===== PREPARACIÓN DE DATOS =====');
+      logger.log('📝 Datos originales:', formData);
       
       const dataToSave = { ...formData };
       
       // ASEGURAR QUE orden_trabajo_id ESTÁ PRESENTE (OBLIGATORIO PARA BD)
       if (!dataToSave.orden_trabajo_id) {
         dataToSave.orden_trabajo_id = order.id;
-        console.log('🆔 Agregando orden_trabajo_id obligatorio:', order.id);
+        logger.log('🆔 Agregando orden_trabajo_id obligatorio:', order.id);
       }
       
       // Asegurar que fecha_inicio tenga un valor válido para limpieza de ductos
@@ -5094,38 +5128,38 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         if (!dataToSave.fecha_inicio || dataToSave.fecha_inicio.trim() === '') {
           const todayDate = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
           dataToSave.fecha_inicio = todayDate;
-          console.log('📅 Fecha inicio corregida a fecha actual:', todayDate);
+          logger.log('📅 Fecha inicio corregida a fecha actual:', todayDate);
         }
         
-        console.log('🔍 Verificación campos críticos:');
-        console.log('  - fecha_inicio:', dataToSave.fecha_inicio);
+        logger.log('🔍 Verificación campos críticos:');
+        logger.log('  - fecha_inicio:', dataToSave.fecha_inicio);
       }
       
       // Filtrar campos según la tabla - eliminar campos que no existen en la tabla actual
       const validColumns = campos.map(campo => campo.column_name);
-      console.log('📋 Columnas válidas en la tabla:', validColumns);
+      logger.log('📋 Columnas válidas en la tabla:', validColumns);
       
       // Campos especiales que pueden estar presentes si existen en la tabla
       const potentialSpecialFields = ['orden_trabajo_id', 'horas_trabajo', 'cantidad_motores', 'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'encargado', 'asist_personal'];
       
       // Filtrar campos especiales para incluir solo los que existen en la tabla actual
       const allowedSpecialFields = potentialSpecialFields.filter(field => validColumns.includes(field));
-      console.log('✅ Campos especiales permitidos en esta tabla:', allowedSpecialFields);
+      logger.log('✅ Campos especiales permitidos en esta tabla:', allowedSpecialFields);
       
       // Crear lista de todos los campos permitidos para esta tabla (solo columnas que existen)
       // IMPORTANTE: Siempre incluir orden_trabajo_id ya que es obligatorio para la BD aunque no aparezca en campos
       const allowedFields = [...validColumns, 'orden_trabajo_id'];
-      console.log('✅ Campos permitidos finales:', allowedFields);
+      logger.log('✅ Campos permitidos finales:', allowedFields);
       
       // Filtrar dataToSave para incluir solo campos válidos que existen en la tabla
       Object.keys(dataToSave).forEach(key => {
         if (!allowedFields.includes(key)) {
-          console.log(`🗑️ Eliminando campo '${key}' - no existe en tabla ${tableName}`);
+          logger.log(`🗑️ Eliminando campo '${key}' - no existe en tabla ${tableName}`);
           delete dataToSave[key];
         }
       });
       
-      console.log('📋 Datos a guardar (filtrados):', dataToSave);
+      logger.log('📋 Datos a guardar (filtrados):', dataToSave);
       
       // Identificar y procesar campos numéricos según los tipos de la tabla
       campos.forEach(campo => {
@@ -5134,11 +5168,11 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         
         if (isNumericType && dataToSave[fieldName] === '') {
           dataToSave[fieldName] = null; // Convertir string vacío a null para campos numéricos
-          console.log(`🔢 Campo numérico ${fieldName} convertido de "" a null`);
+          logger.log(`🔢 Campo numérico ${fieldName} convertido de "" a null`);
         } else if (isNumericType && dataToSave[fieldName] && !isNaN(dataToSave[fieldName])) {
           // Convertir a número si es un string numérico válido
           dataToSave[fieldName] = Number(dataToSave[fieldName]);
-          console.log(`🔢 Campo numérico ${fieldName} convertido a número:`, dataToSave[fieldName]);
+          logger.log(`🔢 Campo numérico ${fieldName} convertido a número:`, dataToSave[fieldName]);
         }
       });
 
@@ -5148,64 +5182,64 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         if (dataToSave.hasOwnProperty(fieldName)) {
           if (dataToSave[fieldName] === '') {
             dataToSave[fieldName] = null;
-            console.log(`🔢 Campo numérico especial ${fieldName} convertido de "" a null`);
+            logger.log(`🔢 Campo numérico especial ${fieldName} convertido de "" a null`);
           } else if (dataToSave[fieldName] && !isNaN(dataToSave[fieldName])) {
             dataToSave[fieldName] = Number(dataToSave[fieldName]);
-            console.log(`🔢 Campo numérico especial ${fieldName} convertido a número:`, dataToSave[fieldName]);
+            logger.log(`🔢 Campo numérico especial ${fieldName} convertido a número:`, dataToSave[fieldName]);
           }
         }
       });
 
-      console.log('');
-      console.log('💾 ===== OPERACIÓN DE GUARDADO =====');
-      console.log('🗃️ Tabla destino:', tableName);
-      console.log('📝 Datos originales:', formData);
-      console.log('📝 Datos procesados:', dataToSave);
-      console.log('🔍 ¿Es actualización?', !!existingRecord);
+      logger.log('');
+      logger.log('💾 ===== OPERACIÓN DE GUARDADO =====');
+      logger.log('🗃️ Tabla destino:', tableName);
+      logger.log('📝 Datos originales:', formData);
+      logger.log('📝 Datos procesados:', dataToSave);
+      logger.log('🔍 ¿Es actualización?', !!existingRecord);
       if (existingRecord) {
-        console.log('🆔 ID del registro existente:', existingRecord.id);
+        logger.log('🆔 ID del registro existente:', existingRecord.id);
       }
 
       let result;
       if (existingRecord) {
         // Actualizar registro existente
-        console.log('🔄 Ejecutando UPDATE...');
+        logger.log('🔄 Ejecutando UPDATE...');
         result = await supabase
           .from(tableName)
           .update(dataToSave)
           .eq('id', existingRecord.id);
-        console.log('✅ Resultado UPDATE:', result);
+        logger.log('✅ Resultado UPDATE:', result);
       } else {
         // Crear nuevo registro
-        console.log('➕ Ejecutando INSERT...');
+        logger.log('➕ Ejecutando INSERT...');
         result = await supabase
           .from(tableName)
           .insert([dataToSave])
           .select();
-        console.log('✅ Resultado INSERT:', result);
+        logger.log('✅ Resultado INSERT:', result);
       }
 
       if (result.error) {
-        console.log('');
-        console.log('❌ ===== ERROR EN GUARDADO =====');
-        console.error('💥 Error completo:', result.error);
-        console.error('📊 Código:', result.error.code);
-        console.error('💬 Mensaje:', result.error.message);
-        console.error('📋 Detalles:', result.error.details);
-        console.error('💡 Sugerencia:', result.error.hint);
-        console.log('🗃️ Tabla que falló:', tableName);
-        console.log('📝 Datos que causaron error:', dataToSave);
-        console.log('================================');
+        logger.log('');
+        logger.log('❌ ===== ERROR EN GUARDADO =====');
+        logger.error('💥 Error completo:', result.error);
+        logger.error('📊 Código:', result.error.code);
+        logger.error('💬 Mensaje:', result.error.message);
+        logger.error('📋 Detalles:', result.error.details);
+        logger.error('💡 Sugerencia:', result.error.hint);
+        logger.log('🗃️ Tabla que falló:', tableName);
+        logger.log('📝 Datos que causaron error:', dataToSave);
+        logger.log('================================');
         Alert.alert('Error', `No se pudo guardar el formulario: ${result.error.message}`);
         return;
       }
 
-      console.log('✅ Formulario guardado exitosamente');
+      logger.log('✅ Formulario guardado exitosamente');
       
       // Si es un nuevo registro, necesitamos obtener el ID del registro creado
       if (!existingRecord && result.data && result.data.length > 0) {
         const newRecord = result.data[0];
-        console.log('✅ Nuevo registro creado:', newRecord);
+        logger.log('✅ Nuevo registro creado:', newRecord);
         setExistingRecord(newRecord);
         setFormData(newRecord);
       }
@@ -5223,15 +5257,15 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       );
 
     } catch (error) {
-      console.log('');
-      console.log('💥 ===== ERROR GENERAL HANDLESUBMIT =====');
-      console.error('🚨 Error completo:', error);
-      console.error('📝 Mensaje:', error.message);
-      console.error('📍 Stack trace:', error.stack);
-      console.log('🗃️ Tabla actual:', tableName);
-      console.log('📊 FormData al momento del error:', formData);
-      console.log('🔍 ExistingRecord al momento del error:', existingRecord);
-      console.log('=====================================');
+      logger.log('');
+      logger.log('💥 ===== ERROR GENERAL HANDLESUBMIT =====');
+      logger.error('🚨 Error completo:', error);
+      logger.error('📝 Mensaje:', error.message);
+      logger.error('📍 Stack trace:', error.stack);
+      logger.log('🗃️ Tabla actual:', tableName);
+      logger.log('📊 FormData al momento del error:', formData);
+      logger.log('🔍 ExistingRecord al momento del error:', existingRecord);
+      logger.log('=====================================');
       Alert.alert('Error', `Error inesperado al guardar: ${error.message}`);
     } finally {
       setSaving(false);
@@ -5241,9 +5275,9 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
   // ==================== FUNCIONES PARA PDF Y EMAIL ====================
   
   const handleGeneratePDF = async (firmaClienteParam = null, documentoFirmadoParam = false, ordenIdParam = null) => {
-    console.log('\n🚀 ===== INICIANDO GENERACIÓN DE PDF =====');
-    console.log('⏰ Timestamp:', new Date().toISOString());
-    console.log('📱 Estado actual de la aplicación:');
+    logger.log('\n🚀 ===== INICIANDO GENERACIÓN DE PDF =====');
+    logger.log('⏰ Timestamp:', new Date().toISOString());
+    logger.log('📱 Estado actual de la aplicación:');
     
     // Usar parámetros recibidos o variables locales
     const firmaCliente = firmaClienteParam;
@@ -5252,27 +5286,27 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
     
     // Logs seguros uno por uno
     try {
-      console.log('   - orderId:', orderId || 'NO_DEFINIDO');
-      console.log('   - tableName:', tableName || 'NO_DEFINIDO');  
-      console.log('   - existingRecord presente:', !!existingRecord);
-      console.log('   - documentoFirmado:', documentoFirmado || false);
-      console.log('   - firmaCliente presente:', !!firmaCliente);
-      console.log('   - firmaCliente tamaño:', (firmaCliente?.length || 0));
-      console.log('   - order presente:', !!order);
+      logger.log('   - orderId:', orderId || 'NO_DEFINIDO');
+      logger.log('   - tableName:', tableName || 'NO_DEFINIDO');  
+      logger.log('   - existingRecord presente:', !!existingRecord);
+      logger.log('   - documentoFirmado:', documentoFirmado || false);
+      logger.log('   - firmaCliente presente:', !!firmaCliente);
+      logger.log('   - firmaCliente tamaño:', (firmaCliente?.length || 0));
+      logger.log('   - order presente:', !!order);
     } catch (error) {
-      console.error('❌ Error en logs de estado:', error.message);
+      logger.error('❌ Error en logs de estado:', error.message);
     }
     
-    console.log('🔄 Entrando en try-catch principal...');
+    logger.log('🔄 Entrando en try-catch principal...');
     
     try {
-      console.log('🔄 Estableciendo generatingPDF a true...');
+      logger.log('🔄 Estableciendo generatingPDF a true...');
       setGeneratingPDF(true);
-      console.log('✅ Estado generatingPDF establecido');
+      logger.log('✅ Estado generatingPDF establecido');
       
-      console.log('🔍 Verificando existingRecord...', !!existingRecord);
+      logger.log('🔍 Verificando existingRecord...', !!existingRecord);
       if (!existingRecord) {
-        console.log('❌ No hay registro existente');
+        logger.log('❌ No hay registro existente');
         Alert.alert(
           'Guardar primero',
           'Debes guardar el formulario antes de generar el PDF',
@@ -5281,48 +5315,48 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         setGeneratingPDF(false);
         return;
       }
-      console.log('✅ existingRecord verificado correctamente');
+      logger.log('✅ existingRecord verificado correctamente');
 
-      console.log('📄 order.id:', order?.id || 'NO_DISPONIBLE');
+      logger.log('📄 order.id:', order?.id || 'NO_DISPONIBLE');
       
       // Generar nombre de archivo basado en el tipo de formulario
-      console.log('🏷️ Determinando nombre de archivo para tableName:', tableName);
+      logger.log('🏷️ Determinando nombre de archivo para tableName:', tableName);
       let fileName;
       let tipoDocumento;
       if (tableName === 'informe_ansul_r102') {
         fileName = `FORMULARIO_INFORME_ANSUL_R102_${order.id?.substring(0, 8)}`;
         tipoDocumento = 'Informe ANSUL R-102';
-        console.log('📋 Tipo identificado: ANSUL R-102');
+        logger.log('📋 Tipo identificado: ANSUL R-102');
       } else if (tableName === 'informe_limpieza_ductos') {
         fileName = `FORMULARIO_INFORME_LIMPIEZA_DUCTOS_${order.id?.substring(0, 8)}`;
         tipoDocumento = 'Informe Limpieza Ductos';
-        console.log('📋 Tipo identificado: Limpieza Ductos');
+        logger.log('📋 Tipo identificado: Limpieza Ductos');
       } else if (tableName === 'informe_electromecanico') {
         fileName = `FORMULARIO_INFORME_ELECTROMECANICO_${order.id?.substring(0, 8)}`;
         tipoDocumento = 'Informe Electromecánico';
-        console.log('📋 Tipo identificado: Electromecánico');
+        logger.log('📋 Tipo identificado: Electromecánico');
       } else {
         // Para otros formularios, usar el nombre de la tabla formateado
         fileName = `FORMULARIO_${tableName.replace(/_/g, '_').toUpperCase()}_${order.id?.substring(0, 8)}`;
         tipoDocumento = tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        console.log('📋 Tipo genérico identificado:', tipoDocumento);
+        logger.log('📋 Tipo genérico identificado:', tipoDocumento);
       }
       
-      console.log('📁 Nombre de archivo final:', fileName);
-      console.log('🏷️ Tipo de documento final:', tipoDocumento);
+      logger.log('📁 Nombre de archivo final:', fileName);
+      logger.log('🏷️ Tipo de documento final:', tipoDocumento);
       
-      console.log('📄 Verificando documento existente...', { fileName, tipoDocumento });
-      console.log('🔍 Estado firma antes de verificación:');
-      console.log('   - documentoFirmado:', documentoFirmado);
-      console.log('   - firmaCliente existe:', !!firmaCliente);
+      logger.log('📄 Verificando documento existente...', { fileName, tipoDocumento });
+      logger.log('🔍 Estado firma antes de verificación:');
+      logger.log('   - documentoFirmado:', documentoFirmado);
+      logger.log('   - firmaCliente existe:', !!firmaCliente);
 
       // Verificar si ya existe un documento del mismo tipo
-      console.log('🔍 Llamando a DocumentStorageService.checkDocumentExists...');
+      logger.log('🔍 Llamando a DocumentStorageService.checkDocumentExists...');
       const existingDoc = await DocumentStorageService.checkDocumentExists(order.id, tipoDocumento);
-      console.log('📄 Resultado de checkDocumentExists:', existingDoc);
+      logger.log('📄 Resultado de checkDocumentExists:', existingDoc);
       
       if (existingDoc.existe) {
-        console.log('⚠️ Documento ya existe, solicitando confirmación...');
+        logger.log('⚠️ Documento ya existe, solicitando confirmación...');
         
         // Mostrar confirmación al usuario
         Alert.alert(
@@ -5333,7 +5367,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               text: 'No',
               style: 'cancel',
               onPress: () => {
-                console.log('👤 Usuario canceló la actualización');
+                logger.log('👤 Usuario canceló la actualización');
                 setGeneratingPDF(false);
               }
             },
@@ -5341,13 +5375,13 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               text: 'Sí',
               style: 'default',
               onPress: async () => {
-                console.log('👤 Usuario confirmó actualización, eliminando documento anterior...');
+                logger.log('👤 Usuario confirmó actualización, eliminando documento anterior...');
                 
                 // Eliminar documento existente
                 const eliminado = await DocumentStorageService.deleteDocumentCompletely(existingDoc.documento);
                 
                 if (eliminado) {
-                  console.log('✅ Documento anterior eliminado, generando nuevo...');
+                  logger.log('✅ Documento anterior eliminado, generando nuevo...');
                   await generateNewPDF(fileName, tipoDocumento, firmaClienteParam, documentoFirmadoParam);
                 } else {
                   Alert.alert('Error', 'No se pudo eliminar el archivo anterior');
@@ -5361,25 +5395,25 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       }
 
       // Si no existe documento, generar directamente
-      console.log('📄 No existe documento anterior, generando nuevo...');
+      logger.log('📄 No existe documento anterior, generando nuevo...');
       await generateNewPDF(fileName, tipoDocumento, firmaClienteParam, documentoFirmadoParam);
 
     } catch (error) {
-      console.log('\n❌ ===== ERROR EN GENERACIÓN DE PDF =====');
-      console.error('💥 Error completo:', error);
-      console.error('📋 Mensaje de error:', error.message);
-      console.error('📍 Stack trace:', error.stack);
-      console.error('🏷️ Nombre del error:', error.name);
-      console.log('📊 Estado en el momento del error:');
-      console.log('   - orderId:', orderId);
-      console.log('   - tableName:', tableName);
-      console.log('   - firmaCliente:', !!firmaCliente);
-      console.log('=======================================\n');
+      logger.log('\n❌ ===== ERROR EN GENERACIÓN DE PDF =====');
+      logger.error('💥 Error completo:', error);
+      logger.error('📋 Mensaje de error:', error.message);
+      logger.error('📍 Stack trace:', error.stack);
+      logger.error('🏷️ Nombre del error:', error.name);
+      logger.log('📊 Estado en el momento del error:');
+      logger.log('   - orderId:', orderId);
+      logger.log('   - tableName:', tableName);
+      logger.log('   - firmaCliente:', !!firmaCliente);
+      logger.log('=======================================\n');
       
       Alert.alert('Error', 'No se pudo generar el PDF: ' + error.message);
       setGeneratingPDF(false);
     } finally {
-      console.log('🔄 Finalizando handleGeneratePDF - estableciendo generatingPDF a false');
+      logger.log('🔄 Finalizando handleGeneratePDF - estableciendo generatingPDF a false');
       setGeneratingPDF(false);
     }
   };
@@ -5387,23 +5421,23 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
   // Función auxiliar para generar el PDF
   const generateNewPDF = async (fileName, tipoDocumento, firmaCliente, documentoFirmado) => {
     try {
-      console.log('\n📄 ===== GENERANDO NUEVO PDF =====');
-      console.log('📁 Nombre de archivo:', fileName);
-      console.log('🏷️ Tipo de documento:', tipoDocumento);
-      console.log('📋 Tabla actual:', tableName);
-      console.log('🖊️ Estado de firma:');
-      console.log('   - Tiene firma:', !!firmaCliente);
-      console.log('   - Tamaño:', firmaCliente?.length || 0);
+      logger.log('\n📄 ===== GENERANDO NUEVO PDF =====');
+      logger.log('📁 Nombre de archivo:', fileName);
+      logger.log('🏷️ Tipo de documento:', tipoDocumento);
+      logger.log('📋 Tabla actual:', tableName);
+      logger.log('🖊️ Estado de firma:');
+      logger.log('   - Tiene firma:', !!firmaCliente);
+      logger.log('   - Tamaño:', firmaCliente?.length || 0);
       
       // Validación específica para ANSUL R-102: verificar campos obligatorios
       if (tableName === 'informe_ansul_r102') {
-        console.log('🔍 Validando campos obligatorios para ANSUL R-102...');
+        logger.log('🔍 Validando campos obligatorios para ANSUL R-102...');
         
         // Obtener todos los campos obligatorios dinámicamente
         const allFields = [...campos.map(campo => campo.column_name), 'cliente', 'zona', 'nombre_local', 'fecha_inicio', 'horas_trabajo'];
         const requiredFields = allFields.filter(fieldName => isRequired(fieldName));
         
-        console.log('📋 Campos obligatorios a validar:', requiredFields);
+        logger.log('📋 Campos obligatorios a validar:', requiredFields);
         
         // Verificar cada campo obligatorio
         for (const fieldName of requiredFields) {
@@ -5427,12 +5461,12 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         }
       }
       
-      console.log('✅ Validaciones completadas, generando PDF...');
-      console.log('📝 Estado de firma antes de generar PDF:');
-      console.log('   - Tiene firma:', !!firmaCliente);
-      console.log('   - Documento firmado:', documentoFirmado);
-      console.log('   - Tamaño firma:', firmaCliente?.length || 0);
-      console.log('🚀 Llamando a PDFService.generateAndSharePDF...');
+      logger.log('✅ Validaciones completadas, generando PDF...');
+      logger.log('📝 Estado de firma antes de generar PDF:');
+      logger.log('   - Tiene firma:', !!firmaCliente);
+      logger.log('   - Documento firmado:', documentoFirmado);
+      logger.log('   - Tamaño firma:', firmaCliente?.length || 0);
+      logger.log('🚀 Llamando a PDFService.generateAndSharePDF...');
       
       // Generar PDF usando PDFService incluyendo la firma
       const pdfResult = await PDFService.generateAndSharePDF(
@@ -5442,23 +5476,23 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
         firmaCliente // Pasar la firma capturada
       );
       
-      console.log('✅ PDF generado exitosamente:', pdfResult);
+      logger.log('✅ PDF generado exitosamente:', pdfResult);
       
       // Actualizar estado de la orden a "Completada" después de generar PDF exitosamente
       try {
-        console.log('🔄 Actualizando estado de orden a "Completada"...');
+        logger.log('🔄 Actualizando estado de orden a "Completada"...');
         const { error: updateError } = await supabase
           .from('orden_trabajo')
           .update({ estado_id: 3 }) // 3 = Completada
           .eq('id', order.id);
           
         if (updateError) {
-          console.error('❌ Error actualizando estado de orden:', updateError);
+          logger.error('❌ Error actualizando estado de orden:', updateError);
         } else {
-          console.log('✅ Estado de orden actualizado a "Completada"');
+          logger.log('✅ Estado de orden actualizado a "Completada"');
         }
       } catch (updateErr) {
-        console.error('❌ Error en actualización de estado:', updateErr);
+        logger.error('❌ Error en actualización de estado:', updateErr);
       }
       
       Alert.alert(
@@ -5486,7 +5520,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       );
       
     } catch (error) {
-      console.error('❌ Error generando PDF:', error);
+      logger.error('❌ Error generando PDF:', error);
       Alert.alert('Error', 'No se pudo generar el PDF: ' + error.message);
     } finally {
       setGeneratingPDF(false);
@@ -5497,7 +5531,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
   // Función para renderizar los campos especiales al inicio del formulario
   const renderSpecialFields = () => {
-    console.log('🔧 Renderizando campos especiales...');
+    logger.log('🔧 Renderizando campos especiales...');
     const specialFields = [
       {
         key: 'cliente',
@@ -5560,9 +5594,9 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
       }
       
       if (field.type === 'date') {
-        console.log(`🗓️ Renderizando campo de fecha: ${field.key}, valor: ${fieldValue}`);
-        console.log(`🗓️ Estado showDatePicker:`, showDatePicker);
-        console.log(`🗓️ Platform.OS:`, Platform.OS);
+        logger.log(`🗓️ Renderizando campo de fecha: ${field.key}, valor: ${fieldValue}`);
+        logger.log(`🗓️ Estado showDatePicker:`, showDatePicker);
+        logger.log(`🗓️ Platform.OS:`, Platform.OS);
         
         // Formatear la fecha para mostrar - EVITANDO problemas de zona horaria
         const getCurrentDateForDisplay = () => {
@@ -5619,7 +5653,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                 <TouchableOpacity
                   style={[styles.input, { justifyContent: 'center', paddingVertical: 15 }]}
                   onPress={() => {
-                    console.log(`📅 CLICK: Abriendo DatePicker para ${field.key}`);
+                    logger.log(`📅 CLICK: Abriendo DatePicker para ${field.key}`);
                     
                     // Inicializar selectedDate con la fecha actual del campo o hoy
                     let currentFieldDate;
@@ -5632,7 +5666,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                       currentFieldDate = new Date();
                     }
                     
-                    console.log(`📅 Inicializando selector con:`, {
+                    logger.log(`📅 Inicializando selector con:`, {
                       fieldValue: fieldValue,
                       currentFieldDate: currentFieldDate.toString(),
                       day: currentFieldDate.getDate(),
@@ -5670,7 +5704,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                     <View style={styles.datePickerHeader}>
                       <TouchableOpacity
                         onPress={() => {
-                          console.log(`📅 Cancelar selector manual`);
+                          logger.log(`📅 Cancelar selector manual`);
                           const newState = {...showDatePicker, [field.key]: false};
                           setShowDatePicker(newState);
                         }}
@@ -5693,7 +5727,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                           // Construir fecha string manualmente - NUNCA usar toISOString()
                           const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                           
-                          console.log(`📅 CONFIRMANDO FECHA - DEBUG COMPLETO:`, {
+                          logger.log(`📅 CONFIRMANDO FECHA - DEBUG COMPLETO:`, {
                             selectedDateOriginal: selectedDate ? selectedDate.toString() : 'null',
                             finalDate: finalDate.toString(),
                             componentesExtraidos: {
@@ -5710,7 +5744,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                           
                           // Verificar que la fecha se construyó correctamente
                           const verification = new Date(dateString + 'T12:00:00');
-                          console.log(`📅 VERIFICACIÓN:`, {
+                          logger.log(`📅 VERIFICACIÓN:`, {
                             dateStringCreated: dateString,
                             verificationDate: verification.toString(),
                             verificationDay: verification.getDate(),
@@ -5780,7 +5814,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                                     const newDate = new Date(selectedDate || currentDate);
                                     newDate.setFullYear(year);
                                     setSelectedDate(newDate);
-                                    console.log(`📅 Año seleccionado:`, year, newDate);
+                                    logger.log(`📅 Año seleccionado:`, year, newDate);
                                   }}
                                 >
                                   <Text style={{ 
@@ -5816,7 +5850,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                                       const baseDate = selectedDate || currentDate;
                                       const newDate = new Date(baseDate.getFullYear(), month.value, baseDate.getDate());
                                       setSelectedDate(newDate);
-                                      console.log(`📅 Mes seleccionado:`, {
+                                      logger.log(`📅 Mes seleccionado:`, {
                                         monthLabel: month.label,
                                         monthValue: month.value,
                                         baseDate: baseDate.toString(),
@@ -5861,7 +5895,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
                                       const baseDate = selectedDate || currentDate;
                                       const newDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), day);
                                       setSelectedDate(newDate);
-                                      console.log(`📅 Día seleccionado:`, {
+                                      logger.log(`📅 Día seleccionado:`, {
                                         day: day,
                                         baseDate: baseDate.toString(),
                                         newDate: newDate.toString(),
@@ -5922,11 +5956,11 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
 
     // Debug específico para cantidad_de_motores
     if (fieldName === 'cantidad_de_motores') {
-      console.log('🔍 Renderizando cantidad_de_motores:');
-      console.log('  - Campo:', fieldName);
-      console.log('  - Valor en formData:', formData[fieldName]);
-      console.log('  - Valor final:', fieldValue);
-      console.log('  - FormData completo:', formData);
+      logger.log('🔍 Renderizando cantidad_de_motores:');
+      logger.log('  - Campo:', fieldName);
+      logger.log('  - Valor en formData:', formData[fieldName]);
+      logger.log('  - Valor final:', fieldValue);
+      logger.log('  - FormData completo:', formData);
     }
 
     if (fieldName === 'orden_trabajo_id') {
@@ -6046,7 +6080,7 @@ const FormularioDinamico = ({ order, onClose, navigation }) => {
               {/* Mostrar técnicos asignados en lugar de la tabla del formulario */}
               <TecnicosAsignados orderId={order.id} />
               
-              {console.log('🎨 Renderizando campos:', campos.length)}
+              {logger.log('🎨 Renderizando campos:', campos.length)}
               {campos.length === 0 ? (
                 <Text style={styles.noCamposText}>
                   No se encontraron campos para mostrar. 
@@ -6159,31 +6193,31 @@ const App = () => {
 
   const checkAuthState = async () => {
     try {
-      console.log('🔍 Verificando estado de autenticación...');
+      logger.log('🔍 Verificando estado de autenticación...');
       
       // Intentar obtener la sesión actual
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.error('❌ Error obteniendo sesión:', error);
+        logger.error('❌ Error obteniendo sesión:', error);
         // Si hay error con la sesión, limpiar completamente y permitir login
         try {
           await supabase.auth.signOut();
           await AsyncStorage.clear(); // Limpiar almacenamiento local corrupto
-          console.log('🧹 Almacenamiento limpiado debido a error de sesión');
+          logger.log('🧹 Almacenamiento limpiado debido a error de sesión');
         } catch (cleanupError) {
-          console.error('Error limpiando almacenamiento:', cleanupError);
+          logger.error('Error limpiando almacenamiento:', cleanupError);
         }
         setIsLoggedIn(false);
       } else if (session) {
-        console.log('✅ Sesión activa encontrada:', session.user?.email);
+        logger.log('✅ Sesión activa encontrada:', session.user?.email);
         setIsLoggedIn(true);
       } else {
-        console.log('ℹ️ No hay sesión activa');
+        logger.log('ℹ️ No hay sesión activa');
         setIsLoggedIn(false);
       }
     } catch (error) {
-      console.error('❌ Error general verificando autenticación:', error);
+      logger.error('❌ Error general verificando autenticación:', error);
       // En caso de error, permitir login
       setIsLoggedIn(false);
     } finally {
