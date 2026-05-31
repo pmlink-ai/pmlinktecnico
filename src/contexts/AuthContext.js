@@ -13,15 +13,26 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Token expirado o inválido — limpiar sesión local
+        supabase.auth.signOut();
+        setUser(null);
+      } else {
+        setUser(session?.user ?? null);
+      }
       setLoading(false);
     });
 
     // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
+      (event, session) => {
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          supabase.auth.signOut();
+          setUser(null);
+        } else {
+          setUser(session?.user ?? null);
+        }
         setLoading(false);
       }
     );

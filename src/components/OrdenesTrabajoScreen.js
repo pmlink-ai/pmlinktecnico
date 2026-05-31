@@ -16,47 +16,51 @@ export default function OrdenesTrabajoScreen({ navigation }) {
   const [ordenes, setOrdenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [debugLines, setDebugLines] = useState([]);
+
+  const addLog = (msg) => {
+    console.log(msg);
+    setDebugLines(prev => [...prev, msg]);
+  };
 
   // Función para obtener órdenes de trabajo
   const fetchOrdenes = async () => {
+    setDebugLines([]);
     try {
-      console.log('🔍 Obteniendo órdenes de trabajo...');
-      
-      // Intentar con joins (requiere FK constraints en Supabase)
-      let { data, error } = await supabase
-        .from('orden_trabajo')
-        .select(`
-          *,
-          estados_orden_trabajo!estado_id(nombre),
-          prioridades!prioridad_id(nombre)
-        `)
-        .order('created_at', { ascending: false });
+      // PASO 1: sesión activa
+      addLog('PASO1: obteniendo sesión...');
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const session = sessionData?.session;
+      addLog(`PASO1: session=${session ? 'OK uid=' + session.user?.id?.substring(0,8) : 'NULL'} err=${sessionError ? sessionError.message : 'ninguno'}`);
 
-      // Si el join falla (FK no configurada), intentar sin joins
-      if (error && (error.code === 'PGRST200' || error.message?.includes('relationship'))) {
-        console.warn('⚠️ Join falló, intentando sin relaciones...');
-        const fallback = await supabase
-          .from('orden_trabajo')
-          .select('*')
-          .order('created_at', { ascending: false });
-        data = fallback.data;
-        error = fallback.error;
-      }
-
-      if (error) {
-        console.error('❌ Error obteniendo órdenes:', error);
-        Alert.alert(
-          'Error al cargar órdenes',
-          `Código: ${error.code || 'N/A'}\n\nDetalle: ${error.message}`,
-        );
+      if (!session) {
+        addLog('PASO1: SIN SESION - no se consulta');
+        setOrdenes([]);
         return;
       }
 
-      console.log('✅ Órdenes obtenidas:', data?.length || 0);
+      // PASO 2: query directo
+      addLog('PASO2: consultando orden_trabajo directo...');
+      const { data: dataDirecto, error: errorDirecto } = await supabase
+        .from('orden_trabajo')
+        .select('id, activa')
+        .limit(5);
+      addLog(`PASO2: filas=${dataDirecto?.length ?? 'null'} err=${errorDirecto ? errorDirecto.code + ':' + errorDirecto.message : 'ninguno'}`);
+
+      // PASO 3: RPC
+      addLog('PASO3: llamando RPC get_ordenes_activas...');
+      const { data, error } = await supabase.rpc('get_ordenes_activas');
+      addLog(`PASO3: filas=${data?.length ?? 'null'} err=${error ? error.code + ':' + error.message : 'ninguno'}`);
+
+      if (error) {
+        addLog(`ERROR RPC: ${JSON.stringify(error)}`);
+        return;
+      }
+
+      addLog(`PASO4: setOrdenes con ${data?.length || 0} ordenes`);
       setOrdenes(data || []);
-    } catch (error) {
-      console.error('❌ Error de red:', error);
-      Alert.alert('Error de Conexión', 'Verifique su conexión a internet');
+    } catch (err) {
+      addLog(`EXCEPCION: ${err?.message}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -228,12 +232,17 @@ export default function OrdenesTrabajoScreen({ navigation }) {
         {ordenes.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyTitle}>📋 No hay órdenes de trabajo</Text>
-            <Text style={styles.emptyText}>
-              No se encontraron órdenes en la base de datos.
-            </Text>
             <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
               <Text style={styles.refreshButtonText}>🔄 Actualizar</Text>
             </TouchableOpacity>
+            {debugLines.length > 0 && (
+              <View style={{ marginTop: 16, backgroundColor: '#1e1e1e', borderRadius: 8, padding: 12, width: '100%' }}>
+                <Text style={{ color: '#00ff00', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>── DEBUG ──</Text>
+                {debugLines.map((line, i) => (
+                  <Text key={i} style={{ color: '#00ff00', fontSize: 10, fontFamily: 'monospace' }}>{line}</Text>
+                ))}
+              </View>
+            )}
           </View>
         ) : (
           <View style={styles.ordenesContainer}>

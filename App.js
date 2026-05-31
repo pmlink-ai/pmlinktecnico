@@ -49,9 +49,9 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // Logger seguro: solo activo en desarrollo, silenciado en producción
 const isDev = process.env.NODE_ENV !== 'production';
 const logger = {
-  log: (...args) => isDev && logger.log(...args),
-  error: (...args) => isDev && logger.error(...args),
-  warn: (...args) => isDev && logger.warn(...args),
+  log: (...args) => isDev && console.log(...args),
+  error: (...args) => isDev && console.error(...args),
+  warn: (...args) => isDev && console.warn(...args),
 };
 
 const Stack = createStackNavigator();
@@ -2582,7 +2582,6 @@ const HomeScreen = ({ navigation }) => {
       }
 
       setLoading(true);
-      logger.log('🔍 Obteniendo órdenes de trabajo...');
 
       // Query via RPC (SECURITY DEFINER) - evita el problema de permisos en RLS
       const { data: ordersData, error } = await supabase
