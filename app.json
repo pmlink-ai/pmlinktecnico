@@ -15,12 +15,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pmlink.tecnico",
+      "appleTeamId": "C722539ZG3",
       "infoPlist": {
         "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para tomar fotos de los informes de mantenimiento.",
         "NSPhotoLibraryUsageDescription": "Esta aplicación necesita acceso a la galería para seleccionar fotos para los informes de mantenimiento.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "2"
+      "buildNumber": "3"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,8 +29,8 @@
       },
       "package": "com.pmlink.tecnico",
       "versionCode": 1,
-      "compileSdkVersion": 34,
-      "targetSdkVersion": 34,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",

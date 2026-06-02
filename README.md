@@ -60,6 +60,211 @@ src/                       ← Refactorización en progreso (no activo aún)
 
 ---
 
+## Deploy — Guía para builds futuros
+
+### Prerequisitos
+- Estar logueado en EAS: `npx eas login` (cuenta: `gracecid`)
+- `.env.production` presente en el proyecto (no está en git)
+- Apple Developer Account activa (`grace.cid@gmail.com`, Team ID: `C722539ZG3`)
+
+---
+
+### Android — Generar nuevo APK
+
+```powershell
+cd "D:\Visual Studio Code\PMLINK\pmlinktecnico"
+$env:EAS_NO_VCS=1
+$env:EAS_SKIP_AUTO_FINGERPRINT=1
+npx eas build --platform android --profile production-apk --clear-cache
+```
+
+- El build tarda ~10 minutos en la nube de EAS
+- Al terminar entrega un link `.apk` descargable
+- Se distribuye directamente a técnicos Android por WhatsApp o cable
+
+> **IMPORTANTE:** `@supabase/supabase-js` debe estar pineado a `"2.51.0"` exacto (sin `^`) en `package.json`. Si se actualiza a versiones `2.106+` el build falla con error Hermes por dependencias de OpenTelemetry.
+
+---
+
+### iOS — Generar nuevo .ipa y subir a TestFlight
+
+```powershell
+cd "D:\Visual Studio Code\PMLINK\pmlinktecnico"
+$env:EAS_NO_VCS=1
+$env:EAS_SKIP_AUTO_FINGERPRINT=1
+npx eas build --platform ios --profile production --clear-cache
+```
+
+Cuando termine el build, subir a TestFlight:
+
+```powershell
+npx eas submit --platform ios --latest
+```
+
+- Apple procesa el build en ~10 minutos
+- Para **pruebas externas**: el enlace público `https://testflight.apple.com/join/bfxx5KSJ` se activa cuando Apple aprueba la build (1-2 días)
+- Para **pruebas internas** (sin esperar aprobación): agregar al técnico en App Store Connect → Usuarios y acceso → rol Customer Support → luego agregarlo al grupo **Team (Expo)** en TestFlight
+
+> Si EAS pide login de Apple durante el build, ingresar `grace.cid@gmail.com` y la contraseña. Sesión guardada en `C:\Users\diego\.app-store\auth\grace.cid@gmail.com\cookie`.
+
+---
+
+### Ambas plataformas a la vez
+
+```powershell
+$env:EAS_NO_VCS=1
+$env:EAS_SKIP_AUTO_FINGERPRINT=1
+npx eas build --platform all --profile production-apk --clear-cache
+```
+
+---
+
+### Builds actuales en producción (1 Junio 2026)
+
+| Plataforma | Versión | Build | Archivo |
+|-----------|---------|-------|---------|
+| Android | 1.5.0 | versionCode 1 | [APK](https://expo.dev/artifacts/eas/rj7499MU7KvLJCas9bCgpe.apk) |
+| iOS | 1.5.0 | buildNumber 3 | TestFlight: `https://testflight.apple.com/join/bfxx5KSJ` |
+
+App Store Connect: https://appstoreconnect.apple.com/apps/6775684488/testflight/ios  
+EAS Dashboard: https://expo.dev/accounts/gracecid/projects/pmlinktecnico/builds
+
+---
+
+## Sesión 1 Junio 2026 — Lo que se hizo y en qué quedamos
+
+### ✅ Completado
+
+#### Build APK Android — EXITOSO ✅
+- **Causa del fallo anterior**: `@supabase/supabase-js` con `^2.51.0` hacía que EAS instalara `2.106+` que trae `@opentelemetry` con comentarios `/* webpackIgnore: true */` dentro de `import()` dinámico. Hermes (motor JS de Android) rechaza esa sintaxis.
+- **Fix aplicado**: pinear Supabase a `"2.51.0"` exacto (sin `^`) en `package.json`
+- **Resultado**: Build `ccfb95da` exitoso — APK descargable
+
+#### Build iOS — EXITOSO ✅
+- Aceptar contrato Apple Developer Program License Agreement (estaba vencido) desbloqueó el build
+- Build `f2967942` generado correctamente, buildNumber bumpeado a 3
+- Subido a TestFlight con `eas submit --platform ios --latest`
+
+#### TestFlight configurado
+- Grupo **Técnicos PMLink** (pruebas externas) creado con enlace público
+- Enlace público: `https://testflight.apple.com/join/bfxx5KSJ` (activo cuando Apple apruebe)
+- Grupo **Team (Expo)** (pruebas internas) disponible para distribución inmediata
+
+### ⏳ Pendiente
+- Esperar aprobación de Apple para el enlace público de pruebas externas (1-2 días)
+- Agregar técnicos con iPhone al grupo interno si se necesita acceso inmediato
+
+---
+
+## Sesión 31 Mayo 2026 — Lo que se hizo y en qué quedamos
+
+### Objetivo del día
+Generar el APK de Android para instalación directa en celulares de los técnicos (sin Expo Go).
+
+---
+
+### ✅ Completado
+
+#### Bug crítico: Logger recursivo en App.js
+`loadOrders` no mostraba órdenes aunque la BD tenía 33 filas.  
+Causa: el logger estaba definido así → `log: (...args) => logger.log(...args)` → bucle infinito → crash silencioso antes de llamar `setOrders(data)`.  
+Fix: `log: (...args) => isDev && console.log(...args)`
+
+#### Bug crítico: Auth token vencido al abrir la app
+`[AuthApiError: Invalid Refresh Token]` al iniciar → la app quedaba en blanco.  
+Fix en `src/contexts/AuthContext.js`: si `getSession()` retorna error, se hace `signOut()` automático y el usuario ve la pantalla de login.
+
+#### App validada funcionando ✅
+- 33 órdenes cargando correctamente en pantalla principal
+- Login / logout funcional
+- Formularios operando
+
+#### Configuración Android para EAS Build
+- `android/gradle.properties`: `reactNativeArchitectures=arm64-v8a` (era 4 arqs → OOM en EAS), `newArchEnabled=false` (incompatible con react-native-mail 6.1.1)
+- `.easignore` creado para excluir `android/.gradle/` (causaba error `EBUSY: resource busy or locked` al subir el archivo)
+
+#### Babel plugin para fix de Hermes / webpackIgnore
+El error de build era:
+```
+index.android.bundle:107538:57: error: Invalid expression encountered
+otelModulePromise = import(/* webpackIgnore: true */
+```
+OpenTelemetry (dependencia transitiva) usa comentarios `/* webpackIgnore: true */` dentro de `import()` dinámicos. Hermes (JS engine de Android) no los acepta.  
+Se agregó un plugin Babel en `babel.config.js` que recorre el AST y elimina esos comentarios de todos los `CallExpression` con callee `Import`.
+
+#### metro.config.js simplificado
+Se quitó el `resolveRequest` para `@opentelemetry/*` (enfoque incorrecto — impedía resolver el módulo pero el comentario seguía en el bundle del código llamador).
+
+---
+
+### ✅ Resuelto en sesión 1 Junio 2026
+
+El problema raíz era que `@supabase/supabase-js` sin versión fija (`^2.51.0`) hacía que EAS instalara la última `2.x` (con OpenTelemetry). Solución: pinear a `2.51.0` exacto en `package.json` (sin `^`).
+
+---
+
+### 🔴 Plan para mañana — Resolver el build APK
+
+**Opción A (más rápida) — Pinear supabase a una versión anterior sin el problema**
+
+Cambiar en `package.json`:
+```json
+"@supabase/supabase-js": "2.51.0"
+```
+La versión `2.51.x` no tiene `iceberg-js` ni OpenTelemetry. Esto eliminaría el problema de raíz.
+```powershell
+npm install @supabase/supabase-js@2.51.0 --legacy-peer-deps
+```
+Verificar que la app sigue funcionando, luego buildear.
+
+**Opción B — Forzar que Metro transforme node_modules con Babel**
+
+Agregar en `metro.config.js`:
+```js
+config.transformer.unstable_allowRequireContext = true;
+config.resolver.unstable_enablePackageExports = false;
+
+// Forzar transform de los paquetes problemáticos
+const defaultTransformIgnorePatterns = config.resolver.sourceExts;
+```
+O la solución más directa con `transformerPath` + `babelTransformerPath` que incluya node_modules.
+
+**Opción C — Parchear el archivo directamente (patch-package)**
+
+Instalar `patch-package`, modificar el `.mjs` del paquete ofensor para quitar `/* webpackIgnore: true */`, y commitear el patch para que EAS lo aplique después del `npm install`.
+
+**Orden recomendado de intento: A → C → B**
+
+---
+
+### Builds EAS realizados hoy (todos fallidos)
+
+| Build ID | Motivo del fallo |
+|----------|-----------------|
+| `6230ac75` | Babel plugin aplicado pero error Hermes persiste |
+| Builds anteriores | `resolveRequest` @opentelemetry vacío — no resolvía el problema raíz |
+
+**URL para seguimiento**: https://expo.dev/accounts/gracecid/projects/pmlinktecnico/builds
+
+---
+
+### Comandos para retomar mañana
+
+```powershell
+cd "D:\Visual Studio Code\PMLINK\pmlinktecnico"
+
+# Opción A: pinear supabase
+npm install @supabase/supabase-js@2.51.0 --legacy-peer-deps
+
+# Verificar app sigue funcionando
+npm run start-clear
+
+# Nuevo build con cache limpia
+$env:EAS_NO_VCS=1 ; $env:EAS_SKIP_AUTO_FINGERPRINT=1 ; npx eas build --platform android --profile production-apk --clear-cache
+```
+
+---
+
 ## Sesión 21 Mayo 2026 — Lo que se hizo y en qué quedamos
 
 ### ✅ Completado

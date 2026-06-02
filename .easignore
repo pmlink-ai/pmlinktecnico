@@ -1,0 +1,29 @@
+# EAS Build - files to exclude from the project archive
+# These files should not be uploaded to EAS servers
+
+# Gradle cache and lock files (causes EBUSY errors on Windows)
+android/.gradle/
+android/build/
+android/app/build/
+
+# Node modules (EAS installs these on the build server)
+node_modules/
+
+# Local environment files
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+*.iml
+
+# Test files
+test-*.js
+
+# Local scripts
+restart.ps1
+deploy-production.ps1
